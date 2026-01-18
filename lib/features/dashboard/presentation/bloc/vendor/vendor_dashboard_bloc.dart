@@ -1,4 +1,4 @@
-import 'package:airmenuai_partner_app/utils/logger/Log.dart';
+import 'package:airmenuai_partner_app/utils/logger/log.dart';
 import 'package:bloc/bloc.dart';
 import 'package:airmenuai_partner_app/features/dashboard/data/repositories/vendor_dashboard_repository.dart';
 import 'package:airmenuai_partner_app/features/dashboard/data/models/vendor/vendor_dashboard_models.dart';
