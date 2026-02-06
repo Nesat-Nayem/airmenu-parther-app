@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:airmenuai_partner_app/core/network/data_error.dart';
 import 'package:airmenuai_partner_app/core/network/data_state.dart';
-import 'package:airmenuai_partner_app/utils/logger/Log.dart';
+import 'package:airmenuai_partner_app/utils/logger/log.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 

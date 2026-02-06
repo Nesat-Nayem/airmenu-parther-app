@@ -10,7 +10,7 @@ import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-import '../../utils/logger/Log.dart' show Log;
+import '../../utils/logger/log.dart' show Log;
 
 abstract class DataService {
   Future<dynamic> invoke<T>({
