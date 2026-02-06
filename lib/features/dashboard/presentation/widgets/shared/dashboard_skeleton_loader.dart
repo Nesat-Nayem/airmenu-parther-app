@@ -11,52 +11,112 @@ class DashboardSkeletonLoader extends StatelessWidget {
     return child;
   }
 
-  /// Skeleton stat card mimicking DashboardStatCard
+  /// Full desktop dashboard skeleton
+  static Widget desktop() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header skeleton
+          Row(
+            children: [
+              _ShimmerContainer(width: 300, height: 44), // Search
+              const SizedBox(width: 12),
+              _ShimmerContainer(width: 120, height: 44), // Date
+              const SizedBox(width: 12),
+              _ShimmerContainer(width: 150, height: 44), // Category
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Row 1: 3 cards
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: statCard()),
+              const SizedBox(width: 16),
+              Expanded(child: statCard()),
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: statCard()), // Wider card
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Row 2: 4 cards
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: statCard()),
+              const SizedBox(width: 16),
+              Expanded(child: statCard()),
+              const SizedBox(width: 16),
+              Expanded(child: statCard()),
+              const SizedBox(width: 16),
+              Expanded(child: statCard()),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Stacked Tables (List cards)
+          listCard(height: 500),
+          const SizedBox(height: 24),
+          listCard(height: 500),
+        ],
+      ),
+    );
+  }
+
+  /// Skeleton stat card
   static Widget statCard() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFFFEFEF), width: 1),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: const Color(0xFFC52031).withOpacity(0.02),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _ShimmerContainer(
-                width: 80,
-                height: 12,
-                borderRadius: BorderRadius.circular(4),
+                width: 40,
+                height: 40,
+                borderRadius: BorderRadius.circular(12),
               ),
+              const SizedBox(width: 16),
               _ShimmerContainer(
-                width: 32,
-                height: 32,
-                borderRadius: BorderRadius.circular(8),
+                width: 100,
+                height: 20,
+                borderRadius: BorderRadius.circular(4),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          _ShimmerContainer(
-            width: 100,
-            height: 24,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          const SizedBox(height: 8),
-          _ShimmerContainer(
-            width: 60,
-            height: 12,
-            borderRadius: BorderRadius.circular(4),
+          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _ShimmerContainer(
+                width: 80,
+                height: 32,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              const SizedBox(width: 12),
+              _ShimmerContainer(
+                width: 40,
+                height: 16,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ],
           ),
         ],
       ),
@@ -175,20 +235,20 @@ class DashboardSkeletonLoader extends StatelessWidget {
     );
   }
 
-  /// Skeleton list card (for live activity/top restaurants)
+  /// Skeleton list card
   static Widget listCard({double height = 500}) {
     return Container(
       height: height,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFF3F4F6), width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -199,52 +259,47 @@ class DashboardSkeletonLoader extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _ShimmerContainer(
-                width: 150,
-                height: 20,
+                width: 200,
+                height: 24,
                 borderRadius: BorderRadius.circular(4),
-              ),
-              _ShimmerContainer(
-                width: 60,
-                height: 32,
-                borderRadius: BorderRadius.circular(8),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          // List items
+          const SizedBox(height: 20),
           Expanded(
-            child: ListView.builder(
-              itemCount: 6,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Row(
-                  children: [
-                    _ShimmerContainer(
-                      width: 40,
-                      height: 40,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _ShimmerContainer(
-                            width: double.infinity,
-                            height: 14,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          const SizedBox(height: 6),
-                          _ShimmerContainer(
-                            width: 100,
-                            height: 12,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ],
+            child: Column(
+              children: List.generate(
+                6,
+                (index) => Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    children: [
+                      _ShimmerContainer(
+                        width: 40,
+                        height: 40,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _ShimmerContainer(
+                              width: double.infinity,
+                              height: 16,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            const SizedBox(height: 8),
+                            _ShimmerContainer(
+                              width: 120,
+                              height: 12,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

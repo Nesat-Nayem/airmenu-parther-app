@@ -40,7 +40,6 @@ class DetailsHeader extends StatelessWidget {
                 const SizedBox(height: 24),
                 _buildInfoRow(restaurant),
                 const SizedBox(height: 24),
-                SizedBox(width: double.infinity, child: _buildActionButton()),
               ],
             );
           } else {
@@ -58,7 +57,6 @@ class DetailsHeader extends StatelessWidget {
                           Expanded(
                             child: _buildTitleSection(restaurant, context),
                           ),
-                          _buildActionButton(),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -186,21 +184,6 @@ class DetailsHeader extends StatelessWidget {
           color: text,
           fontWeight: FontWeight.w600,
         ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton() {
-    return ElevatedButton.icon(
-      onPressed: () {},
-      icon: const Icon(Icons.open_in_new, size: 18),
-      label: const Text('Open Restaurant Dashboard'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFFC52031), // Brand Red
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        elevation: 2,
       ),
     );
   }

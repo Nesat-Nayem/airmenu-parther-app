@@ -84,4 +84,27 @@ class ApiEndpoints {
   static String adminRestaurantDetails(String id) => "/restaurants/admin/$id";
   static String adminRestaurantUpdateStatus(String id) =>
       "/restaurants/admin/$id/status";
+
+  // Places endpoints
+  static const String placesAutocomplete = "/places/autocomplete";
+
+  // Marketing/Offers endpoints
+  static const String couponsAdmin = "/coupons/admin";
+  static const String couponsVendor = "/coupons/vendor";
+  static const String coupons = "/coupons";
+  static String couponById(String id) => "/coupons/$id";
+  static String couponAdminById(String id) => "/coupons/admin/$id";
+
+  // Hotel Offers endpoints
+  static String hotelOffers(String hotelId) => "/hotel-offers/hotel/$hotelId";
+  static const String hotelOffersCreate = "/hotel-offers/create";
+  static String hotelOfferById(String id) => "/hotel-offers/$id";
+  static String hotelOfferToggleStatus(String id) =>
+      "/hotel-offers/$id/toggle-status";
+
+  // Combos endpoints
+  static String combos(String hotelId) => "/combos/hotel/$hotelId";
+  static const String combosCreate = "/combos/create";
+  static String comboById(String id) => "/combos/$id";
+  static String comboToggleStatus(String id) => "/combos/$id/toggle-status";
 }

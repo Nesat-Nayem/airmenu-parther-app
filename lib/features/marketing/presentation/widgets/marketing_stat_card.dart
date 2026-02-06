@@ -54,19 +54,19 @@ class _HoverableStatCardState extends State<_HoverableStatCard> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         curve: Curves.easeInOut,
-        transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
+        transform: Matrix4.identity()..translate(0.0, _isHovered ? -4.0 : 0.0),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: widget.stat.color.withOpacity(_isHovered ? 0.2 : 0.08),
-            width: 1,
+            color: widget.stat.color.withOpacity(0.15),
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(_isHovered ? 0.06 : 0.03),
-              blurRadius: _isHovered ? 12 : 8,
-              offset: Offset(0, _isHovered ? 4 : 2),
+              color: widget.stat.color.withOpacity(_isHovered ? 0.15 : 0.05),
+              blurRadius: _isHovered ? 24 : 20,
+              offset: Offset(0, _isHovered ? 8 : 4),
             ),
           ],
         ),

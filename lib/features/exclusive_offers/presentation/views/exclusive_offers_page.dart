@@ -4,16 +4,13 @@ import 'package:airmenuai_partner_app/features/marketing/domain/repositories/i_m
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_bloc.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_event.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_state.dart';
-import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/campaign_card.dart';
-import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/marketing_stat_card.dart';
-import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/marketing_summary_tiles.dart';
-import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/marketing_tab_bar.dart';
-import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/promo_code_table.dart';
-import 'package:airmenuai_partner_app/features/marketing/data/models/promo_code_model.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/offers_table.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/combo_card.dart';
+import 'package:airmenuai_partner_app/features/marketing/data/models/combo_model.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 
-/// Exclusive Offers page for Admin - uses Marketing feature with renamed header
+/// Offers & Combos page for Vendor - matching the mockup design
 class ExclusiveOffersPage extends StatelessWidget {
   const ExclusiveOffersPage({super.key});
 
@@ -28,9 +25,116 @@ class ExclusiveOffersPage extends StatelessWidget {
   }
 }
 
-/// Offers page view with all promo codes and campaigns functionality
-class _OffersPageView extends StatelessWidget {
+class _OffersPageView extends StatefulWidget {
   const _OffersPageView();
+
+  @override
+  State<_OffersPageView> createState() => _OffersPageViewState();
+}
+
+class _OffersPageViewState extends State<_OffersPageView> {
+  bool _isOffersTab = true; // true = Offers, false = Combos
+  final TextEditingController _searchController = TextEditingController();
+
+  // Mock combos data matching the mockup
+  final List<ComboModel> _mockCombos = [
+    ComboModel(
+      id: '1',
+      title: 'Family Feast',
+      description: 'Perfect for family dinners',
+      items: [
+        ComboItemModel(name: 'Biryani', quantity: 2, originalPrice: 300),
+        ComboItemModel(name: 'Curry', quantity: 2, originalPrice: 200),
+        ComboItemModel(name: 'Roti', quantity: 4, originalPrice: 30),
+        ComboItemModel(name: 'Raita', quantity: 1, originalPrice: 50),
+      ],
+      comboPrice: 899,
+      originalPrice: 1150,
+      savings: 251,
+      orderCount: 156,
+      isActive: true,
+      validDays: const [
+        'monday',
+        'tuesday',
+        'wednesday',
+        'thursday',
+        'friday',
+        'saturday',
+        'sunday',
+      ],
+    ),
+    ComboModel(
+      id: '2',
+      title: 'Couple Combo',
+      description: 'Romantic dinner for two',
+      items: [
+        ComboItemModel(name: 'Biryani', quantity: 1, originalPrice: 300),
+        ComboItemModel(name: 'Curry', quantity: 1, originalPrice: 200),
+        ComboItemModel(name: 'Roti', quantity: 2, originalPrice: 30),
+        ComboItemModel(name: 'Drink', quantity: 2, originalPrice: 60),
+      ],
+      comboPrice: 549,
+      originalPrice: 680,
+      savings: 131,
+      orderCount: 234,
+      isActive: true,
+      validDays: const [
+        'monday',
+        'tuesday',
+        'wednesday',
+        'thursday',
+        'friday',
+        'saturday',
+        'sunday',
+      ],
+    ),
+    ComboModel(
+      id: '3',
+      title: 'Solo Lunch',
+      description: 'Quick and tasty lunch',
+      items: [
+        ComboItemModel(name: 'Mini Biryani', quantity: 1, originalPrice: 180),
+        ComboItemModel(name: 'Salad', quantity: 1, originalPrice: 50),
+        ComboItemModel(name: 'Drink', quantity: 1, originalPrice: 30),
+      ],
+      comboPrice: 199,
+      originalPrice: 260,
+      savings: 61,
+      orderCount: 456,
+      isActive: true,
+      validDays: const [
+        'monday',
+        'tuesday',
+        'wednesday',
+        'thursday',
+        'friday',
+        'saturday',
+        'sunday',
+      ],
+    ),
+    ComboModel(
+      id: '4',
+      title: 'Weekend Special',
+      description: 'Special treat for weekends',
+      items: [
+        ComboItemModel(name: 'Starter', quantity: 2, originalPrice: 250),
+        ComboItemModel(name: 'Main Course', quantity: 2, originalPrice: 350),
+        ComboItemModel(name: 'Dessert', quantity: 2, originalPrice: 200),
+      ],
+      comboPrice: 1299,
+      originalPrice: 1600,
+      savings: 301,
+      orderCount: 89,
+      isActive: false,
+      validDays: const ['saturday', 'sunday'],
+    ),
+  ];
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,16 +152,14 @@ class _OffersPageView extends StatelessWidget {
                   padding: const EdgeInsets.all(24),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildHeader(context),
+                      _buildHeader(),
                       const SizedBox(height: 24),
                       _buildStatCards(context, state),
                       const SizedBox(height: 24),
-                      _buildTabBar(context, state),
+                      _buildTabBar(context),
                       const SizedBox(height: 24),
                       _buildContent(context, state),
-                      const SizedBox(height: 24),
-                      _buildSummary(context, state),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 40),
                     ]),
                   ),
                 ),
@@ -69,7 +171,7 @@ class _OffersPageView extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader() {
     return Row(
       children: [
         Expanded(
@@ -79,7 +181,7 @@ class _OffersPageView extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    'Offers & Promotions',
+                    'Offers & Combos',
                     style: AirMenuTextStyle.headingH3.copyWith(
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF1C1C1C),
@@ -95,7 +197,7 @@ class _OffersPageView extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Manage platform promotions and promo codes',
+                'Manage discounts and meal deals',
                 style: AirMenuTextStyle.small.copyWith(
                   color: const Color(0xFF6B7280),
                 ),
@@ -108,227 +210,248 @@ class _OffersPageView extends StatelessWidget {
   }
 
   Widget _buildStatCards(BuildContext context, MarketingState state) {
-    if (state.statsStatus == MarketingLoadStatus.loading ||
-        state.statsStatus == MarketingLoadStatus.initial) {
-      return _buildStatCardsSkeleton();
-    }
-
-    if (state.statsStatus == MarketingLoadStatus.failure) {
-      return _buildErrorWidget(
-        context,
-        'Failed to load statistics',
-        () => context.read<MarketingBloc>().add(const LoadMarketingData()),
-      );
-    }
-
-    final statCards = state.stats.toStatCards();
-
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 1000
-            ? 4
-            : constraints.maxWidth > 600
-            ? 2
-            : 1;
-
-        final itemWidth =
-            (constraints.maxWidth - (crossAxisCount - 1) * 16) / crossAxisCount;
-        const itemHeight = 160.0;
+        final isWide = constraints.maxWidth > 900;
+        final cardWidth = isWide
+            ? (constraints.maxWidth - 48) / 4
+            : (constraints.maxWidth - 16) / 2;
 
         return Wrap(
           spacing: 16,
           runSpacing: 16,
-          children: statCards.asMap().entries.map((entry) {
-            return SizedBox(
-              width: itemWidth,
-              height: itemHeight,
-              child: MarketingStatCard(stat: entry.value, index: entry.key),
-            );
-          }).toList(),
+          children: [
+            _StatCard(
+              width: cardWidth,
+              icon: Icons.local_offer_outlined,
+              iconBgColor: const Color(0xFFFEE2E2),
+              iconColor: const Color(0xFFDC2626),
+              value: '4',
+              label: 'Active Offers',
+            ),
+            _StatCard(
+              width: cardWidth,
+              icon: Icons.card_giftcard_rounded,
+              iconBgColor: const Color(0xFFFEE2E2),
+              iconColor: const Color(0xFFDC2626),
+              value: '3',
+              label: 'Active Combos',
+            ),
+            _StatCard(
+              width: cardWidth,
+              icon: Icons.check_circle_outline,
+              iconBgColor: const Color(0xFFFEE2E2),
+              iconColor: const Color(0xFFDC2626),
+              value: '1124',
+              label: 'Total Redemptions',
+              trend: '+18%',
+              trendPositive: true,
+            ),
+            _StatCard(
+              width: cardWidth,
+              icon: Icons.trending_up_rounded,
+              iconBgColor: const Color(0xFFFEE2E2),
+              iconColor: const Color(0xFFDC2626),
+              value: '+₹24.5K',
+              label: 'Revenue Impact',
+              trend: '+12%',
+              trendPositive: true,
+            ),
+          ],
         );
       },
     );
   }
 
-  Widget _buildStatCardsSkeleton() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 1000
-            ? 4
-            : constraints.maxWidth > 600
-            ? 2
-            : 1;
-
-        final itemWidth =
-            (constraints.maxWidth - (crossAxisCount - 1) * 16) / crossAxisCount;
-
-        return Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: List.generate(
-            4,
-            (_) => SizedBox(
-              width: itemWidth,
-              height: 160,
-              child: const MarketingStatCardSkeleton(),
+  Widget _buildTabBar(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Tab buttons
+          _buildTabButton('Offers', _isOffersTab, () {
+            setState(() => _isOffersTab = true);
+          }),
+          const SizedBox(width: 8),
+          _buildTabButton('Combos', !_isOffersTab, () {
+            setState(() => _isOffersTab = false);
+          }),
+          const SizedBox(width: 16),
+          // Search
+          Expanded(
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
+              ),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: _isOffersTab
+                      ? 'Search offers...'
+                      : 'Search combos...',
+                  hintStyle: AirMenuTextStyle.small.copyWith(
+                    color: const Color(0xFF9CA3AF),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    size: 18,
+                    color: Color(0xFF9CA3AF),
+                  ),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                style: AirMenuTextStyle.small,
+              ),
             ),
           ),
-        );
-      },
+          const Spacer(),
+          // Create button
+          ElevatedButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    'Create ${_isOffersTab ? 'Offer' : 'Combo'} coming soon',
+                  ),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
+            icon: const Icon(Icons.add, size: 18),
+            label: Text(_isOffersTab ? 'Create Offer' : 'Create Combo'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC52031),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildTabBar(BuildContext context, MarketingState state) {
-    final isCampaignsTab = state.currentTab == MarketingTab.campaigns;
-
-    return MarketingTabBar(
-      currentTab: state.currentTab,
-      onTabChanged: (tab) {
-        context.read<MarketingBloc>().add(SwitchMarketingTab(tab));
-      },
-      searchHint: isCampaignsTab ? 'Search campaigns...' : 'Search offers...',
-      searchQuery: state.currentSearchQuery,
-      onSearchChanged: (query) {
-        if (isCampaignsTab) {
-          context.read<MarketingBloc>().add(SearchCampaigns(query));
-        } else {
-          context.read<MarketingBloc>().add(SearchPromoCodes(query));
-        }
-      },
-      addButtonText: isCampaignsTab ? '+ New Campaign' : '+ New Offer',
-      onAddPressed: () {
-        _showSnackBar(
-          context,
-          'Add ${isCampaignsTab ? 'Campaign' : 'Offer'} coming soon',
-        );
-      },
+  Widget _buildTabButton(String label, bool isActive, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFFC52031) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: AirMenuTextStyle.small.copyWith(
+            color: isActive ? Colors.white : const Color(0xFF6B7280),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildContent(BuildContext context, MarketingState state) {
-    if (state.currentTab == MarketingTab.campaigns) {
-      return _buildCampaignsContent(context, state);
+    if (_isOffersTab) {
+      return _buildOffersContent(context, state);
     } else {
-      return _buildPromoCodesContent(context, state);
+      return _buildCombosContent();
     }
   }
 
-  Widget _buildCampaignsContent(BuildContext context, MarketingState state) {
-    if (state.campaignsStatus == MarketingLoadStatus.loading ||
-        state.campaignsStatus == MarketingLoadStatus.initial) {
-      return _buildCampaignsSkeleton();
+  Widget _buildOffersContent(BuildContext context, MarketingState state) {
+    if (state.promoCodesStatus == MarketingLoadStatus.loading ||
+        state.promoCodesStatus == MarketingLoadStatus.initial) {
+      return const OffersTableSkeleton();
     }
 
-    if (state.campaignsStatus == MarketingLoadStatus.failure) {
+    if (state.promoCodesStatus == MarketingLoadStatus.failure) {
       return _buildErrorWidget(
         context,
-        'Failed to load campaigns',
+        'Failed to load offers',
         () => context.read<MarketingBloc>().add(const LoadMarketingData()),
       );
     }
 
-    if (state.isCampaignsEmpty) {
-      return _buildEmptyState(
-        context,
-        'No campaigns found',
-        state.isSearchActive
-            ? 'Try adjusting your search query'
-            : 'Create your first campaign to get started',
-        Icons.campaign_outlined,
-      );
-    }
+    return OffersTable(
+      offers: state.filteredPromoCodes,
+      actionInProgressId: state.actionInProgressId,
+      onEditTap: (offer) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Edit ${offer.code}')));
+      },
+      onDeleteTap: (offer) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Delete ${offer.code}')));
+      },
+      onStatusToggle: (offer) {
+        context.read<MarketingBloc>().add(
+          TogglePromoCodeStatus(promoId: offer.id, currentStatus: offer.status),
+        );
+      },
+    );
+  }
 
+  Widget _buildCombosContent() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 800 ? 2 : 1;
+        final crossAxisCount = constraints.maxWidth > 1000
+            ? 3
+            : constraints.maxWidth > 600
+            ? 2
+            : 1;
         final itemWidth =
             (constraints.maxWidth - (crossAxisCount - 1) * 16) / crossAxisCount;
 
         return Wrap(
           spacing: 16,
           runSpacing: 16,
-          children: state.filteredCampaigns.map((campaign) {
+          children: _mockCombos.map((combo) {
             return SizedBox(
               width: itemWidth,
-              child: CampaignCard(
-                campaign: campaign,
-                onAnalyticsTap: () {
-                  _showSnackBar(context, 'Analytics for ${campaign.name}');
+              height: 260,
+              child: ComboCard(
+                combo: combo,
+                onToggle: () {
+                  setState(() {
+                    final index = _mockCombos.indexWhere(
+                      (c) => c.id == combo.id,
+                    );
+                    if (index != -1) {
+                      _mockCombos[index] = combo.copyWith(
+                        isActive: !combo.isActive,
+                      );
+                    }
+                  });
                 },
-                onEditTap: () {
-                  _showSnackBar(context, 'Edit ${campaign.name}');
+                onEdit: () {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Edit ${combo.name}')));
                 },
               ),
             );
           }).toList(),
         );
       },
-    );
-  }
-
-  Widget _buildCampaignsSkeleton() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth > 800 ? 2 : 1;
-        final itemWidth =
-            (constraints.maxWidth - (crossAxisCount - 1) * 16) / crossAxisCount;
-
-        return Wrap(
-          spacing: 16,
-          runSpacing: 16,
-          children: List.generate(
-            4,
-            (_) =>
-                SizedBox(width: itemWidth, child: const CampaignCardSkeleton()),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildPromoCodesContent(BuildContext context, MarketingState state) {
-    if (state.promoCodesStatus == MarketingLoadStatus.loading ||
-        state.promoCodesStatus == MarketingLoadStatus.initial) {
-      return const PromoCodeTableSkeleton();
-    }
-
-    if (state.promoCodesStatus == MarketingLoadStatus.failure) {
-      return _buildErrorWidget(
-        context,
-        'Failed to load promo codes',
-        () => context.read<MarketingBloc>().add(const LoadMarketingData()),
-      );
-    }
-
-    if (state.isPromoCodesEmpty && !state.isSearchActive) {
-      return _buildEmptyState(
-        context,
-        'No promo codes found',
-        'Create your first promo code to get started',
-        Icons.local_offer_outlined,
-      );
-    }
-
-    return PromoCodeTable(
-      promoCodes: state.filteredPromoCodes,
-      actionInProgressId: state.actionInProgressId,
-      onEditTap: (promo) {
-        _showSnackBar(context, 'Edit ${promo.code}');
-      },
-      onStatusToggle: (PromoCodeModel promo) {
-        context.read<MarketingBloc>().add(
-          TogglePromoCodeStatus(promoId: promo.id, currentStatus: promo.status),
-        );
-      },
-    );
-  }
-
-  Widget _buildSummary(BuildContext context, MarketingState state) {
-    return MarketingSummaryTiles(
-      summary: state.summary,
-      isLoading:
-          state.summaryStatus == MarketingLoadStatus.loading ||
-          state.summaryStatus == MarketingLoadStatus.initial,
     );
   }
 
@@ -350,7 +473,7 @@ class _OffersPageView extends StatelessWidget {
           Icon(
             Icons.error_outline,
             size: 48,
-            color: const Color(0xFFDC2626).withOpacity(0.6),
+            color: const Color(0xFFDC2626).withValues(alpha: 0.6),
           ),
           const SizedBox(height: 16),
           Text(
@@ -378,50 +501,106 @@ class _OffersPageView extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildEmptyState(
-    BuildContext context,
-    String title,
-    String subtitle,
-    IconData icon,
-  ) {
+/// Stat card widget matching the mockup
+class _StatCard extends StatelessWidget {
+  final double width;
+  final IconData icon;
+  final Color iconBgColor;
+  final Color iconColor;
+  final String value;
+  final String label;
+  final String? trend;
+  final bool trendPositive;
+
+  const _StatCard({
+    required this.width,
+    required this.icon,
+    required this.iconBgColor,
+    required this.iconColor,
+    required this.value,
+    required this.label,
+    this.trend,
+    this.trendPositive = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(40),
+      width: width,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          Icon(icon, size: 48, color: const Color(0xFF9CA3AF)),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: AirMenuTextStyle.subheadingH5.copyWith(
-              color: const Color(0xFF6B7280),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 20, color: iconColor),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  value,
+                  style: AirMenuTextStyle.headingH3.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1C1C1C),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: AirMenuTextStyle.small.copyWith(
+                    color: const Color(0xFF6B7280),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            subtitle,
-            style: AirMenuTextStyle.small.copyWith(
-              color: const Color(0xFF9CA3AF),
+          if (trend != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: trendPositive
+                    ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                    : const Color(0xFFEF4444).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    trendPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 12,
+                    color: trendPositive
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFEF4444),
+                  ),
+                  const SizedBox(width: 2),
+                  Text(
+                    trend!,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: trendPositive
+                          ? const Color(0xFF10B981)
+                          : const Color(0xFFEF4444),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
         ],
-      ),
-    );
-  }
-
-  void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
       ),
     );
   }

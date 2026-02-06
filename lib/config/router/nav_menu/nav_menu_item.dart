@@ -11,7 +11,6 @@ enum NavMenuItem {
   adminOrders, // Admin Live Orders
   payments, // Payments
   exclusiveOffers, // Offers (Admin)
-  adminInventory, // Admin Inventory
   adminSettings, // User Settings (Admin)
   externalIntegrations, // External Integrations
   landmark, // Landmark
@@ -23,7 +22,6 @@ enum NavMenuItem {
   dashboard, // Dashboard
   orders, // Vendor Live Orders
   menu, // Menu
-  inventory, // Vendor Inventory
   purchaseOrder, // Purchase Order
   kitchenPanel, // Kitchen Panel
   tables, // Tables and QR
@@ -33,6 +31,7 @@ enum NavMenuItem {
   feedbackRating, // Feedback & Rating
   reports, // Report
   settings, // Settings
+  inventory, // Inventory
   // === LEGACY/UTILITY (keep for compatibility) ===
   myKyc,
   purchasePackage,
@@ -67,8 +66,7 @@ const List<NavMenuItem> sideNavRoutes = [
   NavMenuItem.restaurants,
   NavMenuItem.adminOrders,
   NavMenuItem.payments,
-  NavMenuItem.exclusiveOffers,
-  NavMenuItem.adminInventory,
+  NavMenuItem.marketing,
   NavMenuItem.adminSettings,
   NavMenuItem.externalIntegrations,
   NavMenuItem.landmark,
@@ -82,7 +80,6 @@ const List<NavMenuItem> sideNavRoutes = [
   NavMenuItem.orders,
   NavMenuItem.menu,
   NavMenuItem.inventory,
-  NavMenuItem.purchaseOrder,
   NavMenuItem.kitchenPanel,
   NavMenuItem.tables,
   NavMenuItem.hotelRooms,
@@ -133,12 +130,8 @@ extension NavMenuItemExtension on NavMenuItem {
         return Icons.payment_rounded;
       case NavMenuItem.exclusiveOffers:
         return Icons.local_offer_rounded;
-      case NavMenuItem.adminInventory:
-        return Icons.inventory_2_rounded;
       case NavMenuItem.adminSettings:
         return Icons.settings_rounded;
-      case NavMenuItem.inventory:
-        return Icons.inventory_2_rounded;
       case NavMenuItem.externalIntegrations:
         return Icons.integration_instructions_rounded;
       case NavMenuItem.landmark:
@@ -177,6 +170,8 @@ extension NavMenuItemExtension on NavMenuItem {
         return Icons.bar_chart_rounded;
       case NavMenuItem.settings:
         return Icons.settings_rounded;
+      case NavMenuItem.inventory:
+        return Icons.inventory_2_rounded;
 
       // Legacy/Utility items
       case NavMenuItem.myKyc:
@@ -242,12 +237,8 @@ extension NavMenuItemExtension on NavMenuItem {
         return 'Payments';
       case NavMenuItem.exclusiveOffers:
         return 'Offers';
-      case NavMenuItem.adminInventory:
-        return 'Inventory';
       case NavMenuItem.adminSettings:
         return 'User Settings';
-      case NavMenuItem.inventory:
-        return 'Inventory';
       case NavMenuItem.externalIntegrations:
         return 'External Integrations';
       case NavMenuItem.landmark:
@@ -286,6 +277,8 @@ extension NavMenuItemExtension on NavMenuItem {
         return 'Reports';
       case NavMenuItem.settings:
         return 'Settings';
+      case NavMenuItem.inventory:
+        return 'Inventory';
 
       // Legacy items
       case NavMenuItem.myKyc:
@@ -329,7 +322,7 @@ extension NavMenuItemExtension on NavMenuItem {
       case NavMenuItem.helpSupport:
         return 'Help & Support';
       case NavMenuItem.marketing:
-        return 'Marketing & Campaigns';
+        return 'Offers';
       case NavMenuItem.myAccount:
         return 'My Account';
       case NavMenuItem.signOut:

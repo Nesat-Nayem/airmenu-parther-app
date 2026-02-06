@@ -1,3 +1,4 @@
+import 'package:airmenuai_partner_app/features/marketing/data/models/combo_model.dart';
 import 'package:equatable/equatable.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/campaign_model.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/marketing_stats_model.dart';
@@ -15,6 +16,7 @@ class MarketingState extends Equatable {
   final MarketingLoadStatus statsStatus;
   final MarketingLoadStatus campaignsStatus;
   final MarketingLoadStatus promoCodesStatus;
+  final MarketingLoadStatus combosStatus;
   final MarketingLoadStatus summaryStatus;
 
   /// Data
@@ -23,11 +25,14 @@ class MarketingState extends Equatable {
   final List<CampaignModel> filteredCampaigns;
   final List<PromoCodeModel> promoCodes;
   final List<PromoCodeModel> filteredPromoCodes;
+  final List<ComboModel> combos;
+  final List<ComboModel> filteredCombos;
   final MarketingSummaryModel summary;
 
   /// Search queries
   final String campaignSearchQuery;
   final String promoCodeSearchQuery;
+  final String comboSearchQuery;
 
   /// Error state
   final MarketingError? error;
@@ -35,11 +40,15 @@ class MarketingState extends Equatable {
   /// Action in progress (for button loading states)
   final String? actionInProgressId;
 
+  /// Role flag
+  final bool isAdmin;
+
   const MarketingState({
     this.currentTab = MarketingTab.campaigns,
     this.statsStatus = MarketingLoadStatus.initial,
     this.campaignsStatus = MarketingLoadStatus.initial,
     this.promoCodesStatus = MarketingLoadStatus.initial,
+    this.combosStatus = MarketingLoadStatus.initial,
     this.summaryStatus = MarketingLoadStatus.initial,
     this.stats = const MarketingStatsModel(
       activeCampaigns: 0,
@@ -59,11 +68,15 @@ class MarketingState extends Equatable {
     this.filteredCampaigns = const [],
     this.promoCodes = const [],
     this.filteredPromoCodes = const [],
+    this.combos = const [],
+    this.filteredCombos = const [],
     this.summary = const MarketingSummaryModel(),
     this.campaignSearchQuery = '',
     this.promoCodeSearchQuery = '',
+    this.comboSearchQuery = '',
     this.error,
     this.actionInProgressId,
+    this.isAdmin = false,
   });
 
   /// Factory for initial state
@@ -73,7 +86,8 @@ class MarketingState extends Equatable {
   bool get isLoading =>
       statsStatus == MarketingLoadStatus.loading ||
       campaignsStatus == MarketingLoadStatus.loading ||
-      promoCodesStatus == MarketingLoadStatus.loading;
+      promoCodesStatus == MarketingLoadStatus.loading ||
+      combosStatus == MarketingLoadStatus.loading;
 
   /// Check if all data loaded successfully
   bool get isSuccess =>
@@ -94,10 +108,21 @@ class MarketingState extends Equatable {
       promoCodesStatus == MarketingLoadStatus.success &&
       filteredPromoCodes.isEmpty;
 
+  /// Check if combos are empty (after loading)
+  bool get isCombosEmpty =>
+      combosStatus == MarketingLoadStatus.success && filteredCombos.isEmpty;
+
   /// Get current search query based on active tab
-  String get currentSearchQuery => currentTab == MarketingTab.campaigns
-      ? campaignSearchQuery
-      : promoCodeSearchQuery;
+  String get currentSearchQuery {
+    switch (currentTab) {
+      case MarketingTab.campaigns:
+        return campaignSearchQuery;
+      case MarketingTab.promoCodes:
+        return promoCodeSearchQuery;
+      case MarketingTab.combos:
+        return comboSearchQuery;
+    }
+  }
 
   /// Check if search is active
   bool get isSearchActive => currentSearchQuery.isNotEmpty;
@@ -108,17 +133,22 @@ class MarketingState extends Equatable {
     statsStatus,
     campaignsStatus,
     promoCodesStatus,
+    combosStatus,
     summaryStatus,
     stats,
     campaigns,
     filteredCampaigns,
     promoCodes,
     filteredPromoCodes,
+    combos,
+    filteredCombos,
     summary,
     campaignSearchQuery,
     promoCodeSearchQuery,
+    comboSearchQuery,
     error,
     actionInProgressId,
+    isAdmin,
   ];
 
   MarketingState copyWith({
@@ -126,38 +156,48 @@ class MarketingState extends Equatable {
     MarketingLoadStatus? statsStatus,
     MarketingLoadStatus? campaignsStatus,
     MarketingLoadStatus? promoCodesStatus,
+    MarketingLoadStatus? combosStatus,
     MarketingLoadStatus? summaryStatus,
     MarketingStatsModel? stats,
     List<CampaignModel>? campaigns,
     List<CampaignModel>? filteredCampaigns,
     List<PromoCodeModel>? promoCodes,
     List<PromoCodeModel>? filteredPromoCodes,
+    List<ComboModel>? combos,
+    List<ComboModel>? filteredCombos,
     MarketingSummaryModel? summary,
     String? campaignSearchQuery,
     String? promoCodeSearchQuery,
+    String? comboSearchQuery,
     MarketingError? error,
     String? actionInProgressId,
     bool clearError = false,
     bool clearActionInProgress = false,
+    bool? isAdmin,
   }) {
     return MarketingState(
       currentTab: currentTab ?? this.currentTab,
       statsStatus: statsStatus ?? this.statsStatus,
       campaignsStatus: campaignsStatus ?? this.campaignsStatus,
       promoCodesStatus: promoCodesStatus ?? this.promoCodesStatus,
+      combosStatus: combosStatus ?? this.combosStatus,
       summaryStatus: summaryStatus ?? this.summaryStatus,
       stats: stats ?? this.stats,
       campaigns: campaigns ?? this.campaigns,
       filteredCampaigns: filteredCampaigns ?? this.filteredCampaigns,
       promoCodes: promoCodes ?? this.promoCodes,
       filteredPromoCodes: filteredPromoCodes ?? this.filteredPromoCodes,
+      combos: combos ?? this.combos,
+      filteredCombos: filteredCombos ?? this.filteredCombos,
       summary: summary ?? this.summary,
       campaignSearchQuery: campaignSearchQuery ?? this.campaignSearchQuery,
       promoCodeSearchQuery: promoCodeSearchQuery ?? this.promoCodeSearchQuery,
+      comboSearchQuery: comboSearchQuery ?? this.comboSearchQuery,
       error: clearError ? null : (error ?? this.error),
       actionInProgressId: clearActionInProgress
           ? null
           : (actionInProgressId ?? this.actionInProgressId),
+      isAdmin: isAdmin ?? this.isAdmin,
     );
   }
 }

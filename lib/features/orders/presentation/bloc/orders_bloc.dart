@@ -21,6 +21,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
 
   OrdersBloc() : super(OrdersInitial()) {
     on<LoadOrders>(_onLoadOrders);
+    on<LoadMoreOrders>(_onLoadMoreOrders);
     on<FilterByStatus>(_onFilterByStatus);
     on<FilterByPayment>(_onFilterByPayment);
     on<ChangePage>(_onChangePage);
@@ -126,6 +127,55 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
             ),
           );
         }
+      },
+    );
+  }
+
+  /// Handle loading more orders for infinite scroll
+  Future<void> _onLoadMoreOrders(
+    LoadMoreOrders event,
+    Emitter<OrdersState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! OrdersLoaded) return;
+
+    // Don't load more if already loading or reached max
+    if (currentState.isLoadingMore || currentState.hasReachedMax) return;
+
+    // Emit loading more state
+    emit(currentState.copyWith(isLoadingMore: true));
+
+    final nextPage = currentState.currentPage + 1;
+
+    final result = await locator<GetOrdersUseCase>()(
+      status: _currentStatus,
+      paymentStatus: _currentPaymentStatus != 'All Payments'
+          ? _currentPaymentStatus
+          : null,
+      page: nextPage,
+      limit: 20,
+    );
+
+    result.fold(
+      (failure) {
+        // Failed to load more, reset loading state
+        emit(currentState.copyWith(isLoadingMore: false));
+      },
+      (response) {
+        final newOrders = response.data ?? [];
+        final hasReachedMax =
+            newOrders.isEmpty ||
+            nextPage >= (response.pagination?.totalPages ?? 1);
+
+        emit(
+          currentState.copyWith(
+            orders: [...currentState.orders, ...newOrders],
+            pagination: response.pagination ?? currentState.pagination,
+            currentPage: nextPage,
+            isLoadingMore: false,
+            hasReachedMax: hasReachedMax,
+          ),
+        );
       },
     );
   }

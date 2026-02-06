@@ -98,4 +98,17 @@ class PaymentsRepositoryImpl implements PaymentsRepository {
       ),
     ];
   }
+
+  @override
+  Future<PaymentBottomStatsEntity> getBottomStats() async {
+    await Future.delayed(const Duration(seconds: 1));
+    return const PaymentBottomStatsEntity(
+      thisMonthSettled: 240000, // ₹2.4Cr
+      trendPercentage: 18, // +18% vs last month
+      pendingAmount: 45200, // ₹45.2L
+      pendingDueText: 'Due in next 3 days',
+      disputeAmount: 15500, // ₹15,500
+      disputeCount: 3, // 3 open disputes
+    );
+  }
 }

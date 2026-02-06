@@ -10,6 +10,7 @@ import '../widgets/staff_stats_row.dart';
 import '../widgets/staff_toolbar.dart';
 import '../widgets/staff_filter_chips.dart';
 import '../widgets/staff_data_table.dart';
+import '../widgets/staff_shimmer.dart';
 import '../widgets/add_staff_dialog.dart';
 import '../widgets/edit_staff_dialog.dart';
 import '../../data/models/staff_model.dart';
@@ -150,97 +151,229 @@ class _StaffManagementViewState extends State<StaffManagementView> {
         buildWhen: (previous, current) =>
             current is! StaffActionSuccess && current is! StaffActionFailure,
         builder: (context, state) {
-          if (state is StaffLoading) {
-            return const Center(
-              child: CircularProgressIndicator(color: Color(0xFFDC2626)),
-            );
-          }
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final isMobile = constraints.maxWidth < 600;
+              final padding = isMobile ? 16.0 : 24.0;
 
-          if (state is StaffError) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 48,
-                    color: Colors.grey.shade400,
+              if (state is StaffLoading) {
+                return SingleChildScrollView(
+                  padding: EdgeInsets.all(padding),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Stats skeleton
+                      _buildStatsSkeleton(isMobile),
+                      SizedBox(height: isMobile ? 16 : 24),
+                      // Toolbar skeleton
+                      _buildToolbarSkeleton(isMobile),
+                      SizedBox(height: isMobile ? 12 : 20),
+                      // Filter chips skeleton
+                      _buildFilterSkeleton(),
+                      SizedBox(height: isMobile ? 16 : 24),
+                      // Table skeleton
+                      const StaffDataTableSkeleton(),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    state.message,
-                    style: GoogleFonts.sora(color: Colors.grey.shade600),
-                    textAlign: TextAlign.center,
+                );
+              }
+
+              if (state is StaffError) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        state.message,
+                        style: GoogleFonts.sora(color: Colors.grey.shade600),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton.icon(
+                        onPressed: () =>
+                            context.read<StaffBloc>().add(const LoadStaff()),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Retry'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFDC2626),
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () =>
-                        context.read<StaffBloc>().add(const LoadStaff()),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDC2626),
-                      foregroundColor: Colors.white,
+                );
+              }
+
+              if (state is StaffLoaded) {
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    context.read<StaffBloc>().add(const RefreshStaff());
+                    await Future.delayed(const Duration(milliseconds: 500));
+                  },
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.all(padding),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Stats Row
+                        StaffStatsRow(stats: state.stats),
+                        SizedBox(height: isMobile ? 16 : 24),
+
+                        // Toolbar (Search + Add Button)
+                        StaffToolbar(
+                          searchController: _searchController,
+                          onSearchChanged: (query) {
+                            context.read<StaffBloc>().add(SearchStaff(query));
+                          },
+                          onAddStaff: _showAddStaffDialog,
+                        ),
+                        SizedBox(height: isMobile ? 12 : 20),
+
+                        // Filter Chips
+                        StaffFilterChips(
+                          selectedRole: state.selectedRole,
+                          onRoleSelected: (role) {
+                            context.read<StaffBloc>().add(FilterByRole(role));
+                          },
+                        ),
+                        SizedBox(height: isMobile ? 16 : 24),
+
+                        // Data Table
+                        StaffDataTable(
+                          staff: state.filteredStaff,
+                          loadingIds: state.loadingIds,
+                          onEdit: _showEditStaffDialog,
+                          onToggleStatus: (id) {
+                            context.read<StaffBloc>().add(
+                              ToggleStaffStatus(id),
+                            );
+                          },
+                          onDelete: _showDeleteConfirmation,
+                        ),
+                        const SizedBox(height: 40),
+                      ],
                     ),
                   ),
-                ],
-              ),
-            );
-          }
+                );
+              }
 
-          if (state is StaffLoaded) {
-            return RefreshIndicator(
-              onRefresh: () async {
-                context.read<StaffBloc>().add(const RefreshStaff());
-                await Future.delayed(const Duration(milliseconds: 500));
-              },
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              return const SizedBox.shrink();
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildStatsSkeleton(bool isMobile) {
+    return ShimmerEffect(
+      child: isMobile
+          ? Column(
+              children: [
+                Row(
                   children: [
-                    // Stats Row
-                    StaffStatsRow(stats: state.stats),
-                    const SizedBox(height: 24),
-
-                    // Toolbar (Search + Add Button)
-                    StaffToolbar(
-                      searchController: _searchController,
-                      onSearchChanged: (query) {
-                        context.read<StaffBloc>().add(SearchStaff(query));
-                      },
-                      onAddStaff: _showAddStaffDialog,
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Filter Chips
-                    StaffFilterChips(
-                      selectedRole: state.selectedRole,
-                      onRoleSelected: (role) {
-                        context.read<StaffBloc>().add(FilterByRole(role));
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Data Table
-                    StaffDataTable(
-                      staff: state.filteredStaff,
-                      loadingIds: state.loadingIds,
-                      onEdit: _showEditStaffDialog,
-                      onToggleStatus: (id) {
-                        context.read<StaffBloc>().add(ToggleStaffStatus(id));
-                      },
-                      onDelete: _showDeleteConfirmation,
-                    ),
+                    Expanded(child: StatCardSkeleton(isMobile: true)),
+                    const SizedBox(width: 12),
+                    Expanded(child: StatCardSkeleton(isMobile: true)),
                   ],
                 ),
-              ),
-            );
-          }
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(child: StatCardSkeleton(isMobile: true)),
+                    const SizedBox(width: 12),
+                    Expanded(child: StatCardSkeleton(isMobile: true)),
+                  ],
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                const Expanded(child: StatCardSkeleton()),
+                const SizedBox(width: 16),
+                const Expanded(child: StatCardSkeleton()),
+                const SizedBox(width: 16),
+                const Expanded(child: StatCardSkeleton()),
+                const SizedBox(width: 16),
+                const Expanded(child: StatCardSkeleton()),
+              ],
+            ),
+    );
+  }
 
-          return const SizedBox.shrink();
-        },
+  Widget _buildToolbarSkeleton(bool isMobile) {
+    return ShimmerEffect(
+      child: isMobile
+          ? Column(
+              children: [
+                Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            )
+          : Row(
+              children: [
+                Container(
+                  width: 280,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  width: 120,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildFilterSkeleton() {
+    return ShimmerEffect(
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(
+            6,
+            (index) => Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Container(
+                width: 80,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade200,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

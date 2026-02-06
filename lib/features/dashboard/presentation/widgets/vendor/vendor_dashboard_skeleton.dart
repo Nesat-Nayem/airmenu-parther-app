@@ -13,28 +13,72 @@ class VendorDashboardSkeleton extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header skeleton
-            _buildSkeletonBox(width: 200, height: 32),
-            const SizedBox(height: 24),
+            // Header skeleton (Search + Filters)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSkeletonBox(
+                    width: double.infinity,
+                    height: 48,
+                    borderRadius: 12,
+                  ),
+                ), // Search
+                const SizedBox(width: 8),
+                _buildSkeletonBox(width: 1, height: 32), // Divider
+                const SizedBox(width: 8),
+                _buildSkeletonBox(
+                  width: 100,
+                  height: 44,
+                  borderRadius: 12,
+                ), // Filter 1
+                const SizedBox(width: 8),
+                _buildSkeletonBox(
+                  width: 150,
+                  height: 44,
+                  borderRadius: 12,
+                ), // Filter 2
+                const SizedBox(width: 8),
+                _buildSkeletonBox(
+                  width: 120,
+                  height: 44,
+                  borderRadius: 12,
+                ), // Filter 3
+              ],
+            ),
+            const SizedBox(height: 32),
 
             // Stat cards skeleton
             LayoutBuilder(
               builder: (context, constraints) {
-                final isDesktop = constraints.maxWidth > 1200;
-                final isTablet = constraints.maxWidth > 768;
+                final isMobile = constraints.maxWidth < 768;
 
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: isDesktop ? 3 : (isTablet ? 2 : 1),
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                    childAspectRatio: isDesktop ? 1.8 : 2.5,
-                  ),
-                  itemCount: 6,
-                  itemBuilder: (context, index) => _buildStatCardSkeleton(),
-                );
+                if (isMobile) {
+                  // Mobile: 1 column list
+                  return Column(
+                    children: List.generate(
+                      6,
+                      (index) => Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildStatCardSkeleton(),
+                      ),
+                    ),
+                  );
+                } else {
+                  // Desktop/Tablet: 6 columns
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 6,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: 0.55,
+                        ),
+                    itemCount: 6,
+                    itemBuilder: (context, index) => _buildStatCardSkeleton(),
+                  );
+                }
               },
             ),
 

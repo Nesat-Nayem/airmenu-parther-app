@@ -231,21 +231,19 @@ class _PromoCodeRowState extends State<_PromoCodeRow> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextButton(
+                  IconButton(
                     onPressed: widget.onEditTap,
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: Size.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                      color: Color(0xFF6B7280),
                     ),
-                    child: Text(
-                      'Edit',
-                      style: AirMenuTextStyle.small.copyWith(
-                        color: const Color(0xFF6B7280),
-                      ),
-                    ),
+                    tooltip: 'Edit',
+                    splashRadius: 20,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 16),
                   _buildActionButton(),
                 ],
               ),
@@ -321,16 +319,16 @@ class _PromoCodeRowState extends State<_PromoCodeRow> {
       return OutlinedButton(
         onPressed: widget.onStatusToggle,
         style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           side: const BorderSide(color: Color(0xFFE5E7EB)),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-          minimumSize: Size.zero,
+          backgroundColor: Colors.white,
         ),
         child: Text(
           'Pause',
           style: AirMenuTextStyle.caption.copyWith(
             color: const Color(0xFF6B7280),
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
           ),
         ),
       );
@@ -340,16 +338,15 @@ class _PromoCodeRowState extends State<_PromoCodeRow> {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF10B981),
           foregroundColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-          minimumSize: Size.zero,
         ),
         child: Text(
           'Activate',
           style: AirMenuTextStyle.caption.copyWith(
             color: Colors.white,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
           ),
         ),
       );

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/core/network/api_service.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/repositories/admin_restaurants_repository.dart';
@@ -9,6 +10,7 @@ import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/adm
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/admin/admin_restaurants_state.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/admin/restaurant_list_item.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/admin/restaurant_search_bar.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/admin/restaurants_shimmer.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 
@@ -35,7 +37,7 @@ class _AdminRestaurantsMobileContent extends StatelessWidget {
     return BlocBuilder<AdminRestaurantsBloc, AdminRestaurantsState>(
       builder: (context, state) {
         if (state is AdminRestaurantsLoading) {
-          return const CircularProgressIndicator();
+          return const RestaurantsShimmer();
         }
 
         if (state is AdminRestaurantsError) {
@@ -67,18 +69,33 @@ class _AdminRestaurantsMobileContent extends StatelessWidget {
               ? state.hasMore
               : false;
 
-          return _buildContent(
-            context,
-            stats: stats,
-            restaurants: restaurants,
-            filters: filters,
-            hasMore: hasMore,
-            isRefreshing: state is AdminRestaurantsRefreshing,
-            isLoadingMore: state is AdminRestaurantsLoadingMore,
+          return Scaffold(
+            floatingActionButton: FloatingActionButton(
+              onPressed: () {
+                context.push(AppRoutes.createRestaurant.path).then((value) {
+                  if (value == true) {
+                    context.read<AdminRestaurantsBloc>().add(
+                      const LoadRestaurants(),
+                    );
+                  }
+                });
+              },
+              backgroundColor: const Color(0xFFC52031),
+              child: const Icon(Icons.add, color: Colors.white),
+            ),
+            body: _buildContent(
+              context,
+              stats: stats,
+              restaurants: restaurants,
+              filters: filters,
+              hasMore: hasMore,
+              isRefreshing: state is AdminRestaurantsRefreshing,
+              isLoadingMore: state is AdminRestaurantsLoadingMore,
+            ),
           );
         }
 
-        return const Center(child: CircularProgressIndicator());
+        return const Center(child: RestaurantsShimmer());
       },
     );
   }

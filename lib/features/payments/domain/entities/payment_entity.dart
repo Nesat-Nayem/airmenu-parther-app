@@ -55,3 +55,21 @@ class DisputeEntity {
 }
 
 enum DisputeStatus { open, resolved }
+
+class PaymentBottomStatsEntity {
+  final double thisMonthSettled;
+  final double trendPercentage;
+  final double pendingAmount;
+  final String pendingDueText;
+  final double disputeAmount;
+  final int disputeCount;
+
+  const PaymentBottomStatsEntity({
+    required this.thisMonthSettled,
+    required this.trendPercentage,
+    required this.pendingAmount,
+    required this.pendingDueText,
+    required this.disputeAmount,
+    required this.disputeCount,
+  });
+}

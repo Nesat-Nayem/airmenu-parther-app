@@ -136,44 +136,52 @@ class _LandmarkSearchBarState extends State<LandmarkSearchBar> {
           ),
           const SizedBox(width: 16),
           // Add button
+          // Add button
           if (widget.onAddPressed != null)
             MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: ElevatedButton(
-                onPressed: widget.onAddPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFC52031),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 14,
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFDC2626), Color(0xFFB91C1C)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                   ),
-                  elevation: 0,
-                  shadowColor: const Color(0xFFC52031).withValues(alpha: 0.4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(Icons.add_rounded, size: 16),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Add Landmark',
-                      style: AirMenuTextStyle.normal.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFC52031).withValues(alpha: 0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
                     ),
                   ],
+                ),
+                child: ElevatedButton(
+                  onPressed: widget.onAddPressed,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add_rounded, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Add Landmark',
+                        style: AirMenuTextStyle.normal.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

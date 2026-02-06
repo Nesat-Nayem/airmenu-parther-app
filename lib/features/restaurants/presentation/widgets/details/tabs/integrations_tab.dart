@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_bloc.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_state.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
@@ -33,7 +35,7 @@ class IntegrationsTab extends StatelessWidget {
               children: [
                 _buildSectionHeader('Webhooks'),
                 OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => context.push(AppRoutes.addWebhook.path),
                   icon: const Icon(Icons.link, size: 18),
                   label: const Text('Add Webhook'),
                   style: OutlinedButton.styleFrom(

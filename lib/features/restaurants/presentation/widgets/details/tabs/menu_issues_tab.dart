@@ -9,210 +9,257 @@ class MenuIssuesTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Menu Issues',
-            style: AirMenuTextStyle.headingH4.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${state.menuIssues.length} items need attention',
-            style: AirMenuTextStyle.small.copyWith(
-              color: const Color(0xFF6B7280),
-            ),
-          ),
-          const SizedBox(height: 24),
+    final selectedFilter = ValueNotifier<String>('All');
 
-          // Filters
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip('All', true),
-                _buildFilterChip('Missing Image', false),
-                _buildFilterChip('Missing Price', false),
-                _buildFilterChip('No Category', false),
-                _buildFilterChip('Inventory Not Mapped', false),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
+    return ValueListenableBuilder<String>(
+      valueListenable: selectedFilter,
+      builder: (context, filter, child) {
+        final filteredIssues = filter == 'All'
+            ? state.menuIssues
+            : state.menuIssues
+                  .where((issue) => issue['issue'] == filter)
+                  .toList();
 
-          // List Header
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Row(
-              children: [
-                const SizedBox(width: 48), // Padding for icon
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'ITEM NAME',
-                    style: AirMenuTextStyle.tiny.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF9CA3AF),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'CATEGORY',
-                    style: AirMenuTextStyle.tiny.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF9CA3AF),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: Text(
-                    'ISSUE',
-                    style: AirMenuTextStyle.tiny.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF9CA3AF),
-                    ),
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    'SEVERITY',
-                    style: AirMenuTextStyle.tiny.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF9CA3AF),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 80), // Action
-              ],
-            ),
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10),
+            ],
           ),
-          const Divider(height: 1, color: Color(0xFFE5E7EB)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Menu Issues',
+                style: AirMenuTextStyle.headingH4.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${filteredIssues.length} items need attention',
+                style: AirMenuTextStyle.small.copyWith(
+                  color: const Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 24),
 
-          // Items
-          ...state.menuIssues
-              .map(
-                (issue) => Container(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  decoration: const BoxDecoration(
-                    border: Border(
-                      bottom: BorderSide(color: Color(0xFFF3F4F6)),
+              // Filters
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip(
+                      'All',
+                      filter == 'All',
+                      () => selectedFilter.value = 'All',
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Icon(
-                          Icons.image_outlined,
-                          size: 16,
-                          color: Color(0xFF9CA3AF),
+                    _buildFilterChip(
+                      'Missing Image',
+                      filter == 'Missing Image',
+                      () => selectedFilter.value = 'Missing Image',
+                    ),
+                    _buildFilterChip(
+                      'Missing Price',
+                      filter == 'Missing Price',
+                      () => selectedFilter.value = 'Missing Price',
+                    ),
+                    _buildFilterChip(
+                      'No Category',
+                      filter == 'No Category',
+                      () => selectedFilter.value = 'No Category',
+                    ),
+                    _buildFilterChip(
+                      'Inventory Not Mapped',
+                      filter == 'Inventory Not Mapped',
+                      () => selectedFilter.value = 'Inventory Not Mapped',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // List Header
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 48), // Padding for icon
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        'ITEM NAME',
+                        style: AirMenuTextStyle.tiny.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF9CA3AF),
                         ),
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          issue['name'],
-                          style: AirMenuTextStyle.small.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'CATEGORY',
+                        style: AirMenuTextStyle.tiny.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF9CA3AF),
                         ),
                       ),
-                      Expanded(
-                        flex: 2,
-                        child: Text(
-                          issue['category'],
-                          style: AirMenuTextStyle.small.copyWith(
-                            color: const Color(0xFF6B7280),
-                          ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Text(
+                        'ISSUE',
+                        style: AirMenuTextStyle.tiny.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF9CA3AF),
                         ),
                       ),
-                      Expanded(flex: 3, child: _buildIssueTag(issue['issue'])),
-                      Expanded(
-                        flex: 2,
-                        child: _buildSeverityTag(issue['severity']),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        'SEVERITY',
+                        style: AirMenuTextStyle.tiny.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF9CA3AF),
+                        ),
                       ),
-                      SizedBox(
-                        width: 80,
-                        child: OutlinedButton(
-                          onPressed: () {},
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
+                    ),
+                    const SizedBox(width: 80), // Action
+                  ],
+                ),
+              ),
+              const Divider(height: 1, color: Color(0xFFE5E7EB)),
+
+              // Items
+              ...filteredIssues
+                  .map(
+                    (issue) => Container(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      decoration: const BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: Color(0xFFF3F4F6)),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF3F4F6),
+                              borderRadius: BorderRadius.circular(4),
                             ),
-                            minimumSize: Size.zero,
-                            side: const BorderSide(color: Color(0xFFE5E7EB)),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
+                            child: const Icon(
+                              Icons.image_outlined,
+                              size: 16,
+                              color: Color(0xFF9CA3AF),
                             ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.edit_outlined,
-                                size: 14,
-                                color: Color(0xFF374151),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            flex: 3,
+                            child: Text(
+                              issue['name'],
+                              style: AirMenuTextStyle.small.copyWith(
+                                fontWeight: FontWeight.w600,
                               ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Fix',
-                                style: AirMenuTextStyle.tiny.copyWith(
-                                  color: const Color(0xFF374151),
-                                  fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              issue['category'],
+                              style: AirMenuTextStyle.small.copyWith(
+                                color: const Color(0xFF6B7280),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: _buildIssueTag(issue['issue']),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: _buildSeverityTag(issue['severity']),
+                          ),
+                          SizedBox(
+                            width: 90,
+                            child: ElevatedButton(
+                              onPressed: () {
+                                // TODO: Implement fix issue functionality
+                                // This should navigate to edit menu item page or show a dialog
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFC52031),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                minimumSize: Size.zero,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
                               ),
-                            ],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.edit_outlined,
+                                    size: 14,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Fix',
+                                    style: AirMenuTextStyle.tiny.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-              )
-              .toList(),
-        ],
-      ),
+                    ),
+                  )
+                  .toList(),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildFilterChip(String label, bool isSelected) {
+  Widget _buildFilterChip(String label, bool isSelected, VoidCallback onTap) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: Chip(
-        label: Text(
-          label,
-          style: AirMenuTextStyle.tiny.copyWith(
-            color: isSelected ? Colors.white : const Color(0xFF4B5563),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Chip(
+          label: Text(
+            label,
+            style: AirMenuTextStyle.tiny.copyWith(
+              color: isSelected ? Colors.white : const Color(0xFF4B5563),
+            ),
+          ),
+          backgroundColor: isSelected
+              ? const Color(0xFFC52031)
+              : const Color(0xFFF3F4F6),
+          side: BorderSide.none,
+          padding: const EdgeInsets.all(0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
         ),
-        backgroundColor: isSelected
-            ? const Color(0xFFC52031)
-            : const Color(0xFFF3F4F6),
-        side: BorderSide.none,
-        padding: const EdgeInsets.all(0),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
     );
   }

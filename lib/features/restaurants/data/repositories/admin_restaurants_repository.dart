@@ -4,6 +4,7 @@ import 'package:airmenuai_partner_app/core/network/api_service.dart';
 import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/core/network/request_type.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
+import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/restaurant_creation_models.dart';
 
 import 'package:injectable/injectable.dart';
 
@@ -164,9 +165,12 @@ class AdminRestaurantsRepository {
     try {
       if (imagePath != null) {
         // Convert dynamic data to Map<String, String> for fields
-        final fields = data.map(
-          (key, value) => MapEntry(key, value.toString()),
-        );
+        final fields = data.map((key, value) {
+          if (value is List || value is Map) {
+            return MapEntry(key, jsonEncode(value));
+          }
+          return MapEntry(key, value.toString());
+        });
 
         final response = await _apiService.invokeMultipart(
           urlPath: ApiEndpoints.hotels,
@@ -196,6 +200,66 @@ class AdminRestaurantsRepository {
     }
   }
 
+  /// Get address autocomplete suggestions
+  Future<List<PlaceAutocompleteModel>> getAutocompleteSuggestions(
+    String input,
+  ) async {
+    try {
+      final encodedInput = Uri.encodeComponent(input);
+      final response = await _apiService.invoke(
+        urlPath: '${ApiEndpoints.placesAutocomplete}?input=$encodedInput',
+        type: RequestType.get,
+        fun: (data) => jsonDecode(data),
+      );
+
+      if (response is DataSuccess) {
+        final data = response.data;
+        if (data is List) {
+          return data
+              .map(
+                (item) => PlaceAutocompleteModel.fromJson(
+                  item as Map<String, dynamic>,
+                ),
+              )
+              .toList();
+        } else if (data is Map) {
+          List? list =
+              (data['predictions'] ?? data['results'] ?? data['suggestions'])
+                  as List?;
+
+          // If not found at top level, check inside 'data' object
+          if (list == null && data['data'] != null) {
+            if (data['data'] is List) {
+              list = data['data'] as List;
+            } else if (data['data'] is Map) {
+              final nestedData = data['data'] as Map<String, dynamic>;
+              list =
+                  (nestedData['predictions'] ??
+                          nestedData['results'] ??
+                          nestedData['suggestions'])
+                      as List?;
+            }
+          }
+
+          if (list != null) {
+            return list
+                .map(
+                  (item) => PlaceAutocompleteModel.fromJson(
+                    item as Map<String, dynamic>,
+                  ),
+                )
+                .toList();
+          }
+        }
+        return [];
+      } else {
+        throw Exception('Failed to fetch autocomplete suggestions');
+      }
+    } catch (e) {
+      throw Exception('Error fetching autocomplete suggestions: $e');
+    }
+  }
+
   /// Update an existing restaurant
   Future<void> updateRestaurant({
     required String id,
@@ -204,9 +268,12 @@ class AdminRestaurantsRepository {
   }) async {
     try {
       if (imagePath != null) {
-        final fields = data.map(
-          (key, value) => MapEntry(key, value.toString()),
-        );
+        final fields = data.map((key, value) {
+          if (value is List || value is Map) {
+            return MapEntry(key, jsonEncode(value));
+          }
+          return MapEntry(key, value.toString());
+        });
 
         final response = await _apiService.invokeMultipart(
           urlPath: '${ApiEndpoints.hotels}/$id',

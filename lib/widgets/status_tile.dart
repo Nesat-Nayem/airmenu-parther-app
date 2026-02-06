@@ -15,6 +15,7 @@ class PremiumStatusTile extends StatelessWidget {
   final bool isPositiveComparison;
   final VoidCallback? onTap;
   final bool showMinSuffix; // For "Avg Prep Time" to show "12 min"
+  final String? displayValue; // For string-based values like "18 min"
 
   const PremiumStatusTile({
     super.key,
@@ -28,6 +29,7 @@ class PremiumStatusTile extends StatelessWidget {
     this.isPositiveComparison = true,
     this.onTap,
     this.showMinSuffix = false,
+    this.displayValue,
   });
 
   @override
@@ -78,19 +80,20 @@ class PremiumStatusTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildCircularIcon(hovered),
-                      if (comparisonBadge != null) _buildComparisonBadge(),
+                      if (comparisonBadge != null)
+                        Flexible(child: _buildComparisonBadge()),
                     ],
                   ),
 
                   const SizedBox(height: 16),
 
-                  /// Count with optional "min" suffix
+                  /// Count with optional "min" suffix or displayValue
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        '$count',
+                        displayValue ?? '$count',
                         style: GoogleFonts.sora(
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
@@ -100,7 +103,7 @@ class PremiumStatusTile extends StatelessWidget {
                               : const Color(0xFF111827),
                         ),
                       ),
-                      if (showMinSuffix) ...[
+                      if (showMinSuffix && displayValue == null) ...[
                         const SizedBox(width: 4),
                         Text(
                           'min',
@@ -232,12 +235,14 @@ class StatusTilesGrid extends StatelessWidget {
           final width = constraints.maxWidth;
 
           // Calculate columns for responsive layout
-          const double maxExtent = 260.0;
-          int crossAxisCount = (width / maxExtent).ceil();
+          // Use smaller maxExtent for narrow screens (mobile)
+          final double maxExtent = width < 400 ? 150.0 : 240.0;
+          int crossAxisCount = (width / maxExtent).floor();
           if (crossAxisCount < 1) crossAxisCount = 1;
           if (crossAxisCount > tiles.length) crossAxisCount = tiles.length;
 
-          const double gap = 16.0;
+          // Gap between tiles
+          final double gap = width < 400 ? 10.0 : 16.0;
           final tileWidth =
               (width - gap * (crossAxisCount - 1)) / crossAxisCount;
 

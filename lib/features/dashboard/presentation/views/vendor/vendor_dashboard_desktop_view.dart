@@ -70,82 +70,141 @@ class _VendorDashboardDesktopContent extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Header
+
+                    // Filters
                     Row(
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Restaurant Dashboard',
-                              style: AirMenuTextStyle.headingH2.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AirMenuColors.textPrimary,
+                        // Search Field
+                        Expanded(
+                          child: Container(
+                            height: 48,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF9FAFB),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE5E7EB),
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Spice Garden - Today\'s Overview',
-                              style: AirMenuTextStyle.normal.copyWith(
-                                color: AirMenuColors.textSecondary,
-                              ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.search,
+                                  color: Color(0xFF9CA3AF),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: TextField(
+                                    decoration: InputDecoration(
+                                      hintText: 'Search orders, items...',
+                                      hintStyle: AirMenuTextStyle.normal
+                                          .copyWith(
+                                            color: const Color(0xFF9CA3AF),
+                                          ),
+                                      border: InputBorder.none,
+                                      isDense: true,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: const Color(0xFFE5E7EB),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    '⌘K',
+                                    style: AirMenuTextStyle.small.copyWith(
+                                      color: const Color(0xFF9CA3AF),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+
+                        // Date Filter
+                        DashboardFilterBar(
+                          selectedPeriod: state is VendorDashboardLoaded
+                              ? state.dateRange
+                              : 'Today',
+                          selectedOrderType: state is VendorDashboardLoaded
+                              ? state.orderType
+                              : 'All Types',
+                          selectedBranch: state is VendorDashboardLoaded
+                              ? state.branch
+                              : 'Main Branch',
+                          availableBranches: state is VendorDashboardLoaded
+                              ? state.availableBranches
+                              : [],
+                          onPeriodChanged: (value) {
+                            context.read<VendorDashboardBloc>().add(
+                              UpdateDashboardFilters(period: value),
+                            );
+                          },
+                          onOrderTypeChanged: (value) {
+                            context.read<VendorDashboardBloc>().add(
+                              UpdateDashboardFilters(orderType: value),
+                            );
+                          },
+                          onBranchChanged: (value) {
+                            context.read<VendorDashboardBloc>().add(
+                              UpdateDashboardFilters(branch: value),
+                            );
+                          },
                         ),
                       ],
                     ),
 
-                    const SizedBox(height: 24),
-
-                    // Filters
-                    DashboardFilterBar(
-                      selectedPeriod: state is VendorDashboardLoaded
-                          ? state.dateRange
-                          : 'Today',
-                      selectedOrderType: state is VendorDashboardLoaded
-                          ? state.orderType
-                          : 'All Types',
-                      selectedBranch: state is VendorDashboardLoaded
-                          ? state.branch
-                          : 'Main Branch',
-                      availableBranches: state is VendorDashboardLoaded
-                          ? state.availableBranches
-                          : [],
-                      onPeriodChanged: (value) {
-                        context.read<VendorDashboardBloc>().add(
-                          UpdateDashboardFilters(period: value),
-                        );
-                      },
-                      onOrderTypeChanged: (value) {
-                        context.read<VendorDashboardBloc>().add(
-                          UpdateDashboardFilters(orderType: value),
-                        );
-                      },
-                      onBranchChanged: (value) {
-                        context.read<VendorDashboardBloc>().add(
-                          UpdateDashboardFilters(branch: value),
-                        );
-                      },
-                    ),
-
                     const SizedBox(height: 32),
 
-                    // Stat Cards (3 columns)
+                    // Stat Cards (6 columns)
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
+                            crossAxisCount: 6,
                             crossAxisSpacing: 16,
                             mainAxisSpacing: 16,
                             childAspectRatio:
-                                1.3, // Decreased from 1.5 to prevent overflow
+                                0.55, // Taller ratio for overflow safety
                           ),
                       itemCount: data.stats.toStatCards().length,
                       itemBuilder: (context, index) {
+                        final stat = data.stats.toStatCards()[index];
+
+                        // Custom footer for 'Total Orders Today' card (index 0)
+                        Widget? footer;
+                        if (index == 0) {
+                          footer = Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _buildBreakdownRow('Dine-in', '89'),
+                              const SizedBox(height: 4),
+                              _buildBreakdownRow('Takeaway', '45'),
+                              const SizedBox(height: 4),
+                              _buildBreakdownRow('Delivery', '22'),
+                            ],
+                          );
+                        }
+
                         return VendorStatCard(
-                          data: data.stats.toStatCards()[index],
+                          data: stat,
                           index: index,
+                          footer: footer,
                         );
                       },
                     ),
@@ -322,6 +381,29 @@ class _VendorDashboardDesktopContent extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBreakdownRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: AirMenuTextStyle.small.copyWith(
+            color: const Color(0xFF6B7280),
+            fontSize: 12,
+          ),
+        ),
+        Text(
+          value,
+          style: AirMenuTextStyle.small.copyWith(
+            color: const Color(0xFF374151),
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 }

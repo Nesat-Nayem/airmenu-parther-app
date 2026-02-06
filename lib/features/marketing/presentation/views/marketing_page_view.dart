@@ -9,6 +9,11 @@ import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/ma
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/marketing_summary_tiles.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/marketing_tab_bar.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/promo_code_table.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/campaign_form_dialog.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/campaign_analytics_dialog.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/offer_form_dialog.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/combo_form_dialog.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/combo_card.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
 /// Main view for Marketing page
@@ -32,8 +37,6 @@ class MarketingPageView extends StatelessWidget {
                   padding: const EdgeInsets.all(24),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      _buildHeader(context),
-                      const SizedBox(height: 24),
                       _buildStatCards(context, state),
                       const SizedBox(height: 24),
                       _buildTabBar(context, state),
@@ -50,44 +53,6 @@ class MarketingPageView extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    'Marketing & Campaigns',
-                    style: AirMenuTextStyle.headingH3.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1C1C1C),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.auto_awesome,
-                    size: 20,
-                    color: Color(0xFFDC2626),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Platform promotions and offers',
-                style: AirMenuTextStyle.small.copyWith(
-                  color: const Color(0xFF6B7280),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -165,28 +130,76 @@ class MarketingPageView extends StatelessWidget {
 
   Widget _buildTabBar(BuildContext context, MarketingState state) {
     final isCampaignsTab = state.currentTab == MarketingTab.campaigns;
+    final isCombosTab = state.currentTab == MarketingTab.combos;
+
+    String searchHint;
+    String addButtonText;
+
+    if (state.isAdmin) {
+      searchHint = isCampaignsTab
+          ? 'Search campaigns...'
+          : 'Search promo codes...';
+      addButtonText = isCampaignsTab ? 'New Campaign' : 'New Promo Code';
+    } else {
+      searchHint = isCampaignsTab ? 'Search offers...' : 'Search combos...';
+      addButtonText = isCampaignsTab ? 'New Offer' : 'New Combo';
+    }
 
     return MarketingTabBar(
       currentTab: state.currentTab,
+      isAdmin: state.isAdmin,
       onTabChanged: (tab) {
         context.read<MarketingBloc>().add(SwitchMarketingTab(tab));
       },
-      searchHint: isCampaignsTab ? 'Search campaigns...' : 'Search offers...',
+      searchHint: searchHint,
       searchQuery: state.currentSearchQuery,
       onSearchChanged: (query) {
         if (isCampaignsTab) {
           context.read<MarketingBloc>().add(SearchCampaigns(query));
-        } else {
+        } else if (state.currentTab == MarketingTab.promoCodes) {
           context.read<MarketingBloc>().add(SearchPromoCodes(query));
+        } else if (state.currentTab == MarketingTab.combos) {
+          context.read<MarketingBloc>().add(SearchCombos(query));
         }
       },
-      addButtonText: isCampaignsTab ? '+ New Campaign' : '+ New Offer',
+      addButtonText: addButtonText,
       onAddPressed: () {
-        // TODO: Implement add campaign/promo dialog
-        _showSnackBar(
-          context,
-          'Add ${isCampaignsTab ? 'Campaign' : 'Offer'} coming soon',
-        );
+        if (state.isAdmin) {
+          if (isCampaignsTab) {
+            CampaignFormDialog.show(
+              context,
+              onSave: (data) {
+                context.read<MarketingBloc>().add(CreateCampaign(data));
+              },
+            );
+          } else {
+            OfferFormDialog.show(
+              context,
+              onSave: (data) {
+                context.read<MarketingBloc>().add(CreatePromoCode(data));
+              },
+            );
+          }
+        } else {
+          // Vendor
+          if (isCampaignsTab) {
+            // Vendor: Create offer via hotel-offers API
+            OfferFormDialog.show(
+              context,
+              onSave: (data) {
+                context.read<MarketingBloc>().add(CreateCampaign(data));
+              },
+            );
+          } else if (isCombosTab) {
+            // Vendor: Create Combo
+            ComboFormDialog.show(
+              context,
+              onSave: (data) {
+                context.read<MarketingBloc>().add(CreateCombo(data));
+              },
+            );
+          }
+        }
       },
     );
   }
@@ -194,8 +207,11 @@ class MarketingPageView extends StatelessWidget {
   Widget _buildContent(BuildContext context, MarketingState state) {
     if (state.currentTab == MarketingTab.campaigns) {
       return _buildCampaignsContent(context, state);
-    } else {
+    } else if (state.currentTab == MarketingTab.promoCodes) {
       return _buildPromoCodesContent(context, state);
+    } else {
+      // Combos
+      return _buildCombosContent(context, state);
     }
   }
 
@@ -240,10 +256,21 @@ class MarketingPageView extends StatelessWidget {
               child: CampaignCard(
                 campaign: campaign,
                 onAnalyticsTap: () {
-                  _showSnackBar(context, 'Analytics for ${campaign.name}');
+                  CampaignAnalyticsDialog.show(context, campaign);
                 },
                 onEditTap: () {
-                  _showSnackBar(context, 'Edit ${campaign.name}');
+                  CampaignFormDialog.show(
+                    context,
+                    campaign: campaign,
+                    onSave: (data) {
+                      context.read<MarketingBloc>().add(
+                        UpdateCampaign(
+                          campaignId: campaign.id,
+                          campaignData: data,
+                        ),
+                      );
+                    },
+                  );
                 },
               ),
             );
@@ -300,7 +327,15 @@ class MarketingPageView extends StatelessWidget {
       promoCodes: state.filteredPromoCodes,
       actionInProgressId: state.actionInProgressId,
       onEditTap: (promo) {
-        _showSnackBar(context, 'Edit ${promo.code}');
+        OfferFormDialog.show(
+          context,
+          offer: promo,
+          onSave: (data) {
+            context.read<MarketingBloc>().add(
+              UpdatePromoCode(promoId: promo.id, promoData: data),
+            );
+          },
+        );
       },
       onStatusToggle: (PromoCodeModel promo) {
         context.read<MarketingBloc>().add(
@@ -403,13 +438,87 @@ class MarketingPageView extends StatelessWidget {
     );
   }
 
-  void _showSnackBar(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+  Widget _buildCombosContent(BuildContext context, MarketingState state) {
+    if (state.combosStatus == MarketingLoadStatus.loading ||
+        state.combosStatus == MarketingLoadStatus.initial) {
+      return _buildCombosSkeleton();
+    }
+
+    if (state.combosStatus == MarketingLoadStatus.failure) {
+      return _buildErrorWidget(
+        context,
+        'Failed to load combos',
+        () => context.read<MarketingBloc>().add(const LoadMarketingData()),
+      );
+    }
+
+    if (state.isCombosEmpty) {
+      return _buildEmptyState(
+        context,
+        'No combos found',
+        state.isSearchActive
+            ? 'Try adjusting your search query'
+            : 'Create your first combo to get started',
+        Icons.fastfood,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth > 800 ? 2 : 1;
+        final itemWidth =
+            (constraints.maxWidth - (crossAxisCount - 1) * 16) / crossAxisCount;
+
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: state.filteredCombos.map((combo) {
+            return SizedBox(
+              width: itemWidth,
+              child: ComboCard(
+                combo: combo,
+                onEdit: () {
+                  ComboFormDialog.show(
+                    context,
+                    combo: combo,
+                    onSave: (data) {
+                      // Update combo not full implemented yet in Bloc
+                      // context.read<MarketingBloc>().add(UpdateCombo(...));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Combo update coming soon!'),
+                        ),
+                      );
+                    },
+                  );
+                },
+                onToggle: () {
+                  // status toggle
+                },
+              ),
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildCombosSkeleton() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth > 800 ? 2 : 1;
+        final itemWidth =
+            (constraints.maxWidth - (crossAxisCount - 1) * 16) / crossAxisCount;
+
+        return Wrap(
+          spacing: 16,
+          runSpacing: 16,
+          children: List.generate(
+            4,
+            (_) => SizedBox(width: itemWidth, child: const ComboCardSkeleton()),
+          ),
+        );
+      },
     );
   }
 }

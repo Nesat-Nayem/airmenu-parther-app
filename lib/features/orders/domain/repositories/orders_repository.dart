@@ -8,10 +8,12 @@ abstract class OrdersRepository {
   /// Get order statistics for filter chips and stats tiles
   Future<Either<Failure, OrderStatsModel>> getOrderStats();
 
-  /// Get all orders (pagination removed - to be implemented later)
+  /// Get all orders with pagination support
   Future<Either<Failure, GenericResponse<List<OrderModel>>>> getOrders({
     String? status,
     String? paymentStatus,
+    int page = 1,
+    int limit = 20,
   });
 
   Future<Either<Failure, void>> updateOrderStatus({

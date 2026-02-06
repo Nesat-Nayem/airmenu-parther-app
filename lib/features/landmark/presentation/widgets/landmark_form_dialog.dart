@@ -7,6 +7,8 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:airmenuai_partner_app/features/landmark/data/models/mall_model.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 /// Form dialog for creating/editing a landmark
 class LandmarkFormDialog extends StatefulWidget {
@@ -131,46 +133,85 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
       setState(() {
         _latitude = selected.latitude;
         _longitude = selected.longitude;
-        // Optionally append coords to location text if empty
-        if (_locationController.text.isEmpty) {
-          _locationController.text =
-              '${selected.latitude.toStringAsFixed(5)}, ${selected.longitude.toStringAsFixed(5)}';
-        }
       });
+
+      // Fetch address
+      if (mounted) {
+        final address = await _getAddressFromLatLng(
+          selected.latitude,
+          selected.longitude,
+        );
+        if (address != null && mounted) {
+          setState(() {
+            _locationController.text = address;
+          });
+        }
+      }
     }
+  }
+
+  Future<String?> _getAddressFromLatLng(double lat, double lng) async {
+    try {
+      final url = Uri.parse(
+        'https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng',
+      );
+      final response = await http.get(
+        url,
+        headers: {'User-Agent': 'AirMenuPartnerApp/1.0'},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['display_name'] as String?;
+      }
+    } catch (e) {
+      debugPrint('Error fetching address: $e');
+    }
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(16),
       child: Container(
-        width: 500,
+        width: 550,
         constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.85,
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
         ),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 32,
+              offset: const Offset(0, 16),
+            ),
+          ],
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
             _buildHeader(),
-            Flexible(
+            Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(32),
                 child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      _buildSectionTitle('Basic Information'),
+                      const SizedBox(height: 16),
                       _buildNameField(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       _buildDescriptionField(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 32),
+                      _buildSectionTitle('Location & Media'),
+                      const SizedBox(height: 16),
                       _buildLocationField(),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
                       _buildImagePicker(),
                     ],
                   ),
@@ -184,24 +225,69 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
     );
   }
 
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: AirMenuTextStyle.subheadingH5.copyWith(
+        fontWeight: FontWeight.w700,
+        color: const Color(0xFF111827),
+        letterSpacing: -0.5,
+      ),
+    );
+  }
+
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(32, 24, 24, 24),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
       ),
       child: Row(
         children: [
-          Text(
-            isEditing ? 'Edit Landmark' : 'Add Landmark',
-            style: AirMenuTextStyle.headingH4.copyWith(
-              fontWeight: FontWeight.w600,
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Icon(
+              isEditing
+                  ? Icons.edit_location_alt_rounded
+                  : Icons.add_business_rounded,
+              color: const Color(0xFFC52031),
+              size: 24,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                isEditing ? 'Edit Landmark' : 'Add Landmark',
+                style: AirMenuTextStyle.headingH4.copyWith(
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                isEditing
+                    ? 'Update mall details below'
+                    : 'Create a new mall or food court',
+                style: AirMenuTextStyle.small.copyWith(
+                  color: const Color(0xFF6B7280),
+                ),
+              ),
+            ],
           ),
           const Spacer(),
           IconButton(
-            icon: const Icon(Icons.close),
+            icon: const Icon(Icons.close_rounded),
             onPressed: () => Navigator.of(context).pop(),
+            style: IconButton.styleFrom(
+              foregroundColor: const Color(0xFF9CA3AF),
+              hoverColor: const Color(0xFFF3F4F6),
+            ),
           ),
         ],
       ),
@@ -212,25 +298,18 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        RichText(
-          text: TextSpan(
-            text: 'Mall Name ',
-            style: AirMenuTextStyle.normal.copyWith(
-              fontWeight: FontWeight.w500,
-              color: const Color(0xFF374151),
-            ),
-            children: const [
-              TextSpan(
-                text: '*',
-                style: TextStyle(color: Color(0xFFDC2626)),
-              ),
-            ],
-          ),
-        ),
+        _buildLabel('Mall Name', isRequired: true),
         const SizedBox(height: 8),
         TextFormField(
           controller: _nameController,
-          decoration: _inputDecoration('Enter mall name'),
+          style: AirMenuTextStyle.normal.copyWith(fontWeight: FontWeight.w500),
+          decoration: _inputDecoration('e.g. Dubai Mall, Downtown').copyWith(
+            prefixIcon: const Icon(
+              Icons.business_rounded,
+              color: Color(0xFF9CA3AF),
+              size: 20,
+            ),
+          ),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
               return 'Mall name is required';
@@ -246,18 +325,15 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Description',
-          style: AirMenuTextStyle.normal.copyWith(
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF374151),
-          ),
-        ),
+        _buildLabel('Description'),
         const SizedBox(height: 8),
         TextFormField(
           controller: _descriptionController,
-          decoration: _inputDecoration('Enter description'),
-          maxLines: 3,
+          style: AirMenuTextStyle.normal,
+          decoration: _inputDecoration(
+            'Brief description of the landmark...',
+          ).copyWith(alignLabelWithHint: true),
+          maxLines: 4,
         ),
       ],
     );
@@ -267,40 +343,70 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Location',
-          style: AirMenuTextStyle.normal.copyWith(
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF374151),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildLabel('Location Address'),
+            if (_latitude != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFECFDF5),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_rounded,
+                      size: 12,
+                      color: Color(0xFF10B981),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Pinned',
+                      style: AirMenuTextStyle.small.copyWith(
+                        color: const Color(0xFF059669),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 8),
         TextFormField(
           controller: _locationController,
-          decoration: _inputDecoration('Enter location address').copyWith(
-            suffixIcon: IconButton(
-              icon: Icon(
-                Icons.location_on_outlined,
-                color: _latitude != null
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFFC52031),
+          style: AirMenuTextStyle.normal,
+          decoration: _inputDecoration('Enter full address').copyWith(
+            prefixIcon: const Icon(
+              Icons.location_on_outlined,
+              color: Color(0xFF9CA3AF),
+              size: 20,
+            ),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Material(
+                color: const Color(0xFFFFF1F2),
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
+                  onTap: _pickLocation,
+                  borderRadius: BorderRadius.circular(8),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.map_rounded,
+                      color: Color(0xFFC52031),
+                      size: 20,
+                    ),
+                  ),
+                ),
               ),
-              onPressed: _pickLocation,
-              tooltip: 'Pick location on map',
             ),
           ),
           maxLines: 2,
         ),
-        if (_latitude != null && _longitude != null) ...[
-          const SizedBox(height: 4),
-          Text(
-            'Selected Coordinates: ${_latitude!.toStringAsFixed(5)}, ${_longitude!.toStringAsFixed(5)}',
-            style: AirMenuTextStyle.small.copyWith(
-              color: const Color(0xFF10B981),
-              fontSize: 11,
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -312,32 +418,85 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Main Image',
-          style: AirMenuTextStyle.normal.copyWith(
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF374151),
-          ),
-        ),
+        _buildLabel('Cover Image'),
         const SizedBox(height: 8),
         InkWell(
           onTap: _pickImage,
+          borderRadius: BorderRadius.circular(16),
           child: Container(
-            height: 150,
+            height: 200,
             width: double.infinity,
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: const Color(0xFFE5E7EB),
                 style: BorderStyle.solid,
+                width: 1.5,
               ),
             ),
             clipBehavior: Clip.antiAlias,
-            child: _buildImagePreview(hasImage),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildImagePreview(hasImage),
+                if (hasImage)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withOpacity(
+                        0.0,
+                      ), // Hover effect could go here
+                    ),
+                  ),
+                if (hasImage)
+                  Positioned(
+                    bottom: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.edit_outlined,
+                        size: 20,
+                        color: Color(0xFF374151),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildLabel(String text, {bool isRequired = false}) {
+    return RichText(
+      text: TextSpan(
+        text: text,
+        style: AirMenuTextStyle.small.copyWith(
+          fontWeight: FontWeight.w600,
+          color: const Color(0xFF374151),
+          fontSize: 13,
+        ),
+        children: isRequired
+            ? const [
+                TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Color(0xFFDC2626)),
+                ),
+              ]
+            : null,
+      ),
     );
   }
 
@@ -353,7 +512,11 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
         widget.mall!.mainImage,
         fit: BoxFit.cover,
         errorBuilder: (ctx, err, stack) => const Center(
-          child: Icon(Icons.broken_image, size: 32, color: Colors.grey),
+          child: Icon(
+            Icons.broken_image_rounded,
+            size: 32,
+            color: Color(0xFF9CA3AF),
+          ),
         ),
       );
     }
@@ -361,16 +524,44 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(
-          Icons.cloud_upload_outlined,
-          size: 32,
-          color: Color(0xFF9CA3AF),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: const Icon(
+            Icons.add_photo_alternate_rounded,
+            size: 32,
+            color: Color(0xFFC52031),
+          ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+        RichText(
+          text: TextSpan(
+            text: 'Click to upload',
+            style: AirMenuTextStyle.normal.copyWith(
+              color: const Color(0xFFC52031),
+              fontWeight: FontWeight.w600,
+            ),
+            children: [
+              TextSpan(
+                text: ' or drag and drop',
+                style: TextStyle(
+                  color: const Color(0xFF6B7280),
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
         Text(
-          'Click to upload image',
+          'SVG, PNG, JPG or GIF (max. 800x400px)',
           style: AirMenuTextStyle.small.copyWith(
-            color: const Color(0xFF6B7280),
+            color: const Color(0xFF9CA3AF),
+            fontSize: 12,
           ),
         ),
       ],
@@ -379,60 +570,58 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
 
   Widget _buildFooter() {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+        color: Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+        border: Border(top: BorderSide(color: Color(0xFFF3F4F6))),
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                side: const BorderSide(color: Color(0xFFE5E7EB)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+          TextButton(
+            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              foregroundColor: const Color(0xFF6B7280),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(
-                'Cancel',
-                style: AirMenuTextStyle.normal.copyWith(
-                  color: const Color(0xFF6B7280),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+            ),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleSubmit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC52031),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: _isLoading ? null : _handleSubmit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC52031),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+              elevation: 0,
+              shadowColor: const Color(0xFFC52031).withValues(alpha: 0.4),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                  : Text(
-                      isEditing ? 'Update' : 'Create',
-                      style: AirMenuTextStyle.normal.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
             ),
+            child: _isLoading
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    isEditing ? 'Save Changes' : 'Create Landmark',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                    ),
+                  ),
           ),
         ],
       ),
@@ -446,24 +635,24 @@ class _LandmarkFormDialogState extends State<LandmarkFormDialog> {
         color: const Color(0xFF9CA3AF),
       ),
       filled: true,
-      fillColor: const Color(0xFFF9FAFB),
+      fillColor: Colors.white,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: Color(0xFFC52031), width: 2),
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFFC52031), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: Color(0xFFDC2626)),
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     );
   }
 

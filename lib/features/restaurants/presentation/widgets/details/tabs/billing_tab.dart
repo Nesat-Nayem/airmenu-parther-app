@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_bloc.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_state.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
@@ -22,7 +24,7 @@ class BillingTab extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildPlanCard(plan),
+            _buildPlanCard(context, plan),
             const SizedBox(height: 24),
             Text(
               'Invoice History',
@@ -38,7 +40,7 @@ class BillingTab extends StatelessWidget {
     );
   }
 
-  Widget _buildPlanCard(Map<String, dynamic> plan) {
+  Widget _buildPlanCard(BuildContext context, Map<String, dynamic> plan) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -110,8 +112,8 @@ class BillingTab extends StatelessWidget {
               OutlinedButton(
                 onPressed: () {},
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF374151),
-                  side: const BorderSide(color: Color(0xFFE5E7EB)),
+                  foregroundColor: const Color(0xFFC52031),
+                  side: const BorderSide(color: Color(0xFFC52031), width: 1.5),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 24,
                     vertical: 16,
@@ -120,11 +122,17 @@ class BillingTab extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text('Change Plan'),
+                child: Text(
+                  'Change Plan',
+                  style: AirMenuTextStyle.normal.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFFC52031),
+                  ),
+                ),
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () => context.push(AppRoutes.planUpgrade.path),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFC52031),
                   foregroundColor: Colors.white,

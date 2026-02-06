@@ -1,4 +1,5 @@
 /// Model for promo code data with full null safety
+/// Maps to the Coupon API (/coupon) response
 class PromoCodeModel {
   final String id;
   final String code;
@@ -6,8 +7,13 @@ class PromoCodeModel {
   final double discountValue;
   final double minOrder;
   final int uses;
+  final int usageLimit;
   final String status; // 'active', 'paused'
+  final bool isGlobal;
+  final String? vendorId;
+  final String? restaurantId;
   final DateTime? createdAt;
+  final DateTime? validFrom;
   final DateTime? expiresAt;
 
   const PromoCodeModel({
@@ -17,44 +23,53 @@ class PromoCodeModel {
     required this.discountValue,
     required this.minOrder,
     required this.uses,
+    this.usageLimit = 0,
     required this.status,
+    this.isGlobal = false,
+    this.vendorId,
+    this.restaurantId,
     this.createdAt,
+    this.validFrom,
     this.expiresAt,
   });
 
-  /// Factory constructor with comprehensive null handling
+  /// Factory constructor to map from Coupon API response
   factory PromoCodeModel.fromJson(Map<String, dynamic>? json) {
     if (json == null) return PromoCodeModel.empty();
 
     return PromoCodeModel(
-      id: (json['id'] as String?) ?? '',
-      code: (json['code'] as String?) ?? '',
-      discountType: _parseDiscountType(json['discountType']),
-      discountValue: (json['discountValue'] as num?)?.toDouble() ?? 0.0,
-      minOrder: (json['minOrder'] as num?)?.toDouble() ?? 0.0,
-      uses: (json['uses'] as int?) ?? 0,
-      status: _parseStatus(json['status']),
+      id: (json['_id'] as String?) ?? (json['id'] as String?) ?? '',
+      code: (json['couponCode'] as String?) ?? (json['code'] as String?) ?? '',
+      discountType: 'percentage', // Coupon API uses percentage by default
+      discountValue:
+          (json['discountPercentage'] as num?)?.toDouble() ??
+          (json['discountValue'] as num?)?.toDouble() ??
+          0.0,
+      minOrder:
+          (json['minOrderAmount'] as num?)?.toDouble() ??
+          (json['minOrder'] as num?)?.toDouble() ??
+          0.0,
+      uses: (json['totalUses'] as int?) ?? (json['uses'] as int?) ?? 0,
+      usageLimit: (json['usageLimit'] as int?) ?? 0,
+      status: _parseStatus(json['isActive']),
+      isGlobal: (json['isGlobal'] as bool?) ?? false,
+      vendorId: json['vendorId'] as String?,
+      restaurantId: json['restaurantId'] as String?,
       createdAt: _parseDate(json['createdAt']),
-      expiresAt: _parseDate(json['expiresAt']),
+      validFrom: _parseDate(json['validFrom']),
+      expiresAt:
+          _parseDate(json['validUntil']) ?? _parseDate(json['expiresAt']),
     );
   }
 
-  /// Parse discount type with fallback
-  static String _parseDiscountType(dynamic type) {
-    final validTypes = ['flat', 'percentage'];
-    final typeStr = (type as String?) ?? 'flat';
-    return validTypes.contains(typeStr.toLowerCase())
-        ? typeStr.toLowerCase()
-        : 'flat';
-  }
-
-  /// Parse status with fallback
-  static String _parseStatus(dynamic status) {
-    final validStatuses = ['active', 'paused'];
-    final statusStr = (status as String?) ?? 'active';
-    return validStatuses.contains(statusStr.toLowerCase())
-        ? statusStr.toLowerCase()
-        : 'active';
+  /// Parse status from boolean isActive
+  static String _parseStatus(dynamic isActive) {
+    if (isActive == null) return 'active';
+    if (isActive is bool) return isActive ? 'active' : 'paused';
+    if (isActive is String) {
+      return isActive.toLowerCase() == 'true' ? 'active' : 'paused';
+    }
+    return 'active';
   }
 
   /// Safe date parsing
@@ -76,13 +91,11 @@ class PromoCodeModel {
     return const PromoCodeModel(
       id: '',
       code: '',
-      discountType: 'flat',
+      discountType: 'percentage',
       discountValue: 0.0,
       minOrder: 0.0,
       uses: 0,
       status: 'active',
-      createdAt: null,
-      expiresAt: null,
     );
   }
 
@@ -114,17 +127,17 @@ class PromoCodeModel {
     return uses.toString();
   }
 
+  /// Convert to JSON for API request
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'code': code,
-      'discountType': discountType,
-      'discountValue': discountValue,
-      'minOrder': minOrder,
-      'uses': uses,
-      'status': status,
-      'createdAt': createdAt?.toIso8601String(),
-      'expiresAt': expiresAt?.toIso8601String(),
+      'couponCode': code,
+      'discountPercentage': discountValue,
+      'minOrderAmount': minOrder,
+      'usageLimit': usageLimit,
+      'isActive': isActive,
+      'isGlobal': isGlobal,
+      if (validFrom != null) 'validFrom': validFrom!.toIso8601String(),
+      if (expiresAt != null) 'validUntil': expiresAt!.toIso8601String(),
     };
   }
 
@@ -135,8 +148,13 @@ class PromoCodeModel {
     double? discountValue,
     double? minOrder,
     int? uses,
+    int? usageLimit,
     String? status,
+    bool? isGlobal,
+    String? vendorId,
+    String? restaurantId,
     DateTime? createdAt,
+    DateTime? validFrom,
     DateTime? expiresAt,
   }) {
     return PromoCodeModel(
@@ -146,8 +164,13 @@ class PromoCodeModel {
       discountValue: discountValue ?? this.discountValue,
       minOrder: minOrder ?? this.minOrder,
       uses: uses ?? this.uses,
+      usageLimit: usageLimit ?? this.usageLimit,
       status: status ?? this.status,
+      isGlobal: isGlobal ?? this.isGlobal,
+      vendorId: vendorId ?? this.vendorId,
+      restaurantId: restaurantId ?? this.restaurantId,
       createdAt: createdAt ?? this.createdAt,
+      validFrom: validFrom ?? this.validFrom,
       expiresAt: expiresAt ?? this.expiresAt,
     );
   }

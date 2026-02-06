@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:airmenuai_partner_app/core/constants/api_endpoints.dart';
 import 'package:airmenuai_partner_app/core/error/failure.dart';
+import 'package:airmenuai_partner_app/core/models/pagination_model.dart';
 import 'package:airmenuai_partner_app/core/network/api_service.dart';
 import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/features/orders/data/models/order_model.dart';
@@ -25,25 +26,38 @@ class OrdersRepositoryImpl implements OrdersRepository {
         type: RequestType.get,
         fun: (responseBody) {
           final json = jsonDecode(responseBody);
+          // Debug logging
+          print('🔍 Order Stats API Response: ${json['success']}');
+          print('🔍 Order Stats Data: ${json['data']}');
           if (json['success'] == true && json['data'] != null) {
-            return OrderStatsModel.fromJson(json['data']);
+            final model = OrderStatsModel.fromJson(json['data']);
+            print('🔍 Parsed stats count: ${model.stats?.length}');
+            print('🔍 Parsed filters count: ${model.filters?.length}');
+            return model;
           }
+          print('🔍 Order Stats: Returning empty model');
           return OrderStatsModel.empty;
         },
       );
 
       if (response is DataSuccess<OrderStatsModel>) {
+        print(
+          '🔍 Order Stats: DataSuccess - ${response.data?.stats?.length} stats',
+        );
         return Right(response.data ?? OrderStatsModel.empty);
       } else if (response is DataFailure<OrderStatsModel>) {
         final error = response.error;
+        print('🔍 Order Stats: DataFailure - ${error?.message}');
         return Left(
           ServerFailure(
             message: error?.message ?? 'Failed to fetch order stats',
           ),
         );
       }
+      print('🔍 Order Stats: Unknown response type');
       return Left(ServerFailure(message: 'Failed to fetch order stats'));
     } catch (e) {
+      print('🔍 Order Stats: Exception - $e');
       return Left(
         ServerFailure(
           message: 'An error occurred while fetching order stats: $e',
@@ -56,10 +70,14 @@ class OrdersRepositoryImpl implements OrdersRepository {
   Future<Either<Failure, GenericResponse<List<OrderModel>>>> getOrders({
     String? status,
     String? paymentStatus,
+    int page = 1,
+    int limit = 20,
   }) async {
     try {
-      // Pagination removed for now - will be implemented later
-      final queryParams = <String, String>{};
+      final queryParams = <String, String>{
+        'page': page.toString(),
+        'limit': limit.toString(),
+      };
 
       if (status != null && status.isNotEmpty && status != 'All Status') {
         queryParams['status'] = status.toLowerCase();
@@ -77,14 +95,27 @@ class OrdersRepositoryImpl implements OrdersRepository {
             type: RequestType.get,
             fun: (responseBody) {
               final json = jsonDecode(responseBody);
-              return GenericResponse.fromJson<List<OrderModel>>(json, (data) {
-                if (data == null) return [];
-                final ordersList = data['orders'] as List?;
-                if (ordersList == null) return [];
-                return ordersList
-                    .map((e) => OrderModel.fromJson(e as Map<String, dynamic>))
-                    .toList();
-              });
+              // Parse pagination from data.pagination
+              PaginationModel? pagination;
+              if (json['data'] != null && json['data']['pagination'] != null) {
+                pagination = PaginationModel.fromJson(
+                  json['data']['pagination'],
+                );
+              }
+
+              return GenericResponse<List<OrderModel>>(
+                success: json['success'] as bool?,
+                message: json['message'] as String?,
+                data: json['data'] != null && json['data']['orders'] != null
+                    ? (json['data']['orders'] as List)
+                          .map(
+                            (e) =>
+                                OrderModel.fromJson(e as Map<String, dynamic>),
+                          )
+                          .toList()
+                    : [],
+                pagination: pagination,
+              );
             },
           );
 

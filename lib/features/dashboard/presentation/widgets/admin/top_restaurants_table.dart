@@ -55,7 +55,7 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Top Restaurants',
+                  'Restaurant Performance',
                   style: AirMenuTextStyle.subheadingH5.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -140,11 +140,12 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
                       columnWidths: const {
                         0: FixedColumnWidth(200),
                         1: FixedColumnWidth(100),
-                        2: FixedColumnWidth(120),
-                        3: FixedColumnWidth(100),
-                        4: FixedColumnWidth(140),
+                        2: FixedColumnWidth(100), // SLA
+                        3: FixedColumnWidth(120),
+                        4: FixedColumnWidth(100),
                         5: FixedColumnWidth(140),
-                        6: FixedColumnWidth(100),
+                        6: FixedColumnWidth(140),
+                        7: FixedColumnWidth(100),
                       },
                       children: [
                         // Header row
@@ -156,6 +157,7 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
                           children: [
                             _buildHeaderCell('RESTAURANT'),
                             _buildHeaderCell('ORDERS'),
+                            _buildHeaderCell('SLA %'),
                             _buildHeaderCell('PREP TIME'),
                             _buildHeaderCell('QUEUE'),
                             _buildHeaderCell('HEALTH'),
@@ -238,6 +240,22 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
             restaurant.orders.toString(),
             style: AirMenuTextStyle.normal.copyWith(
               fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        _buildDataCell(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _getSLAColor(restaurant.slaCompliance).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              '${restaurant.slaCompliance.toInt()}%',
+              style: AirMenuTextStyle.small.copyWith(
+                color: _getSLAColor(restaurant.slaCompliance),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -346,6 +364,16 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
         return const Color(0xFFEF4444);
       default:
         return const Color(0xFF6B7280);
+    }
+  }
+
+  Color _getSLAColor(double sla) {
+    if (sla >= 90) {
+      return const Color(0xFF10B981); // Good
+    } else if (sla >= 75) {
+      return const Color(0xFFF59E0B); // Warning
+    } else {
+      return const Color(0xFFEF4444); // Critical
     }
   }
 }

@@ -68,19 +68,25 @@ class _LandmarkCardState extends State<LandmarkCard>
         builder: (context, child) =>
             Transform.scale(scale: _scaleAnimation.value, child: child),
         child: Container(
-          // Fixed height for consistent alignment
-          height: 380,
+          // Allow height to grow slightly based on content, but keep min height
+          constraints: const BoxConstraints(minHeight: 400),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isHovered
+                  ? const Color(0xFFC52031).withOpacity(0.3)
+                  : Colors.grey.shade200,
+              width: 1.5,
+            ),
             boxShadow: [
               BoxShadow(
                 color: _isHovered
-                    ? const Color(0xFFC52031).withValues(alpha: 0.15)
-                    : Colors.black.withValues(alpha: 0.08),
-                blurRadius: _isHovered ? 24 : 12,
-                offset: Offset(0, _isHovered ? 8 : 4),
-                spreadRadius: _isHovered ? 2 : 0,
+                    ? const Color(0xFFC52031).withOpacity(0.1)
+                    : Colors.black.withOpacity(0.04),
+                blurRadius: _isHovered ? 24 : 10,
+                offset: Offset(0, _isHovered ? 8 : 2),
+                spreadRadius: _isHovered ? 1 : 0,
               ),
             ],
           ),
@@ -93,7 +99,10 @@ class _LandmarkCardState extends State<LandmarkCard>
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _buildImageSection(),
-                  Expanded(child: _buildContentSection()),
+                  _buildContentSection(),
+                  const Divider(height: 1, color: Color(0xFFF3F4F6)),
+                  _buildStatsSection(),
+                  _buildActionSection(),
                 ],
               ),
             ),
@@ -105,7 +114,7 @@ class _LandmarkCardState extends State<LandmarkCard>
 
   Widget _buildImageSection() {
     return SizedBox(
-      height: 160,
+      height: 180,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -118,92 +127,57 @@ class _LandmarkCardState extends State<LandmarkCard>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
+                    Colors.black.withValues(alpha: 0.2),
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.6),
+                    Colors.black.withValues(alpha: 0.7),
                   ],
-                  stops: const [0.4, 1.0],
+                  stops: const [0.0, 0.5, 1.0],
                 ),
               ),
             ),
           ),
-          // Mall name
+          // Status Tag (Top Left)
+          Positioned(top: 12, left: 12, child: _buildStatusTag()),
+          // Mall name (Bottom Left)
           Positioned(
             left: 16,
             right: 16,
             bottom: 12,
-            child: Text(
-              widget.mall.name,
-              style: AirMenuTextStyle.subheadingH5.copyWith(
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    blurRadius: 4,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.mall.name,
+                  style: AirMenuTextStyle.headingH4.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          // Action buttons
-          if (_isHovered)
-            Positioned(
-              top: 10,
-              right: 10,
-              child: Row(
-                children: [
-                  _buildActionButton(
-                    icon: Icons.edit_rounded,
-                    onTap: widget.onEdit,
-                    backgroundColor: Colors.white,
-                    iconColor: const Color(0xFF374151),
-                  ),
-                  const SizedBox(width: 6),
-                  _buildActionButton(
-                    icon: Icons.delete_rounded,
-                    onTap: widget.onDelete,
-                    backgroundColor: const Color(0xFFDC2626),
-                    iconColor: Colors.white,
-                  ),
-                ],
-              ),
-            ),
-          // Location badge
-          if (widget.mall.displayAddress.isNotEmpty)
-            Positioned(
-              top: 10,
-              left: 10,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 4,
-                    ),
-                  ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+                const SizedBox(height: 4),
+                Row(
                   children: [
                     const Icon(
                       Icons.location_on_rounded,
-                      size: 12,
-                      color: Color(0xFFC52031),
+                      size: 14,
+                      color: Colors.white,
                     ),
-                    const SizedBox(width: 3),
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 100),
+                    const SizedBox(width: 4),
+                    Expanded(
                       child: Text(
-                        widget.mall.displayAddress.split(',').first.trim(),
-                        style: const TextStyle(
-                          color: Color(0xFF374151),
+                        widget.mall.displayAddress.isNotEmpty
+                            ? widget.mall.displayAddress
+                            : 'Location not specified',
+                        style: AirMenuTextStyle.small.copyWith(
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontWeight: FontWeight.w500,
-                          fontSize: 10,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -211,9 +185,233 @@ class _LandmarkCardState extends State<LandmarkCard>
                     ),
                   ],
                 ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusTag() {
+    // Determine status based on active flag (mocked for now as true)
+    const isActive = true; // Replace with widget.mall.isActive when available
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isActive ? 'Active' : 'Pending',
+            style: AirMenuTextStyle.small.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 11,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildContentSection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Description
+          Text(
+            widget.mall.description.isNotEmpty
+                ? widget.mall.description
+                : 'Premium shopping and dining destination offering diverse cuisines and experiences.',
+            style: AirMenuTextStyle.small.copyWith(
+              color: const Color(0xFF6B7280),
+              height: 1.5,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 16),
+          // Info Grid
+          Row(
+            children: [
+              Expanded(
+                child: _buildInfoItem(
+                  Icons.calendar_today_outlined,
+                  'Joined 2023',
+                ),
+              ),
+              Expanded(
+                child: _buildInfoItem(
+                  Icons.access_time_rounded,
+                  'Open 10 AM - 11 PM',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF9CA3AF)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: AirMenuTextStyle.small.copyWith(
+              color: const Color(0xFF4B5563),
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatsSection() {
+    // Deterministic mock data for stats based on Mall name hash
+    final hash = widget.mall.name.hashCode;
+    final restaurantsCount = 12 + (hash % 20); // 12-31 restaurants
+    final revenue = 2.5 + (hash % 80) / 10; // 2.5L - 10.5L
+    final orders = 150 + (hash % 500); // 150-650 orders
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      color: const Color(0xFFF9FAFB),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _buildStatColumn('$restaurantsCount', 'Restaurants'),
+          _buildStatVerticalDivider(),
+          _buildStatColumn('₹${revenue.toStringAsFixed(1)}L', 'Revenue'),
+          _buildStatVerticalDivider(),
+          _buildStatColumn('$orders', 'Orders'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatVerticalDivider() {
+    return Container(width: 1, height: 24, color: const Color(0xFFE5E7EB));
+  }
+
+  Widget _buildStatColumn(String value, String label) {
+    return Column(
+      children: [
+        Text(
+          value,
+          style: AirMenuTextStyle.headingH4.copyWith(
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF111827),
+            fontSize: 18,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: AirMenuTextStyle.small.copyWith(
+            color: const Color(0xFF6B7280),
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 40,
+              child: ElevatedButton(
+                onPressed: widget.onViewRestaurants,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFFC52031),
+                  elevation: 0,
+                  side: const BorderSide(color: Color(0xFFE5E7EB)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: Text(
+                  'View Restaurants',
+                  style: AirMenuTextStyle.small.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF374151),
+                  ),
+                ),
               ),
             ),
+          ),
+          const SizedBox(width: 12),
+          _buildIconButton(
+            Icons.edit_outlined,
+            widget.onEdit,
+            const Color(0xFF374151),
+          ),
+          const SizedBox(width: 8),
+          _buildIconButton(
+            Icons.delete_outline_rounded,
+            widget.onDelete,
+            const Color(0xFFEF4444),
+            bgColor: const Color(0xFFFEF2F2),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildIconButton(
+    IconData icon,
+    VoidCallback? onTap,
+    Color color, {
+    Color bgColor = Colors.transparent,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(8),
+            border: bgColor == Colors.transparent
+                ? Border.all(color: const Color(0xFFE5E7EB))
+                : null,
+          ),
+          child: Center(child: Icon(icon, size: 18, color: color)),
+        ),
       ),
     );
   }
@@ -245,142 +443,6 @@ class _LandmarkCardState extends State<LandmarkCard>
           isError ? Icons.broken_image_rounded : Icons.business_rounded,
           size: 48,
           color: const Color(0xFF9CA3AF),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContentSection() {
-    return Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Description (fixed height area)
-          SizedBox(
-            height: 40,
-            child: Text(
-              widget.mall.description.isNotEmpty
-                  ? widget.mall.description
-                  : 'No description available',
-              style: AirMenuTextStyle.small.copyWith(
-                color: widget.mall.description.isNotEmpty
-                    ? const Color(0xFF6B7280)
-                    : const Color(0xFF9CA3AF),
-                height: 1.4,
-                fontStyle: widget.mall.description.isEmpty
-                    ? FontStyle.italic
-                    : FontStyle.normal,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Location row (fixed height)
-          SizedBox(
-            height: 36,
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Icon(
-                    Icons.location_on_rounded,
-                    size: 14,
-                    color: Color(0xFFC52031),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    widget.mall.displayAddress.isNotEmpty
-                        ? widget.mall.displayAddress
-                        : 'Location not specified',
-                    style: AirMenuTextStyle.small.copyWith(
-                      color: widget.mall.displayAddress.isNotEmpty
-                          ? const Color(0xFF4B5563)
-                          : const Color(0xFF9CA3AF),
-                      fontStyle: widget.mall.displayAddress.isEmpty
-                          ? FontStyle.italic
-                          : FontStyle.normal,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Spacer pushes button to bottom
-          const Spacer(),
-
-          // View Restaurants button (always at bottom)
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              onPressed: widget.onViewRestaurants,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFC52031),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.restaurant_rounded, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    'View Restaurants',
-                    style: AirMenuTextStyle.small.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    VoidCallback? onTap,
-    required Color backgroundColor,
-    required Color iconColor,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Icon(icon, size: 16, color: iconColor),
         ),
       ),
     );

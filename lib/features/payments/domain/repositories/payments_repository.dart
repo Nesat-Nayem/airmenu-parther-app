@@ -4,4 +4,5 @@ abstract class PaymentsRepository {
   Future<PaymentStatsEntity> getPaymentStats();
   Future<List<SettlementEntity>> getSettlements({String? filter});
   Future<List<DisputeEntity>> getDisputes({String? filter});
+  Future<PaymentBottomStatsEntity> getBottomStats();
 }

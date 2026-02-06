@@ -6,8 +6,14 @@ import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 class DashboardStatCard extends StatelessWidget {
   final StatCardData stat;
   final int index;
+  final Widget? trailing;
 
-  const DashboardStatCard({super.key, required this.stat, this.index = 0});
+  const DashboardStatCard({
+    super.key,
+    required this.stat,
+    this.index = 0,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +29,7 @@ class DashboardStatCard extends StatelessWidget {
             child: _HoverableStatCard(
               stat: stat,
               animationValue: animationValue,
+              trailing: trailing,
             ),
           ),
         );
@@ -35,8 +42,13 @@ class DashboardStatCard extends StatelessWidget {
 class _HoverableStatCard extends StatefulWidget {
   final StatCardData stat;
   final double animationValue;
+  final Widget? trailing;
 
-  const _HoverableStatCard({required this.stat, required this.animationValue});
+  const _HoverableStatCard({
+    required this.stat,
+    required this.animationValue,
+    this.trailing,
+  });
 
   @override
   State<_HoverableStatCard> createState() => _HoverableStatCardState();
@@ -57,59 +69,99 @@ class _HoverableStatCardState extends State<_HoverableStatCard> {
         transform: Matrix4.identity()..translate(0.0, _isHovered ? -4.0 : 0.0),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: _isHovered
-                ? widget.stat.color.withOpacity(0.3)
-                : const Color(0xFFF3F4F6),
-            width: 1,
+            color: widget.stat.color.withOpacity(0.15), // Theme-based border
+            width: 1.5,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(_isHovered ? 0.08 : 0.04),
-              blurRadius: _isHovered ? 15 : 12,
+              color: widget.stat.color.withOpacity(
+                _isHovered ? 0.15 : 0.05,
+              ), // Theme-based colored shadow
+              blurRadius: _isHovered ? 24 : 20,
               offset: Offset(0, _isHovered ? 8 : 4),
             ),
           ],
         ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Calculate responsive sizes based on available space
-            final availableHeight = constraints.maxHeight;
-            final availableWidth = constraints.maxWidth;
-            final isCompact = availableHeight < 150 || availableWidth < 160;
-
-            final padding = isCompact ? 10.0 : 16.0;
-            final iconSize = isCompact ? 18.0 : 22.0;
-            final iconPadding = isCompact ? 6.0 : 10.0;
-
-            return Padding(
-              padding: EdgeInsets.all(padding),
+        padding: const EdgeInsets.all(24),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Icon and percentage row
+                  // Top Row: Icon and Label
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Icon container
                       Container(
-                        padding: EdgeInsets.all(iconPadding),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: widget.stat.color.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
+                          color: widget.stat.color,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: widget.stat.color.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Icon(
                           widget.stat.icon,
-                          color: widget.stat.color,
-                          size: iconSize,
+                          color: Colors.white,
+                          size: 20,
                         ),
                       ),
-                      // Percentage change badge
+                      const SizedBox(width: 16),
+                      Flexible(
+                        child: Text(
+                          widget.stat.label,
+                          style: AirMenuTextStyle.headingH4.copyWith(
+                            color: const Color(0xFF1F2937),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            letterSpacing: 0.2,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Bottom Row: Value and Trend
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            _formatAnimatedValue(
+                              _extractNumericValue(widget.stat.value) *
+                                  widget.animationValue,
+                              widget.stat.value,
+                            ),
+                            style: AirMenuTextStyle.headingH1.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 36,
+                              color: const Color(0xFF111827),
+                              height: 1.0,
+                              letterSpacing: -1.0,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
                       Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isCompact ? 4 : 6,
-                          vertical: isCompact ? 2 : 3,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
                         ),
                         decoration: BoxDecoration(
                           color:
@@ -117,7 +169,7 @@ class _HoverableStatCardState extends State<_HoverableStatCard> {
                                       ? const Color(0xFF10B981)
                                       : const Color(0xFFEF4444))
                                   .withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -126,20 +178,25 @@ class _HoverableStatCardState extends State<_HoverableStatCard> {
                               widget.stat.isPositive
                                   ? Icons.arrow_upward
                                   : Icons.arrow_downward,
-                              size: isCompact ? 8 : 10,
+                              size: 14,
                               color: widget.stat.isPositive
                                   ? const Color(0xFF10B981)
                                   : const Color(0xFFEF4444),
                             ),
-                            SizedBox(width: isCompact ? 1 : 2),
-                            Text(
-                              widget.stat.change,
-                              style: TextStyle(
-                                color: widget.stat.isPositive
-                                    ? const Color(0xFF10B981)
-                                    : const Color(0xFFEF4444),
-                                fontWeight: FontWeight.w600,
-                                fontSize: isCompact ? 9 : 10,
+                            const SizedBox(width: 2),
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: 1,
+                              ), // Optical alignment
+                              child: Text(
+                                widget.stat.change,
+                                style: AirMenuTextStyle.small.copyWith(
+                                  color: widget.stat.isPositive
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFEF4444),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ],
@@ -147,59 +204,14 @@ class _HoverableStatCardState extends State<_HoverableStatCard> {
                       ),
                     ],
                   ),
-                  // Flexible spacer
-                  const Spacer(flex: 1),
-                  // Value - uses FittedBox to prevent overflow
-                  Flexible(
-                    flex: 2,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: TweenAnimationBuilder<double>(
-                        tween: Tween(
-                          begin: 0.0,
-                          end: _extractNumericValue(widget.stat.value),
-                        ),
-                        duration: const Duration(milliseconds: 1500),
-                        curve: Curves.easeOutCubic,
-                        builder: (context, animatedValue, child) {
-                          return Text(
-                            _formatAnimatedValue(
-                              animatedValue,
-                              widget.stat.value,
-                            ),
-                            style: AirMenuTextStyle.headingH2.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: widget.stat.color,
-                              fontSize: 26,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: isCompact ? 2 : 4),
-                  // Label - uses FittedBox to prevent overflow
-                  Flexible(
-                    flex: 1,
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      alignment: Alignment.centerLeft,
-                      child: Text(
-                        widget.stat.label,
-                        style: AirMenuTextStyle.small.copyWith(
-                          color: const Color(0xFF6B7280),
-                          fontWeight: FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
                 ],
               ),
-            );
-          },
+            ),
+            if (widget.trailing != null) ...[
+              const SizedBox(width: 16),
+              widget.trailing!,
+            ],
+          ],
         ),
       ),
     );

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_state.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
@@ -108,7 +110,7 @@ class OverviewTab extends StatelessWidget {
                     ),
                   ),
                   OutlinedButton(
-                    onPressed: () {},
+                    onPressed: () => context.push(AppRoutes.addBranch.path),
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFFE5E7EB)),
                       shape: RoundedRectangleBorder(
@@ -130,7 +132,7 @@ class OverviewTab extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 24),
-              _buildBranchesList(),
+              _buildBranchesList(context),
             ],
           ),
         ),
@@ -242,7 +244,7 @@ class OverviewTab extends StatelessWidget {
     );
   }
 
-  Widget _buildBranchesList() {
+  Widget _buildBranchesList(BuildContext context) {
     return Column(
       children: [
         // Header
@@ -333,7 +335,10 @@ class OverviewTab extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: () {},
+                      onPressed: () => context.push(
+                        AppRoutes.viewBranch.path,
+                        extra: branch,
+                      ),
                       icon: const Icon(
                         Icons.visibility_outlined,
                         size: 20,

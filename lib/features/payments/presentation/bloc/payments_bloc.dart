@@ -21,12 +21,14 @@ class PaymentsBloc extends Bloc<PaymentsEvent, PaymentsState> {
       final stats = await _repository.getPaymentStats();
       final settlements = await _repository.getSettlements();
       final disputes = await _repository.getDisputes();
+      final bottomStats = await _repository.getBottomStats();
 
       emit(
         PaymentsLoaded(
           stats: stats,
           settlements: settlements,
           disputes: disputes,
+          bottomStats: bottomStats,
         ),
       );
     } catch (e) {

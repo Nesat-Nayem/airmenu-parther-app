@@ -124,15 +124,33 @@ class _VendorDashboardMobileContent extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // Stat Cards (1 column on mobile)
-                    ...data.stats.toStatCards().asMap().entries.map(
-                      (entry) => Padding(
+                    ...data.stats.toStatCards().asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final stat = entry.value;
+
+                      Widget? footer;
+                      if (index == 0) {
+                        footer = Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildBreakdownRow('Dine-in', '89'),
+                            const SizedBox(height: 4),
+                            _buildBreakdownRow('Takeaway', '45'),
+                            const SizedBox(height: 4),
+                            _buildBreakdownRow('Delivery', '22'),
+                          ],
+                        );
+                      }
+
+                      return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: VendorStatCard(
-                          data: entry.value,
-                          index: entry.key,
+                          data: stat,
+                          index: index,
+                          footer: footer,
                         ),
-                      ),
-                    ),
+                      );
+                    }),
 
                     const SizedBox(height: 20),
 
@@ -280,6 +298,29 @@ class _VendorDashboardMobileContent extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBreakdownRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: AirMenuTextStyle.small.copyWith(
+            color: const Color(0xFF6B7280),
+            fontSize: 12,
+          ),
+        ),
+        Text(
+          value,
+          style: AirMenuTextStyle.small.copyWith(
+            color: const Color(0xFF374151),
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ],
     );
   }
 }

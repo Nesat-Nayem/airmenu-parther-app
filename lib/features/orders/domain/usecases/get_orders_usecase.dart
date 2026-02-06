@@ -11,14 +11,18 @@ class GetOrdersUseCase {
 
   GetOrdersUseCase(this._ordersRepository);
 
-  /// Get all orders (pagination removed - to be implemented later)
+  /// Get all orders with pagination support
   Future<Either<Failure, GenericResponse<List<OrderModel>>>> call({
     String? status,
     String? paymentStatus,
+    int page = 1,
+    int limit = 20,
   }) {
     return _ordersRepository.getOrders(
       status: status,
       paymentStatus: paymentStatus,
+      page: page,
+      limit: limit,
     );
   }
 }

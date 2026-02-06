@@ -26,6 +26,8 @@ class OrderModel {
   final OrderHotel? hotel;
   final String? kitchenStatus;
   final List<RefundModel>? refunds;
+  final String? hotelName; // Populated by admin API
+  final String? hotelId; // Populated by admin API
 
   OrderModel({
     this.id,
@@ -55,6 +57,8 @@ class OrderModel {
     this.kitchenStatus,
     this.hotel,
     this.refunds,
+    this.hotelName,
+    this.hotelId,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
@@ -98,6 +102,8 @@ class OrderModel {
                 .map((i) => RefundModel.fromJson(i))
                 .toList()
           : null,
+      hotelName: json['hotelName'],
+      hotelId: json['hotelId'],
     );
   }
 }

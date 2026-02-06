@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/campaign_model.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 
 /// Campaign card widget matching the UI design
 class CampaignCard extends StatelessWidget {
@@ -50,15 +51,22 @@ class _HoverableCampaignCardState extends State<_HoverableCampaignCard> {
       onExit: (_) => setState(() => _isHovered = false),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
+        curve: Curves.easeInOut,
+        transform: Matrix4.identity()..scale(_isHovered ? 1.02 : 1.0),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+          border: Border.all(
+            color: _isHovered
+                ? AirMenuColors.primary.withOpacity(0.5)
+                : const Color(0xFFE5E7EB),
+            width: 1,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(_isHovered ? 0.08 : 0.04),
-              blurRadius: _isHovered ? 12 : 6,
-              offset: Offset(0, _isHovered ? 4 : 2),
+              color: Colors.black.withOpacity(_isHovered ? 0.1 : 0.04),
+              blurRadius: _isHovered ? 16 : 6,
+              offset: Offset(0, _isHovered ? 6 : 2),
             ),
           ],
         ),

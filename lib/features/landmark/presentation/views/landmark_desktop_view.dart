@@ -11,6 +11,7 @@ import 'package:airmenuai_partner_app/features/landmark/presentation/widgets/lan
 import 'package:airmenuai_partner_app/features/landmark/presentation/widgets/landmark_search_bar.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'package:airmenuai_partner_app/features/landmark/presentation/views/landmark_restaurants_view.dart';
 
 /// Desktop view for Landmark page
 class LandmarkDesktopView extends StatelessWidget {
@@ -75,11 +76,9 @@ class _LandmarkDesktopContent extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header
-                        _buildHeader(context),
-                        const SizedBox(height: 24),
+                        // Header removed (Title in Global Header)
 
-                        // Search bar
+                        // Search bar with Add Button
                         LandmarkSearchBar(
                           initialQuery: state.searchQuery,
                           onSearch: (query) {
@@ -105,31 +104,7 @@ class _LandmarkDesktopContent extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
-    return Row(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Landmarks',
-              style: AirMenuTextStyle.headingH3.copyWith(
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1C1C1C),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Manage malls and food courts',
-              style: AirMenuTextStyle.small.copyWith(
-                color: const Color(0xFF6B7280),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
+  // Header method deleted
 
   Widget _buildContent(BuildContext context, LandmarkState state) {
     if (state.status == LandmarkLoadStatus.loading) {
@@ -174,10 +149,11 @@ class _LandmarkDesktopContent extends StatelessWidget {
                     onEdit: () => _showEditDialog(context, mall),
                     onDelete: () => _showDeleteConfirmation(context, mall),
                     onViewRestaurants: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('View restaurants in ${mall.name}'),
-                          behavior: SnackBarBehavior.floating,
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              LandmarkRestaurantsView(mall: mall),
                         ),
                       );
                     },

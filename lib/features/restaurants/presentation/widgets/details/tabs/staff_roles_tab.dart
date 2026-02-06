@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_bloc.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_state.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
@@ -42,7 +44,7 @@ class StaffRolesTab extends StatelessWidget {
                   ],
                 ),
                 ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => context.push(AppRoutes.addStaff.path),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Invite Staff'),
                   style: ElevatedButton.styleFrom(
@@ -152,14 +154,15 @@ class StaffRolesTab extends StatelessWidget {
             itemCount: staffList.length,
             separatorBuilder: (context, index) =>
                 const Divider(height: 1, color: Color(0xFFF3F4F6)),
-            itemBuilder: (context, index) => _buildStaffRow(staffList[index]),
+            itemBuilder: (context, index) =>
+                _buildStaffRow(context, staffList[index]),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStaffRow(Map<String, dynamic> staff) {
+  Widget _buildStaffRow(BuildContext context, Map<String, dynamic> staff) {
     final status = staff['status'] as String;
     final isActive = status == 'Active';
     final statusColor = isActive
@@ -269,7 +272,7 @@ class StaffRolesTab extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerRight,
               child: InkWell(
-                onTap: () {},
+                onTap: () => context.push(AppRoutes.editStaff.path),
                 child: Icon(
                   Icons.edit_outlined,
                   size: 18,

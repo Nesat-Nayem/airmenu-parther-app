@@ -37,22 +37,6 @@ class InventoryHealthTab extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () {},
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: const Text('View Full Inventory'),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFE5E7EB)),
-                      foregroundColor: const Color(0xFF374151),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                    ),
-                  ),
                 ],
               ),
               const SizedBox(height: 24),

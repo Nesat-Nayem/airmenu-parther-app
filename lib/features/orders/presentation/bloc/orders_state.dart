@@ -38,6 +38,12 @@ class OrdersLoaded extends OrdersState {
   /// True when refresh is in progress
   final bool isRefreshing;
 
+  /// True when loading more orders (infinite scroll)
+  final bool isLoadingMore;
+
+  /// True when all orders have been loaded
+  final bool hasReachedMax;
+
   /// Order statistics from API (for dynamic filter counts and comparison badges)
   final OrderStatsModel? orderStats;
 
@@ -51,6 +57,8 @@ class OrdersLoaded extends OrdersState {
     this.isGridView = true,
     this.searchQuery = '',
     this.isRefreshing = false,
+    this.isLoadingMore = false,
+    this.hasReachedMax = false,
     this.orderStats,
   });
 
@@ -126,6 +134,8 @@ class OrdersLoaded extends OrdersState {
     bool? isGridView,
     String? searchQuery,
     bool? isRefreshing,
+    bool? isLoadingMore,
+    bool? hasReachedMax,
     OrderStatsModel? orderStats,
   }) {
     return OrdersLoaded(
@@ -139,6 +149,8 @@ class OrdersLoaded extends OrdersState {
       isGridView: isGridView ?? this.isGridView,
       searchQuery: searchQuery ?? this.searchQuery,
       isRefreshing: isRefreshing ?? this.isRefreshing,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasReachedMax: hasReachedMax ?? this.hasReachedMax,
       orderStats: orderStats ?? this.orderStats,
     );
   }
@@ -154,6 +166,8 @@ class OrdersLoaded extends OrdersState {
     isGridView,
     searchQuery,
     isRefreshing,
+    isLoadingMore,
+    hasReachedMax,
     orderStats,
   ];
 }

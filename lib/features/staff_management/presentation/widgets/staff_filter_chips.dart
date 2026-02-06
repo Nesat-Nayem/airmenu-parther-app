@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../../utils/typography/airmenu_typography.dart';
 
 class StaffFilterChips extends StatelessWidget {
   final String? selectedRole;
@@ -70,10 +70,8 @@ class _FilterChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.sora(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: isSelected ? Colors.white : Colors.grey.shade700,
+          style: AirMenuTextStyle.small.medium500().withColor(
+            isSelected ? Colors.white : Colors.grey.shade700,
           ),
         ),
       ),

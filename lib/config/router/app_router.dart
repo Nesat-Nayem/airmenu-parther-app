@@ -9,13 +9,10 @@ import 'package:airmenuai_partner_app/features/blog/presentation/views/blog_page
 import 'package:airmenuai_partner_app/features/category/presentation/pages/category_page.dart';
 import 'package:airmenuai_partner_app/features/common_shell/app_scaffold_shell.dart';
 import 'package:airmenuai_partner_app/features/contacts/presentation/views/contacts_page.dart';
-import 'package:airmenuai_partner_app/features/coupons/presentation/views/coupons_page.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/pages/dashboard_page.dart';
 import 'package:airmenuai_partner_app/features/exclusive_offers/presentation/views/exclusive_offers_page.dart';
 import 'package:airmenuai_partner_app/features/faq/presentation/views/faq_page.dart';
-
 import 'package:airmenuai_partner_app/features/help_support/presentation/pages/help_support_page.dart';
-import 'package:airmenuai_partner_app/features/inventory/presentation/views/inventory_page.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/pages/kitchen_panel_page.dart';
 import 'package:airmenuai_partner_app/features/login/presentation/views/login.dart';
 import 'package:airmenuai_partner_app/features/malls/presentation/views/malls_page.dart';
@@ -32,21 +29,24 @@ import 'package:airmenuai_partner_app/features/reports/presentation/views/report
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/restaurants_page.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/restaurant_details_page.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/admin/create_restaurant_page.dart';
 import 'package:airmenuai_partner_app/features/payments/presentation/pages/payments_page.dart';
-import 'package:airmenuai_partner_app/features/settings/presentation/views/settings_page.dart';
+import 'package:airmenuai_partner_app/features/settings/presentation/pages/settings_page.dart';
 import 'package:airmenuai_partner_app/features/staff_management/presentation/views/staff_management_page.dart';
 import 'package:airmenuai_partner_app/features/tables/presentation/pages/tables_page.dart';
 import 'package:airmenuai_partner_app/features/table_management/presentation/views/table_management_page.dart';
 import 'package:airmenuai_partner_app/features/terms_conditions/presentation/pages/terms_conditions_page.dart';
-import 'package:airmenuai_partner_app/features/trial_codes/presentation/views/trial_codes_page.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/pages/onboarding_pipeline_page.dart';
-
+import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/add_branch_page.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/view_branch_page.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/plan_upgrade_page.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/add_staff_page.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/edit_staff_page.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/add_webhook_page.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/pages/marketing_page.dart';
 import 'package:airmenuai_partner_app/utils/keys/airmenu_keys.dart';
 import 'package:flutter/material.dart';
-import 'package:airmenuai_partner_app/features/admin_settings/presentation/pages/admin_settings_page.dart';
 import 'package:airmenuai_partner_app/features/admin_orders/presentation/pages/admin_orders_page.dart';
-import 'package:airmenuai_partner_app/features/admin_inventory/presentation/pages/admin_inventory_page.dart';
 import 'package:airmenuai_partner_app/features/external_integrations/presentation/pages/external_integrations_page.dart';
 import 'package:airmenuai_partner_app/features/landmark/presentation/pages/landmark_page.dart';
 import 'package:airmenuai_partner_app/features/delivery_partner/presentation/pages/delivery_partner_page.dart';
@@ -54,9 +54,9 @@ import 'package:airmenuai_partner_app/features/riders/presentation/pages/riders_
 import 'package:airmenuai_partner_app/features/theatre/presentation/pages/theatre_page.dart';
 import 'package:airmenuai_partner_app/features/hotel/presentation/pages/hotel_page.dart';
 import 'package:airmenuai_partner_app/features/menu/presentation/pages/menu_page.dart';
-import 'package:airmenuai_partner_app/features/purchase_order/presentation/pages/purchase_order_page.dart';
 import 'package:airmenuai_partner_app/features/hotel_rooms/presentation/pages/hotel_rooms_page.dart';
 import 'package:airmenuai_partner_app/features/feedback_rating/presentation/pages/feedback_rating_page.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/pages/inventory_page.dart';
 import 'package:go_router/go_router.dart';
 
 final _sectionNavigatorKey = GlobalKey<NavigatorState>();
@@ -98,6 +98,16 @@ class AppRouter {
 
           debugPrint('✅ No redirect needed');
           return null; // No redirect needed
+        },
+        errorBuilder: (context, state) {
+          debugPrint(
+            '❌ Route not found: ${state.matchedLocation}, redirecting to dashboard',
+          );
+          // Redirect to dashboard for any unknown routes
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            context.go(AppRoutes.dashboard.path);
+          });
+          return const DashboardPage();
         },
         routes: [
           transitionGoRoute(
@@ -181,9 +191,29 @@ class AppRouter {
               transitionGoRoute(
                 path: '/restaurants/details',
                 pageBuilder: (context, state) {
-                  final restaurant = state.extra as RestaurantModel;
+                  RestaurantModel restaurant;
+                  if (state.extra is RestaurantModel) {
+                    restaurant = state.extra as RestaurantModel;
+                  } else if (state.extra is Map<String, dynamic>) {
+                    restaurant = RestaurantModel.fromJson(
+                      state.extra as Map<String, dynamic>,
+                    );
+                  } else {
+                    // Fallback or error handling
+                    throw Exception(
+                      'Invalid extra arguments for RestaurantDetailsPage',
+                    );
+                  }
                   return RestaurantDetailsPage(restaurant: restaurant);
                 },
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.restaurants;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.createRestaurant.path,
+                pageBuilder: (context, state) => const CreateRestaurantPage(),
                 redirect: (context, state) {
                   selectedNavMenuItem = NavMenuItem.restaurants;
                   return null;
@@ -271,14 +301,6 @@ class AppRouter {
                 },
               ),
 
-              transitionGoRoute(
-                path: AppRoutes.trialCodes.path,
-                pageBuilder: (context, state) => const TrialCodesPage(),
-                redirect: (context, state) {
-                  selectedNavMenuItem = NavMenuItem.trialCodes;
-                  return null;
-                },
-              ),
               transitionGoRoute(
                 path: AppRoutes.contacts.path,
                 pageBuilder: (context, state) => const ContactsPage(),
@@ -369,17 +391,10 @@ class AppRouter {
               ),
               transitionGoRoute(
                 path: AppRoutes.coupons.path,
-                pageBuilder: (context, state) => const CouponsPage(),
+                // Replace legacy CouponsPage with integrated MarketingPage
+                pageBuilder: (context, state) => const MarketingPage(),
                 redirect: (context, state) {
                   selectedNavMenuItem = NavMenuItem.coupons;
-                  return null;
-                },
-              ),
-              transitionGoRoute(
-                path: AppRoutes.inventory.path,
-                pageBuilder: (context, state) => const InventoryPage(),
-                redirect: (context, state) {
-                  selectedNavMenuItem = NavMenuItem.inventory;
                   return null;
                 },
               ),
@@ -429,16 +444,8 @@ class AppRouter {
                 },
               ),
               transitionGoRoute(
-                path: AppRoutes.adminInventory.path,
-                pageBuilder: (context, state) => const AdminInventoryPage(),
-                redirect: (context, state) {
-                  selectedNavMenuItem = NavMenuItem.adminInventory;
-                  return null;
-                },
-              ),
-              transitionGoRoute(
                 path: AppRoutes.adminSettings.path,
-                pageBuilder: (context, state) => const AdminSettingsPage(),
+                pageBuilder: (context, state) => const SettingsPage(),
                 redirect: (context, state) {
                   selectedNavMenuItem = NavMenuItem.adminSettings;
                   return null;
@@ -503,10 +510,10 @@ class AppRouter {
                 },
               ),
               transitionGoRoute(
-                path: AppRoutes.purchaseOrder.path,
-                pageBuilder: (context, state) => const PurchaseOrderPage(),
+                path: AppRoutes.inventory.path,
+                pageBuilder: (context, state) => const InventoryPage(),
                 redirect: (context, state) {
-                  selectedNavMenuItem = NavMenuItem.purchaseOrder;
+                  selectedNavMenuItem = NavMenuItem.inventory;
                   return null;
                 },
               ),
@@ -523,6 +530,57 @@ class AppRouter {
                 pageBuilder: (context, state) => const FeedbackRatingPage(),
                 redirect: (context, state) {
                   selectedNavMenuItem = NavMenuItem.feedbackRating;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.addBranch.path,
+                pageBuilder: (context, state) => const AddBranchPage(),
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.restaurants;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.viewBranch.path,
+                pageBuilder: (context, state) {
+                  final branchData = state.extra as Map<String, dynamic>?;
+                  return ViewBranchPage(branchData: branchData);
+                },
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.restaurants;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.planUpgrade.path,
+                pageBuilder: (context, state) => const PlanUpgradePage(),
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.restaurants;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.addStaff.path,
+                pageBuilder: (context, state) => const AddStaffPage(),
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.restaurants;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.editStaff.path,
+                pageBuilder: (context, state) => const EditStaffPage(),
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.restaurants;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.addWebhook.path,
+                pageBuilder: (context, state) => const AddWebhookPage(),
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.restaurants;
                   return null;
                 },
               ),

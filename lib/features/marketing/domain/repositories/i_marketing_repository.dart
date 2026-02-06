@@ -2,6 +2,7 @@ import 'package:airmenuai_partner_app/features/marketing/data/models/campaign_mo
 import 'package:airmenuai_partner_app/features/marketing/data/models/marketing_stats_model.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/marketing_summary_model.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/promo_code_model.dart';
+import 'package:airmenuai_partner_app/features/marketing/data/models/combo_model.dart';
 
 /// Repository interface for marketing feature
 /// Defines all operations available for marketing data
@@ -45,6 +46,15 @@ abstract class IMarketingRepository {
   Future<MarketingResult<PromoCodeModel>> updatePromoCode(
     PromoCodeModel promoCode,
   );
+
+  /// Check if current user is admin
+  Future<bool> isAdmin();
+
+  /// Get all combos (Vendor)
+  Future<MarketingResult<List<ComboModel>>> getCombos();
+
+  /// Create a new combo (Vendor)
+  Future<MarketingResult<ComboModel>> createCombo(ComboModel combo);
 }
 
 /// Generic result wrapper for marketing operations

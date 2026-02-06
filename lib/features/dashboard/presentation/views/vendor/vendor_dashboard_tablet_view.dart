@@ -69,24 +69,6 @@ class _VendorDashboardTabletContent extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header
-                    Text(
-                      'Restaurant Dashboard',
-                      style: AirMenuTextStyle.headingH3.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AirMenuColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Spice Garden - Today\'s Overview',
-                      style: AirMenuTextStyle.normal.copyWith(
-                        color: AirMenuColors.textSecondary,
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-
                     // Filters
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,

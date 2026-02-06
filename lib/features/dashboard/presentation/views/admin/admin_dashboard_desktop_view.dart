@@ -1,18 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 import 'package:airmenuai_partner_app/features/dashboard/data/repositories/admin_dashboard_repository.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/bloc/admin/admin_dashboard_bloc.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/bloc/admin/admin_dashboard_event.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/bloc/admin/admin_dashboard_state.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/shared/dashboard_stat_card.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/shared/high_risk_alerts_banner.dart';
-import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/shared/orders_by_type_chart.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/shared/dashboard_date_filter.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/shared/dashboard_category_filter.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/shared/dashboard_search_field.dart';
-import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/admin/kitchen_load_chart.dart';
-import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/admin/restaurant_performance_table.dart';
-import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/admin/rider_sla_chart.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/admin/live_activity_widget.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/admin/top_restaurants_table.dart';
 import 'package:airmenuai_partner_app/features/dashboard/presentation/widgets/shared/dashboard_skeleton_loader.dart';
@@ -92,9 +89,6 @@ class _AdminDashboardDesktopContent extends StatelessWidget {
           final data = state is AdminDashboardLoaded
               ? state.data
               : (state as AdminDashboardRefreshing).currentData;
-          final currentView = state is AdminDashboardLoaded
-              ? state.currentView
-              : 'today';
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -154,25 +148,131 @@ class _AdminDashboardDesktopContent extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
 
-                  // Stat cards grid (4x2)
-                  GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 1.8,
+                  // Row 1: Active Restaurants, Pending Onboarding, Orders Today (3 cards)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Active Restaurants
+                      Expanded(
+                        child: DashboardStatCard(
+                          stat: data.stats.toStatCards()[0],
+                          index: 0,
                         ),
-                    itemCount: data.stats.toStatCards().length,
-                    itemBuilder: (context, index) {
-                      final statCards = data.stats.toStatCards();
-                      return DashboardStatCard(
-                        stat: statCards[index],
-                        index: index,
-                      );
-                    },
+                      ),
+                      const SizedBox(width: 16),
+                      // Pending Onboarding
+                      Expanded(
+                        child: DashboardStatCard(
+                          stat: data.stats.toStatCards()[1],
+                          index: 1,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      // Orders Today (with breakdown)
+                      Expanded(
+                        flex: 2, // Make it wider to accommodate breakdown
+                        child: DashboardStatCard(
+                          stat: data.stats.toStatCards()[2],
+                          index: 2,
+                          trailing: Container(
+                            constraints: const BoxConstraints(maxWidth: 150),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Builder(
+                                  builder: (context) {
+                                    final chart = data.ordersByType;
+                                    final dineIn =
+                                        chart?.dineIn.fold(
+                                          0,
+                                          (sum, item) => sum + item,
+                                        ) ??
+                                        0;
+                                    final takeaway =
+                                        chart?.takeaway.fold(
+                                          0,
+                                          (sum, item) => sum + item,
+                                        ) ??
+                                        0;
+                                    final qsr =
+                                        chart?.qsr.fold(
+                                          0,
+                                          (sum, item) => sum + item,
+                                        ) ??
+                                        0;
+
+                                    return Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        _buildOrderTypeRow(
+                                          'Dine-in',
+                                          NumberFormat.decimalPattern().format(
+                                            dineIn,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        _buildOrderTypeRow(
+                                          'Takeaway',
+                                          NumberFormat.decimalPattern().format(
+                                            takeaway,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        _buildOrderTypeRow(
+                                          'QSR',
+                                          NumberFormat.decimalPattern().format(
+                                            qsr,
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Row 2: GMV, Kitchen, Delivery, Riders (4 cards)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: DashboardStatCard(
+                          stat: data.stats.toStatCards()[3], // GMV
+                          index: 3,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DashboardStatCard(
+                          stat: data.stats.toStatCards()[4], // Kitchen Load
+                          index: 4,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DashboardStatCard(
+                          stat: data.stats.toStatCards()[5], // Delivery Success
+                          index: 5,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DashboardStatCard(
+                          stat: data.stats.toStatCards()[6], // Active Riders
+                          index: 6,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
 
@@ -194,89 +294,26 @@ class _AdminDashboardDesktopContent extends StatelessWidget {
                     ),
                   if (data.alerts.isNotEmpty) const SizedBox(height: 24),
 
-                  // Charts row
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 400,
-                          child: OrdersByTypeChart(
-                            data: data.ordersByType,
-                            currentView: currentView,
-                            onViewChanged: (view) {
-                              context.read<AdminDashboardBloc>().add(
-                                UpdateAdminChartView(
-                                  chartType: 'orders-by-type',
-                                  period: view,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: SizedBox(
-                          height: 400,
-                          child: KitchenLoadChart(data: data.kitchenLoad),
-                        ),
-                      ),
-                    ],
+                  SizedBox(
+                    height: 500,
+                    child: TopRestaurantsTable(
+                      restaurants: data.topRestaurants,
+                    ),
                   ),
                   const SizedBox(height: 24),
+                  SizedBox(
+                    height: 500,
+                    child: LiveActivityWidget(
+                      activities: data.liveActivities,
+                      onRefresh: () {
+                        context.read<AdminDashboardBloc>().add(
+                          const RefreshAdminDashboardData(),
+                        );
+                      },
+                    ),
+                  ),
 
                   // Tables row
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 450,
-                          child: RestaurantPerformanceTable(
-                            restaurants: data.restaurantPerformance,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: SizedBox(
-                          height: 450,
-                          child: RiderSLAChart(riders: data.riderSLA),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Bottom row: Live Activity and Top Restaurants
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: SizedBox(
-                          height: 500,
-                          child: LiveActivityWidget(
-                            activities: data.liveActivities,
-                            onRefresh: () {
-                              context.read<AdminDashboardBloc>().add(
-                                const RefreshAdminDashboardData(),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: SizedBox(
-                          height: 500,
-                          child: TopRestaurantsTable(
-                            restaurants: data.topRestaurants,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),
@@ -289,119 +326,30 @@ class _AdminDashboardDesktopContent extends StatelessWidget {
   }
 
   Widget _buildDesktopSkeleton() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header skeleton
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 250,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    width: 180,
-                    height: 16,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Container(
-                    width: 300,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 120,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Container(
-                    width: 150,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+    return DashboardSkeletonLoader.desktop();
+  }
 
-          // Stat cards grid (4x2)
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 4,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              childAspectRatio: 1.5,
-            ),
-            itemCount: 8,
-            itemBuilder: (context, index) => DashboardSkeletonLoader.statCard(),
+  Widget _buildOrderTypeRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          '$label:',
+          style: AirMenuTextStyle.small.copyWith(
+            color: const Color(0xFF6B7280),
+            fontSize: 12,
           ),
-          const SizedBox(height: 24),
-
-          // Charts row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: DashboardSkeletonLoader.chartCard(height: 400)),
-              const SizedBox(width: 16),
-              Expanded(child: DashboardSkeletonLoader.chartCard(height: 400)),
-            ],
+        ),
+        const SizedBox(width: 8),
+        Text(
+          value,
+          style: AirMenuTextStyle.small.copyWith(
+            color: const Color(0xFF111827),
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
           ),
-          const SizedBox(height: 24),
-
-          // Tables row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: DashboardSkeletonLoader.tableCard(height: 450)),
-              const SizedBox(width: 16),
-              Expanded(child: DashboardSkeletonLoader.tableCard(height: 450)),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Bottom row: Live Activity and Top Restaurants
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: DashboardSkeletonLoader.listCard(height: 500)),
-              const SizedBox(width: 16),
-              Expanded(child: DashboardSkeletonLoader.listCard(height: 500)),
-            ],
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

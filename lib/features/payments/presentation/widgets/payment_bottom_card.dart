@@ -30,6 +30,7 @@ class PaymentBottomCard extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               padding: const EdgeInsets.all(10),
@@ -46,6 +47,8 @@ class PaymentBottomCard extends StatelessWidget {
                 color: const Color(0xFF6B7280),
                 fontWeight: FontWeight.w500,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
             Text(
@@ -55,32 +58,44 @@ class PaymentBottomCard extends StatelessWidget {
                 color: const Color(0xFF111827),
                 fontSize: 24,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            if (trend != null || subtitle != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (trend != null) ...[
-                    Icon(Icons.north_east, size: 14, color: iconColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      trend!,
-                      style: AirMenuTextStyle.tiny.copyWith(
-                        color: iconColor,
-                        fontWeight: FontWeight.w600,
+            // Fixed height spacer to ensure all cards have the same height
+            SizedBox(
+              height: 26,
+              child: (trend != null || subtitle != null)
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Row(
+                        children: [
+                          if (trend != null) ...[
+                            Icon(Icons.north_east, size: 14, color: iconColor),
+                            const SizedBox(width: 4),
+                            Text(
+                              trend!,
+                              style: AirMenuTextStyle.tiny.copyWith(
+                                color: iconColor,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                          if (subtitle != null && trend == null)
+                            Flexible(
+                              child: Text(
+                                subtitle!,
+                                style: AirMenuTextStyle.tiny.copyWith(
+                                  color: const Color(0xFF6B7280),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                  ],
-                  if (subtitle != null && trend == null)
-                    Text(
-                      subtitle!,
-                      style: AirMenuTextStyle.tiny.copyWith(
-                        color: const Color(0xFF6B7280),
-                      ),
-                    ),
-                ],
-              ),
-            ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
       ),

@@ -16,6 +16,7 @@ class PaymentsLoaded extends PaymentsState {
   final PaymentStatsEntity stats;
   final List<SettlementEntity> settlements;
   final List<DisputeEntity> disputes;
+  final PaymentBottomStatsEntity bottomStats;
   final int selectedTabIndex;
   final String activeFilter;
 
@@ -23,6 +24,7 @@ class PaymentsLoaded extends PaymentsState {
     required this.stats,
     required this.settlements,
     required this.disputes,
+    required this.bottomStats,
     this.selectedTabIndex = 0,
     this.activeFilter = '',
   });
@@ -31,6 +33,7 @@ class PaymentsLoaded extends PaymentsState {
     PaymentStatsEntity? stats,
     List<SettlementEntity>? settlements,
     List<DisputeEntity>? disputes,
+    PaymentBottomStatsEntity? bottomStats,
     int? selectedTabIndex,
     String? activeFilter,
   }) {
@@ -38,6 +41,7 @@ class PaymentsLoaded extends PaymentsState {
       stats: stats ?? this.stats,
       settlements: settlements ?? this.settlements,
       disputes: disputes ?? this.disputes,
+      bottomStats: bottomStats ?? this.bottomStats,
       selectedTabIndex: selectedTabIndex ?? this.selectedTabIndex,
       activeFilter: activeFilter ?? this.activeFilter,
     );
@@ -48,6 +52,7 @@ class PaymentsLoaded extends PaymentsState {
     stats,
     settlements,
     disputes,
+    bottomStats,
     selectedTabIndex,
     activeFilter,
   ];

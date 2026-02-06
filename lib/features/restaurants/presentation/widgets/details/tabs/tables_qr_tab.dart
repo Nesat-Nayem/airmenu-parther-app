@@ -47,8 +47,8 @@ class TablesQrTab extends StatelessWidget {
                   ),
                   ElevatedButton.icon(
                     onPressed: () {},
-                    icon: const Icon(Icons.qr_code, size: 18),
-                    label: const Text('Generate All QR Codes'),
+                    icon: const Icon(Icons.download_rounded, size: 18),
+                    label: const Text('Download all QR Codes'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFFC52031),
                       foregroundColor: Colors.white,
@@ -198,10 +198,13 @@ class TablesQrTab extends StatelessWidget {
                         color: const Color(0xFF9CA3AF),
                       ),
                     ),
-                    Icon(
-                      Icons.download_rounded,
-                      size: 20,
-                      color: const Color(0xFF6B7280),
+                    InkWell(
+                      onTap: () {},
+                      child: const Icon(
+                        Icons.download_rounded,
+                        size: 20,
+                        color: Color(0xFF6B7280),
+                      ),
                     ),
                   ],
                 ),

@@ -37,7 +37,6 @@ enum AppRoutes {
   helpSupport,
   reports,
   coupons,
-  inventory,
   tables,
   myAccount,
   marketing,
@@ -57,6 +56,14 @@ enum AppRoutes {
   purchaseOrder,
   hotelRooms,
   feedbackRating,
+  createRestaurant,
+  addBranch,
+  viewBranch,
+  planUpgrade,
+  addStaff,
+  editStaff,
+  addWebhook,
+  inventory,
 }
 
 extension RouterExt on AppRoutes {
@@ -138,8 +145,6 @@ extension RouterExt on AppRoutes {
         return "/reports";
       case AppRoutes.coupons:
         return "/coupons";
-      case AppRoutes.inventory:
-        return "/inventory";
       case AppRoutes.myAccount:
         return "/my-account";
       case AppRoutes.marketing:
@@ -174,6 +179,22 @@ extension RouterExt on AppRoutes {
         return "/hotel-rooms";
       case AppRoutes.feedbackRating:
         return "/feedback-rating";
+      case AppRoutes.createRestaurant:
+        return "/restaurants/create";
+      case AppRoutes.addBranch:
+        return "/restaurants/details/add-branch";
+      case AppRoutes.viewBranch:
+        return "/restaurants/details/view-branch";
+      case AppRoutes.planUpgrade:
+        return "/restaurants/details/plan-upgrade";
+      case AppRoutes.addStaff:
+        return "/restaurants/details/add-staff";
+      case AppRoutes.editStaff:
+        return "/restaurants/details/edit-staff";
+      case AppRoutes.addWebhook:
+        return "/restaurants/details/add-webhook";
+      case AppRoutes.inventory:
+        return "/inventory";
     }
   }
 }

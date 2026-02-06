@@ -4,6 +4,8 @@ import 'package:airmenuai_partner_app/features/marketing/domain/repositories/i_m
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_bloc.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_event.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/views/marketing_page_view.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/views/marketing_mobile_view.dart';
+import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 
 /// Marketing page wrapper with BLoC provider
@@ -16,7 +18,13 @@ class MarketingPage extends StatelessWidget {
       create: (context) =>
           MarketingBloc(locator<IMarketingRepository>())
             ..add(const LoadMarketingData()),
-      child: const MarketingPageView(),
+      child: Responsive(
+        key: const Key('marketing_page'),
+        mobile: const MarketingMobileView(),
+        tablet:
+            const MarketingMobileView(), // Use mobile layout for tablet to separate table
+        desktop: const MarketingPageView(),
+      ),
     );
   }
 }

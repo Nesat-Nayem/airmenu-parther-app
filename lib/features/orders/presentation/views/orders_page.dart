@@ -1,4 +1,3 @@
-import 'package:airmenuai_partner_app/features/orders/config/order_config.dart';
 import 'package:airmenuai_partner_app/features/orders/config/order_status_helper.dart';
 import 'package:airmenuai_partner_app/features/orders/data/models/order_model.dart';
 import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_bloc.dart';
@@ -60,70 +59,70 @@ class OrdersPageView extends StatelessWidget {
       return _buildSkeletonTiles();
     }
 
-    final counts = state is OrdersLoaded ? state.tileCounts : <String, int>{};
-    final pendingCount = counts['pending'] ?? 0;
-    final processingCount = counts['processing'] ?? 0;
-    final readyCount = counts['ready'] ?? 0;
-    final delayedCount = _calculateDelayedCount(
-      state is OrdersLoaded ? state.allOrders : [],
-    );
+    // Get stats from API response
+    final orderStats = state is OrdersLoaded ? state.orderStats : null;
+    final stats = orderStats?.stats;
 
+    // If no API stats, show skeleton (API not loaded yet)
+    if (stats == null || stats.isEmpty) {
+      return _buildSkeletonTiles();
+    }
+
+    // Build tiles dynamically from API stats
     return StatusTilesRow(
-      tiles: [
-        // Pending - Red/Pink icon (matching mock)
-        StatusTile(
-          icon: Icons.access_time_outlined,
+      tiles: stats.map((stat) {
+        // Hide comparison badge if trend is 0% or neutral
+        final shouldShowComparison = _shouldShowComparisonBadge(
+          stat.comparison,
+          stat.trend,
+        );
+
+        // Check if value is a string (like "18 min") vs integer
+        final isStringValue = stat.value is String;
+
+        return StatusTile(
+          icon: _getIconForStatKey(stat.key),
           iconBgColor: const Color(0xFFFEE2E2), // Light pink/red
           iconColor: const Color(0xFFDC2626), // Red
-          count: pendingCount,
-          label: 'Pending',
-        ),
-        // In Kitchen - Red/Pink icon (matching mock)
-        StatusTile(
-          icon: Icons.inventory_2_outlined, // Box icon like mock
-          iconBgColor: const Color(0xFFFEE2E2), // Light pink/red
-          iconColor: const Color(0xFFDC2626), // Red
-          count: processingCount,
-          label: 'In Kitchen',
-        ),
-        // Ready - Red/Pink icon (matching mock)
-        StatusTile(
-          icon: Icons.check_circle_outline_rounded,
-          iconBgColor: const Color(0xFFFEE2E2), // Light pink/red
-          iconColor: const Color(0xFFDC2626), // Red
-          count: readyCount,
-          label: 'Ready',
-        ),
-        // Delayed - Red/Pink icon with comparison badge
-        StatusTile(
-          icon: Icons.warning_amber_outlined,
-          iconBgColor: const Color(0xFFFEE2E2), // Light pink/red
-          iconColor: const Color(0xFFDC2626), // Red
-          count: delayedCount,
-          label: 'Delayed',
-          subtitle: 'vs yesterday',
-          comparisonBadge: '50%',
-          isPositiveComparison: true,
-        ),
-      ],
+          count: stat.intValue,
+          displayValue: isStringValue ? stat.displayValue : null,
+          label: stat.label ?? stat.key ?? '',
+          subtitle: shouldShowComparison ? stat.comparisonLabel : null,
+          comparisonBadge: shouldShowComparison ? stat.comparison : null,
+          isPositiveComparison: stat.isPositiveTrend,
+        );
+      }).toList(),
     );
   }
 
-  int _calculateDelayedCount(List<OrderModel> orders) {
-    int count = 0;
-    for (final order in orders) {
-      if (order.createdAt == null) continue;
-      try {
-        final created = DateTime.parse(order.createdAt!);
-        if (DateTime.now().difference(created).inMinutes >
-                OrderConfig.delayedThresholdMinutes &&
-            order.status?.toLowerCase() != 'delivered' &&
-            order.status?.toLowerCase() != 'cancelled') {
-          count++;
-        }
-      } catch (_) {}
+  /// Check if comparison badge should be shown (hide for 0% or neutral trends)
+  bool _shouldShowComparisonBadge(String? comparison, String? trend) {
+    if (comparison == null || comparison.isEmpty) return false;
+    if (trend == 'neutral') return false;
+
+    // Parse numeric value from comparison (e.g., "0%", "50%", "-10%")
+    final numericValue = int.tryParse(
+      comparison.replaceAll(RegExp(r'[^0-9-]'), ''),
+    );
+    if (numericValue == null || numericValue == 0) return false;
+
+    return true;
+  }
+
+  /// Get icon for a stat key
+  IconData _getIconForStatKey(String? key) {
+    switch (key?.toLowerCase()) {
+      case 'pending':
+        return Icons.access_time_outlined;
+      case 'inkitchen':
+        return Icons.inventory_2_outlined;
+      case 'ready':
+        return Icons.check_circle_outline_rounded;
+      case 'delayed':
+        return Icons.warning_amber_outlined;
+      default:
+        return Icons.circle_outlined;
     }
-    return count;
   }
 
   Widget _buildSkeletonTiles() {
@@ -177,6 +176,31 @@ class OrdersPageView extends StatelessWidget {
                     ],
                   ),
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Skeleton for filter tabs while loading
+  Widget _buildFilterTabsSkeleton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Shimmer.fromColors(
+        baseColor: Colors.grey.shade200,
+        highlightColor: Colors.grey.shade50,
+        child: Row(
+          children: List.generate(
+            6,
+            (index) => Container(
+              margin: const EdgeInsets.only(right: 12),
+              width: 90,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
               ),
             ),
           ),
@@ -424,20 +448,36 @@ class OrdersPageView extends StatelessWidget {
   }
 
   Widget _buildFilterTabs(BuildContext context, OrdersState state) {
-    final counts = state is OrdersLoaded ? state.tileCounts : <String, int>{};
     final selectedStatus = state is OrdersLoaded
         ? state.selectedStatus ?? 'all'
         : 'all';
 
-    // Use centralized filter tabs config
-    final filters = OrderStatusHelper.getFilterTabs(counts);
+    // Get filters from API response
+    final orderStats = state is OrdersLoaded ? state.orderStats : null;
+    final apiFilters = orderStats?.filters;
+
+    // If no API filters, show loading shimmer
+    if (apiFilters == null || apiFilters.isEmpty) {
+      return _buildFilterTabsSkeleton();
+    }
+
+    // Build filter list from API filters
+    final filterList = apiFilters
+        .map(
+          (f) => {
+            'key': f.key ?? '',
+            'label': f.label ?? f.key ?? '',
+            'count': f.count ?? 0,
+          },
+        )
+        .toList();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: filters.map((filter) {
+          children: filterList.map((filter) {
             final key = filter['key'] as String;
             final label = filter['label'] as String;
             final count = filter['count'] as int;

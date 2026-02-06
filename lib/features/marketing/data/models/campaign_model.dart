@@ -12,6 +12,18 @@ class CampaignModel {
   final double revenue;
   final int restaurantCount;
 
+  // Offer-specific fields for hotel-offers API
+  final String? description;
+  final String discountType; // 'percentage' or 'flat'
+  final double discountValue;
+  final double minOrderValue;
+  final double? maxDiscount;
+  final String offerType; // 'restaurant' or 'item'
+  final List<String> validDays;
+  final String validTimeStart;
+  final String validTimeEnd;
+  final int? usageLimit;
+
   const CampaignModel({
     required this.id,
     required this.name,
@@ -24,6 +36,24 @@ class CampaignModel {
     required this.orders,
     required this.revenue,
     required this.restaurantCount,
+    this.description,
+    this.discountType = 'percentage',
+    this.discountValue = 0,
+    this.minOrderValue = 0,
+    this.maxDiscount,
+    this.offerType = 'restaurant',
+    this.validDays = const [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ],
+    this.validTimeStart = '00:00',
+    this.validTimeEnd = '23:59',
+    this.usageLimit,
   });
 
   /// Factory constructor with comprehensive null handling
@@ -92,6 +122,101 @@ class CampaignModel {
       revenue: 0.0,
       restaurantCount: 0,
     );
+  }
+
+  /// Factory constructor to map from hotel-offers API response
+  factory CampaignModel.fromOfferJson(Map<String, dynamic>? json) {
+    if (json == null) return CampaignModel.empty();
+
+    // Determine status based on isActive and dates
+    String status = 'active';
+    final isActive = json['isActive'] as bool? ?? true;
+    final endDate = _parseDate(json['validDateEnd']);
+
+    if (!isActive) {
+      status = 'ended';
+    } else if (endDate != null && endDate.isBefore(DateTime.now())) {
+      status = 'ended';
+    } else {
+      final startDate = _parseDate(json['validDateStart']);
+      if (startDate != null && startDate.isAfter(DateTime.now())) {
+        status = 'scheduled';
+      }
+    }
+
+    // Map discountType to type
+    String type = 'discount';
+    final discountType = json['discountType'] as String? ?? '';
+    if (discountType == 'percentage') {
+      type = 'promo';
+    } else if (json['offerType'] == 'delivery') {
+      type = 'delivery';
+    }
+
+    // Parse validDays
+    List<String> parsedDays = const [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday',
+    ];
+    if (json['validDays'] != null && json['validDays'] is List) {
+      parsedDays = (json['validDays'] as List)
+          .map((e) => e.toString().toLowerCase())
+          .toList();
+    }
+
+    return CampaignModel(
+      id: (json['_id'] as String?) ?? (json['id'] as String?) ?? '',
+      name: (json['title'] as String?) ?? 'Unnamed Offer',
+      type: type,
+      status: status,
+      startDate: _parseDate(json['validDateStart']),
+      endDate: _parseDate(json['validDateEnd']),
+      reach:
+          (json['usedCount'] as int?) ?? 0, // Using usedCount as reach for now
+      clicks: 0, // Not available in API
+      orders: (json['usedCount'] as int?) ?? 0,
+      revenue: 0.0, // Not available in API
+      restaurantCount: 1, // Single restaurant
+      // Offer-specific fields
+      description: json['description'] as String?,
+      discountType: discountType.isNotEmpty ? discountType : 'percentage',
+      discountValue: (json['discountValue'] as num?)?.toDouble() ?? 0,
+      minOrderValue: (json['minimumOrderValue'] as num?)?.toDouble() ?? 0,
+      maxDiscount: (json['maximumDiscountAmount'] as num?)?.toDouble(),
+      offerType: (json['offerType'] as String?) ?? 'restaurant',
+      validDays: parsedDays,
+      validTimeStart: (json['validTimeStart'] as String?) ?? '00:00',
+      validTimeEnd: (json['validTimeEnd'] as String?) ?? '23:59',
+      usageLimit: json['usageLimit'] as int?,
+    );
+  }
+
+  /// Convert to hotel-offers API format for create/update
+  Map<String, dynamic> toOfferJson(String? hotelId) {
+    return {
+      'title': name,
+      'description': description ?? name,
+      'discountType': discountType,
+      'discountValue': discountValue,
+      'offerType': offerType,
+      'validDays': validDays,
+      'validTimeStart': validTimeStart,
+      'validTimeEnd': validTimeEnd,
+      'validDateStart':
+          startDate?.toIso8601String() ?? DateTime.now().toIso8601String(),
+      'validDateEnd':
+          endDate?.toIso8601String() ??
+          DateTime.now().add(const Duration(days: 30)).toIso8601String(),
+      'minimumOrderValue': minOrderValue,
+      if (maxDiscount != null) 'maximumDiscountAmount': maxDiscount,
+      if (usageLimit != null) 'usageLimit': usageLimit,
+      if (hotelId != null) 'hotelId': hotelId,
+    };
   }
 
   /// Check if campaign has valid data
@@ -204,6 +329,16 @@ class CampaignModel {
     int? orders,
     double? revenue,
     int? restaurantCount,
+    String? description,
+    String? discountType,
+    double? discountValue,
+    double? minOrderValue,
+    double? maxDiscount,
+    String? offerType,
+    List<String>? validDays,
+    String? validTimeStart,
+    String? validTimeEnd,
+    int? usageLimit,
   }) {
     return CampaignModel(
       id: id ?? this.id,
@@ -217,6 +352,16 @@ class CampaignModel {
       orders: orders ?? this.orders,
       revenue: revenue ?? this.revenue,
       restaurantCount: restaurantCount ?? this.restaurantCount,
+      description: description ?? this.description,
+      discountType: discountType ?? this.discountType,
+      discountValue: discountValue ?? this.discountValue,
+      minOrderValue: minOrderValue ?? this.minOrderValue,
+      maxDiscount: maxDiscount ?? this.maxDiscount,
+      offerType: offerType ?? this.offerType,
+      validDays: validDays ?? this.validDays,
+      validTimeStart: validTimeStart ?? this.validTimeStart,
+      validTimeEnd: validTimeEnd ?? this.validTimeEnd,
+      usageLimit: usageLimit ?? this.usageLimit,
     );
   }
 

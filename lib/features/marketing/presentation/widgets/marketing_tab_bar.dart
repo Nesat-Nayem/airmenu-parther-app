@@ -12,6 +12,8 @@ class MarketingTabBar extends StatelessWidget {
   final VoidCallback? onAddPressed;
   final String addButtonText;
 
+  final bool isAdmin;
+
   const MarketingTabBar({
     super.key,
     required this.currentTab,
@@ -21,6 +23,7 @@ class MarketingTabBar extends StatelessWidget {
     this.onSearchChanged,
     this.onAddPressed,
     required this.addButtonText,
+    required this.isAdmin,
   });
 
   @override
@@ -76,16 +79,29 @@ class MarketingTabBar extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _TabButton(
-            label: 'Campaigns',
-            isSelected: currentTab == MarketingTab.campaigns,
-            onTap: () => onTabChanged?.call(MarketingTab.campaigns),
-          ),
-          _TabButton(
-            label: 'Promo Codes',
-            isSelected: currentTab == MarketingTab.promoCodes,
-            onTap: () => onTabChanged?.call(MarketingTab.promoCodes),
-          ),
+          if (isAdmin) ...[
+            _TabButton(
+              label: 'Campaigns',
+              isSelected: currentTab == MarketingTab.campaigns,
+              onTap: () => onTabChanged?.call(MarketingTab.campaigns),
+            ),
+            _TabButton(
+              label: 'Promo Codes',
+              isSelected: currentTab == MarketingTab.promoCodes,
+              onTap: () => onTabChanged?.call(MarketingTab.promoCodes),
+            ),
+          ] else ...[
+            _TabButton(
+              label: 'Offers',
+              isSelected: currentTab == MarketingTab.campaigns,
+              onTap: () => onTabChanged?.call(MarketingTab.campaigns),
+            ),
+            _TabButton(
+              label: 'Combos',
+              isSelected: currentTab == MarketingTab.combos,
+              onTap: () => onTabChanged?.call(MarketingTab.combos),
+            ),
+          ],
         ],
       ),
     );

@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 
-enum ResponsiveSize {
-  mobile,
-  tablet,
-  desktop,
-}
+enum ResponsiveSize { mobile, tablet, desktop }
 
 class Responsive extends StatelessWidget {
   static double mobileWidth = 475.0;
   static double tabletWidth = 768.0;
-  static double desktopWidth = 1386.0;
+  static double desktopWidth = 1100.0;
 
   final Widget mobile;
   final Widget tablet;
@@ -26,12 +22,15 @@ class Responsive extends StatelessWidget {
   static bool isTabletSize() => _currentSize == ResponsiveSize.tablet;
   static bool isDesktopSize() => _currentSize == ResponsiveSize.desktop;
 
-  static bool isMobile(BuildContext context) => MediaQuery.of(context).size.width < tabletWidth;
+  static bool isMobile(BuildContext context) =>
+      MediaQuery.of(context).size.width < tabletWidth;
 
   static bool isTablet(BuildContext context) =>
-      MediaQuery.of(context).size.width >= tabletWidth && MediaQuery.of(context).size.width < desktopWidth;
+      MediaQuery.of(context).size.width >= tabletWidth &&
+      MediaQuery.of(context).size.width < desktopWidth;
 
-  static bool isDesktop(BuildContext context) => MediaQuery.of(context).size.width >= desktopWidth;
+  static bool isDesktop(BuildContext context) =>
+      MediaQuery.of(context).size.width >= desktopWidth;
 
   static ResponsiveSize responsiveSize(BuildContext context) {
     if (isMobile(context)) {
@@ -58,14 +57,17 @@ class Responsive extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    return LayoutBuilder(builder: (context, constraints) {
-      if (constraints.maxWidth >= desktopWidth) {
-        return desktop;
-      } else if (constraints.maxWidth >= tabletWidth || screenWidth >= tabletWidth) {
-        return tablet;
-      } else {
-        return mobile;
-      }
-    });
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= desktopWidth) {
+          return desktop;
+        } else if (constraints.maxWidth >= tabletWidth ||
+            screenWidth >= tabletWidth) {
+          return tablet;
+        } else {
+          return mobile;
+        }
+      },
+    );
   }
 }

@@ -106,8 +106,7 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         case NavMenuItem.restaurants:
         case NavMenuItem.adminOrders:
         case NavMenuItem.payments:
-        case NavMenuItem.exclusiveOffers:
-        case NavMenuItem.adminInventory:
+        case NavMenuItem.marketing:
         case NavMenuItem.adminSettings:
         case NavMenuItem.externalIntegrations:
         case NavMenuItem.landmark:
@@ -136,8 +135,6 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         case NavMenuItem.menu:
           return true;
         case NavMenuItem.inventory:
-          return true;
-        case NavMenuItem.purchaseOrder:
           return true;
         case NavMenuItem.kitchenPanel:
           return true;
@@ -473,9 +470,6 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
       case NavMenuItem.coupons:
         GoRouter.of(context).go(AppRoutes.coupons.path);
         break;
-      case NavMenuItem.inventory:
-        GoRouter.of(context).go(AppRoutes.inventory.path);
-        break;
       case NavMenuItem.myAccount:
         GoRouter.of(context).go(AppRoutes.myAccount.path);
         break;
@@ -495,9 +489,6 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         break;
       case NavMenuItem.adminOrders:
         GoRouter.of(context).go(AppRoutes.adminOrders.path);
-        break;
-      case NavMenuItem.adminInventory:
-        GoRouter.of(context).go(AppRoutes.adminInventory.path);
         break;
       case NavMenuItem.adminSettings:
         GoRouter.of(context).go(AppRoutes.adminSettings.path);
@@ -533,6 +524,9 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
       case NavMenuItem.feedbackRating:
         GoRouter.of(context).go(AppRoutes.feedbackRating.path);
         break;
+      case NavMenuItem.inventory:
+        GoRouter.of(context).go(AppRoutes.inventory.path);
+        break;
     }
   }
 
@@ -561,8 +555,8 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         return 'Staff Management';
       case NavMenuItem.adminStaffManagement:
         return 'Admin Staff Management';
-      case NavMenuItem.exclusiveOffers:
-        return 'Exclusive Offers';
+      case NavMenuItem.marketing:
+        return 'Offers';
       case NavMenuItem.payments:
         return 'Payments & Settlements';
 
@@ -574,6 +568,16 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         return 'AI Predictions';
       case NavMenuItem.aiSuggestions:
         return 'AI Suggestions';
+      case NavMenuItem.coupons:
+        return 'Offers & Combos';
+      case NavMenuItem.adminOrders:
+        return 'Live Orders Feed';
+      case NavMenuItem.landmark:
+        return 'Landmarks';
+      case NavMenuItem.adminDashboard:
+        return 'SuperAdmin Dashboard';
+      case NavMenuItem.inventory:
+        return 'Inventory';
       default:
         return item.toString().split('.').last;
     }
@@ -607,6 +611,20 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         return 'Smart recommendations';
       case NavMenuItem.platformActivity:
         return 'System activity logs';
+      case NavMenuItem.coupons:
+        return 'Manage discounts and meal deals';
+      case NavMenuItem.staffManagement:
+        return 'Team and permissions';
+      case NavMenuItem.adminOrders:
+        return 'Real-time orders across all restaurants';
+      case NavMenuItem.adminDashboard:
+        return 'System-wide analytics and insights';
+      case NavMenuItem.landmark:
+        return 'Manage malls and food courts';
+      case NavMenuItem.marketing:
+        return 'Platform promotions and offers';
+      case NavMenuItem.inventory:
+        return 'Stock levels and management';
       default:
         return '';
     }

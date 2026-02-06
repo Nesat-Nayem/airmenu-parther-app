@@ -1,110 +1,151 @@
-/// Model for individual stat item from API
-
-/// Model for individual stat item from API
-class StatItem {
-  final int value;
-  final String? comparison;
+/// Model for individual stat item from API (for tiles)
+/// Example: {"key": "pending", "label": "Pending", "value": 0, "comparison": "0%", "comparisonLabel": "vs yesterday", "trend": "neutral"}
+/// Note: value can be int (e.g., 0) or string (e.g., "18 min" for avgPrepTime)
+class OrderStatItemModel {
+  final String? key;
   final String? label;
+  final dynamic value; // Can be int or String (e.g., "18 min")
+  final String? comparison;
+  final String? comparisonLabel;
+  final String? trend;
 
-  const StatItem({required this.value, this.comparison, this.label});
+  const OrderStatItemModel({
+    this.key,
+    this.label,
+    this.value,
+    this.comparison,
+    this.comparisonLabel,
+    this.trend,
+  });
 
-  factory StatItem.fromJson(Map<String, dynamic> json) {
-    return StatItem(
-      value: json['value'] as int? ?? 0,
-      comparison: json['comparison'] as String?,
+  factory OrderStatItemModel.fromJson(Map<String, dynamic> json) {
+    return OrderStatItemModel(
+      key: json['key'] as String?,
       label: json['label'] as String?,
+      value: json['value'], // Keep as dynamic - can be int or String
+      comparison: json['comparison'] as String?,
+      comparisonLabel: json['comparisonLabel'] as String?,
+      trend: json['trend'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
+    'key': key,
+    'label': label,
     'value': value,
     'comparison': comparison,
-    'label': label,
+    'comparisonLabel': comparisonLabel,
+    'trend': trend,
   };
 
-  /// Returns formatted comparison text (e.g., "50% vs yesterday")
-  String? get formattedComparison {
-    if (comparison == null || label == null) return null;
-    return '$comparison $label';
-  }
+  /// Get value as int (returns 0 if value is string)
+  int get intValue => value is int ? value : 0;
 
-  /// Returns true if comparison is positive (increase)
-  bool get isPositiveComparison {
-    if (comparison == null) return false;
-    final numericValue = int.tryParse(comparison!.replaceAll('%', ''));
-    return numericValue != null && numericValue > 0;
-  }
+  /// Get value as display string
+  String get displayValue => value?.toString() ?? '0';
+
+  /// Returns true if trend is positive (up)
+  bool get isPositiveTrend => trend == 'up';
+
+  /// Returns true if trend is negative (down)
+  bool get isNegativeTrend => trend == 'down';
+
+  /// Returns true if trend is neutral
+  bool get isNeutralTrend => trend == 'neutral' || trend == null;
 }
 
-/// Model for order statistics from /orders/order-stats API
-class OrderStatsModel {
-  final StatItem? totalOrders;
-  final StatItem? pending;
-  final StatItem? inKitchen;
-  final StatItem? ready;
-  final StatItem? served;
-  final StatItem? cancelled;
-  final StatItem? delayed;
+/// Model for filter item from API (for filter tabs)
+/// Example: {"key": "all", "label": "All Orders", "count": 0, "isDefault": true}
+class OrderFilterModel {
+  final String? key;
+  final String? label;
+  final int? count;
+  final bool? isDefault;
 
-  // Admin-specific stats
-  final StatItem? activeOrders;
-  final StatItem? avgPrepTime;
-  final StatItem? completedToday;
+  const OrderFilterModel({this.key, this.label, this.count, this.isDefault});
 
-  const OrderStatsModel({
-    this.totalOrders,
-    this.pending,
-    this.inKitchen,
-    this.ready,
-    this.served,
-    this.cancelled,
-    this.delayed,
-    this.activeOrders,
-    this.avgPrepTime,
-    this.completedToday,
-  });
-
-  factory OrderStatsModel.fromJson(Map<String, dynamic> json) {
-    return OrderStatsModel(
-      totalOrders: json['totalOrders'] != null
-          ? StatItem.fromJson(json['totalOrders'])
-          : null,
-      pending: json['pending'] != null
-          ? StatItem.fromJson(json['pending'])
-          : null,
-      inKitchen: json['inKitchen'] != null
-          ? StatItem.fromJson(json['inKitchen'])
-          : null,
-      ready: json['ready'] != null ? StatItem.fromJson(json['ready']) : null,
-      served: json['served'] != null ? StatItem.fromJson(json['served']) : null,
-      cancelled: json['cancelled'] != null
-          ? StatItem.fromJson(json['cancelled'])
-          : null,
-      delayed: json['delayed'] != null
-          ? StatItem.fromJson(json['delayed'])
-          : null,
-      // Admin stats
-      activeOrders: json['activeOrders'] != null
-          ? StatItem.fromJson(json['activeOrders'])
-          : null,
-      avgPrepTime: json['avgPrepTime'] != null
-          ? StatItem.fromJson(json['avgPrepTime'])
-          : null,
-      completedToday: json['completedToday'] != null
-          ? StatItem.fromJson(json['completedToday'])
-          : null,
+  factory OrderFilterModel.fromJson(Map<String, dynamic> json) {
+    return OrderFilterModel(
+      key: json['key'] as String?,
+      label: json['label'] as String?,
+      count: json['count'] as int? ?? 0,
+      isDefault: json['isDefault'] as bool? ?? false,
     );
   }
 
-  /// Get filter counts as a map for filter chips
-  Map<String, int> get filterCounts => {
-    'All Orders': totalOrders?.value ?? 0,
-    'Pending': pending?.value ?? 0,
-    'In Kitchen': inKitchen?.value ?? 0,
-    'Ready': ready?.value ?? 0,
-    'Served': served?.value ?? 0,
-    'Cancelled': cancelled?.value ?? 0,
+  Map<String, dynamic> toJson() => {
+    'key': key,
+    'label': label,
+    'count': count,
+    'isDefault': isDefault,
   };
+}
+
+/// Model for order statistics response from /orders/order-stats API
+/// Contains stats for tiles and filters for filter tabs
+class OrderStatsModel {
+  /// Stats for top tiles (Pending, In Kitchen, Ready, Delayed)
+  final List<OrderStatItemModel>? stats;
+
+  /// Filters for filter tabs (All Orders, Pending, Processing, etc.)
+  final List<OrderFilterModel>? filters;
+
+  const OrderStatsModel({this.stats, this.filters});
+
+  factory OrderStatsModel.fromJson(Map<String, dynamic> json) {
+    return OrderStatsModel(
+      stats: (json['stats'] as List<dynamic>?)
+          ?.map((e) => OrderStatItemModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      filters: (json['filters'] as List<dynamic>?)
+          ?.map((e) => OrderFilterModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'stats': stats?.map((e) => e.toJson()).toList(),
+    'filters': filters?.map((e) => e.toJson()).toList(),
+  };
+
+  /// Get stat item by key
+  OrderStatItemModel? getStatByKey(String key) {
+    return stats?.firstWhere(
+      (stat) => stat.key == key,
+      orElse: () => const OrderStatItemModel(),
+    );
+  }
+
+  /// Get filter item by key
+  OrderFilterModel? getFilterByKey(String key) {
+    return filters?.firstWhere(
+      (filter) => filter.key == key,
+      orElse: () => const OrderFilterModel(),
+    );
+  }
+
+  /// Get default filter
+  OrderFilterModel? get defaultFilter {
+    return filters?.firstWhere(
+      (filter) => filter.isDefault == true,
+      orElse: () => filters?.isNotEmpty == true
+          ? filters!.first
+          : const OrderFilterModel(),
+    );
+  }
+
+  /// Get filter counts as a map (for backwards compatibility)
+  Map<String, int> get filterCounts {
+    final counts = <String, int>{};
+    if (filters != null) {
+      for (final filter in filters!) {
+        if (filter.key != null) {
+          counts[filter.key!] = filter.count ?? 0;
+        }
+      }
+    }
+    return counts;
+  }
 
   /// Empty stats for loading/error states
   static const OrderStatsModel empty = OrderStatsModel();

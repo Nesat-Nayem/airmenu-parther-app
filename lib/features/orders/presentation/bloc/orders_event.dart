@@ -46,6 +46,11 @@ class ChangePage extends OrdersEvent {
   List<Object?> get props => [page];
 }
 
+/// Event for loading more orders (infinite scroll)
+class LoadMoreOrders extends OrdersEvent {
+  const LoadMoreOrders();
+}
+
 class UpdateOrderStatus extends OrdersEvent {
   final String orderId;
   final String newStatus;

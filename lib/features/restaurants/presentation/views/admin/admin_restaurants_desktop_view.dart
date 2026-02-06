@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/core/network/api_service.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/repositories/admin_restaurants_repository.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/admin/admin_restaurants_bloc.dart';
@@ -9,6 +10,7 @@ import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/adm
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/admin/restaurant_stats_cards.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/admin/restaurant_list_item.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/admin/restaurant_search_bar.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/admin/restaurants_shimmer.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 
@@ -35,7 +37,7 @@ class _AdminRestaurantsDesktopContent extends StatelessWidget {
     return BlocBuilder<AdminRestaurantsBloc, AdminRestaurantsState>(
       builder: (context, state) {
         if (state is AdminRestaurantsLoading) {
-          return const CircularProgressIndicator();
+          return const RestaurantsShimmer();
         }
 
         if (state is AdminRestaurantsError) {
@@ -78,7 +80,7 @@ class _AdminRestaurantsDesktopContent extends StatelessWidget {
           );
         }
 
-        return const Center(child: CircularProgressIndicator());
+        return const Center(child: RestaurantsShimmer());
       },
     );
   }
@@ -108,13 +110,47 @@ class _AdminRestaurantsDesktopContent extends StatelessWidget {
                   const SizedBox(height: 24),
 
                   // Search and filter
-                  RestaurantSearchBar(
-                    initialQuery: filters.searchQuery,
-                    onSearch: (query) {
-                      context.read<AdminRestaurantsBloc>().add(
-                        SearchRestaurants(query),
-                      );
-                    },
+                  Row(
+                    children: [
+                      Expanded(
+                        child: RestaurantSearchBar(
+                          initialQuery: filters.searchQuery,
+                          onSearch: (query) {
+                            context.read<AdminRestaurantsBloc>().add(
+                              SearchRestaurants(query),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          context.push(AppRoutes.createRestaurant.path).then((
+                            value,
+                          ) {
+                            if (value == true) {
+                              context.read<AdminRestaurantsBloc>().add(
+                                const LoadRestaurants(),
+                              );
+                            }
+                          });
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Restaurant'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFC52031),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 18,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 24),
 
