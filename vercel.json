@@ -1,5 +1,14 @@
 {
-  "buildCommand": "flutter/bin/flutter build web --release --base-href /",
+  "installCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 && flutter/bin/flutter doctor && flutter/bin/flutter pub get",
+  "buildCommand": "flutter/bin/flutter build web --release --base-href / --no-tree-shake-icons",
   "outputDirectory": "build/web",
-  "installCommand": "git clone https://github.com/flutter/flutter.git -b stable --depth 1 && flutter/bin/flutter doctor && flutter/bin/flutter pub get"
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
 }
