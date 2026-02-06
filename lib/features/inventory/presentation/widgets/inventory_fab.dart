@@ -50,6 +50,8 @@ class _InventoryFABState extends State<InventoryFAB>
     super.dispose();
   }
 
+  bool _isHovered = false;
+
   void _toggleExpanded() {
     setState(() {
       _isExpanded = !_isExpanded;
@@ -93,60 +95,57 @@ class _InventoryFABState extends State<InventoryFAB>
                     children: [
                       _buildMenuOption(
                         label: 'Add Item',
-                        icon: Icons.add_circle_outline,
-                        iconColor: const Color(0xFFF97316),
+                        icon: Icons.inventory_2_outlined,
+                        color: const Color(0xFFF97316),
                         onTap: () {
-                          _toggleExpanded();
+                          // Close menu first handled in wrapper
                           widget.onAddItem();
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       _buildMenuOption(
                         label: 'Create PO',
                         icon: Icons.description_outlined,
-                        iconColor: const Color(0xFFEF4444),
+                        color: const Color(0xFFEF4444),
                         onTap: () {
-                          _toggleExpanded();
                           widget.onCreatePO();
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       _buildMenuOption(
                         label: 'Stock Out',
                         icon: Icons.arrow_upward,
-                        iconColor: const Color(0xFF9CA3AF),
+                        color: const Color(0xFFF3F4F6),
+                        iconColor: const Color(0xFF374151),
                         onTap: () {
-                          _toggleExpanded();
                           widget.onStockOut();
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       _buildMenuOption(
                         label: 'Stock In',
                         icon: Icons.arrow_downward,
-                        iconColor: const Color(0xFF9CA3AF),
+                        color: const Color(0xFFF3F4F6),
+                        iconColor: const Color(0xFF374151),
                         onTap: () {
-                          _toggleExpanded();
                           widget.onStockIn();
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       _buildMenuOption(
                         label: 'Scan Out',
                         icon: Icons.qr_code_scanner,
-                        iconColor: const Color(0xFFF59E0B),
+                        color: const Color(0xFFEAB308), // Yellow
                         onTap: () {
-                          _toggleExpanded();
                           widget.onScanOut();
                         },
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
                       _buildMenuOption(
                         label: 'Scan In',
                         icon: Icons.qr_code_scanner,
-                        iconColor: const Color(0xFF10B981),
+                        color: const Color(0xFF10B981), // Green
                         onTap: () {
-                          _toggleExpanded();
                           widget.onScanIn();
                         },
                       ),
@@ -162,14 +161,49 @@ class _InventoryFABState extends State<InventoryFAB>
         Positioned(
           right: 16,
           bottom: 16,
-          child: FloatingActionButton(
-            onPressed: _toggleExpanded,
-            backgroundColor: const Color(0xFF1F2937),
-            elevation: 4,
-            child: AnimatedRotation(
-              turns: _isExpanded ? 0.125 : 0,
-              duration: const Duration(milliseconds: 300),
-              child: const Icon(Icons.add, color: Colors.white, size: 28),
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: _toggleExpanded,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    colors: [
+                      const Color(0xFFEF4444),
+                      const Color(0xFFEF4444).withOpacity(0.8),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  boxShadow: [
+                    if (_isHovered)
+                      BoxShadow(
+                        color: const Color(0xFFB91C1C).withOpacity(0.4),
+                        blurRadius: 28,
+                        offset: const Offset(0, 8),
+                      )
+                    else
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                  ],
+                ),
+                child: Center(
+                  child: AnimatedRotation(
+                    turns: _isExpanded ? 0.125 : 0,
+                    duration: const Duration(milliseconds: 300),
+                    child: const Icon(Icons.add, color: Colors.white, size: 28),
+                  ),
+                ),
+              ),
             ),
           ),
         ),
@@ -180,45 +214,103 @@ class _InventoryFABState extends State<InventoryFAB>
   Widget _buildMenuOption({
     required String label,
     required IconData icon,
-    required Color iconColor,
+    required Color color,
     required VoidCallback onTap,
+    Color iconColor = Colors.white,
   }) {
+    return _HoverableMenuOption(
+      label: label,
+      icon: icon,
+      color: color,
+      iconColor: iconColor,
+      onTap: () {
+        _toggleExpanded();
+        onTap();
+      },
+    );
+  }
+}
+
+class _HoverableMenuOption extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final Color iconColor;
+  final VoidCallback onTap;
+
+  const _HoverableMenuOption({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  @override
+  State<_HoverableMenuOption> createState() => _HoverableMenuOptionState();
+}
+
+class _HoverableMenuOptionState extends State<_HoverableMenuOption> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(32),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(32),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+      onTap: widget.onTap,
+      onHover: (hovering) => setState(() => _isHovering = hovering),
+      overlayColor: MaterialStateProperty.all(Colors.transparent),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          // Label
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(
+                20,
+              ), // More rounded as established
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: AirMenuTextStyle.small.bold700().withColor(
-                const Color(0xFF111827),
+            child: Text(
+              widget.label,
+              style: AirMenuTextStyle.small.bold600().withColor(
+                const Color(0xFF374151),
               ),
             ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: iconColor.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 18, color: iconColor),
+          ),
+          const SizedBox(width: 16),
+
+          // Animated Icon Button
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            transform: Matrix4.identity()
+              ..scale(_isHovering ? 1.1 : 1.0)
+              ..translate(0.0, _isHovering ? -2.0 : 0.0),
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: widget.color,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: widget.color.withOpacity(0.4),
+                  blurRadius: _isHovering ? 12 : 8,
+                  offset: _isHovering ? const Offset(0, 6) : const Offset(0, 4),
+                ),
+              ],
             ),
-          ],
-        ),
+            child: Icon(widget.icon, size: 20, color: widget.iconColor),
+          ),
+        ],
       ),
     );
   }

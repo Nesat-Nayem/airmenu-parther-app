@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'package:airmenuai_partner_app/features/responsive.dart';
 
 class RecipeMappingDialog extends StatefulWidget {
   const RecipeMappingDialog({super.key});
@@ -138,23 +139,42 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
                           top: BorderSide(color: Color(0xFFE5E7EB), width: 1),
                         ),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'Estimated Cost per Serving',
-                            style: AirMenuTextStyle.large.medium500().withColor(
-                              const Color(0xFF6B7280),
+                      child: Responsive.isMobile(context)
+                          ? Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Estimated Cost per Serving',
+                                  style: AirMenuTextStyle.large
+                                      .medium500()
+                                      .withColor(const Color(0xFF6B7280)),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '₹85.50',
+                                  style: AirMenuTextStyle.headingH2
+                                      .black900()
+                                      .withColor(const Color(0xFF111827)),
+                                ),
+                              ],
+                            )
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Estimated Cost per Serving',
+                                  style: AirMenuTextStyle.large
+                                      .medium500()
+                                      .withColor(const Color(0xFF6B7280)),
+                                ),
+                                Text(
+                                  '₹85.50', // Mock calculation
+                                  style: AirMenuTextStyle.headingH2
+                                      .black900()
+                                      .withColor(const Color(0xFF111827)),
+                                ),
+                              ],
                             ),
-                          ),
-                          Text(
-                            '₹85.50', // Mock calculation
-                            style: AirMenuTextStyle.headingH2
-                                .black900()
-                                .withColor(const Color(0xFF111827)),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),
@@ -174,19 +194,18 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
       padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
       decoration: const BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        border: Border(
-          top: BorderSide(color: Color(0xFFEF4444), width: 3), // Red top accent
-          bottom: BorderSide(color: Color(0xFFF3F4F6)),
-        ),
+        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            'Recipe Mapping',
-            style: AirMenuTextStyle.headingH3.bold700().withColor(
-              const Color(0xFF111827),
+          Container(
+            padding: const EdgeInsets.only(top: 4), // Visual adjustment
+            child: Text(
+              'Recipe Mapping',
+              style: AirMenuTextStyle.headingH3.bold700().withColor(
+                Colors.black,
+              ),
             ),
           ),
           IconButton(
@@ -297,6 +316,87 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
   }
 
   Widget _buildIngredientRow(int index, RecipeIngredient ingredient) {
+    bool isMobile = Responsive.isMobile(context);
+
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF3F4F6)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: _buildCustomDropdown(
+                    value: ingredient.name,
+                    hint: 'Select Ingredient',
+                    items: ingredientOptions,
+                    onChanged: (val) => setState(() => ingredient.name = val),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => _removeIngredient(index),
+                  icon: const Icon(Icons.close, size: 18),
+                  color: const Color(0xFFEF4444),
+                  splashRadius: 20,
+                  constraints: const BoxConstraints(),
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                    ),
+                    alignment: Alignment.center,
+                    child: TextFormField(
+                      initialValue: ingredient.quantity,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      onChanged: (val) => ingredient.quantity = val,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                        hintText: 'Qty',
+                        hintStyle: TextStyle(
+                          color: Color(0xFF9CA3AF),
+                          fontSize: 14,
+                        ),
+                      ),
+                      style: AirMenuTextStyle.normal.medium500(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildCustomDropdown(
+                    value: ingredient.unit,
+                    hint: 'Unit',
+                    items: unitOptions,
+                    onChanged: (val) => setState(() => ingredient.unit = val),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     return Row(
       children: [
         // Ingredient Dropdown (Expanded)
@@ -320,6 +420,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
             ),
             alignment: Alignment.center,
             child: TextFormField(
@@ -456,6 +557,79 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
   }
 
   Widget _buildFooter() {
+    bool isMobile = Responsive.isMobile(context);
+
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Save Button (Full Width)
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
+                ),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFEF4444).withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: Text(
+                  'Save Mapping',
+                  style: AirMenuTextStyle.normal.bold600().withColor(
+                    Colors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Cancel Button (Full Width)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF374151),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  elevation: 2,
+                  shadowColor: Colors.black.withOpacity(0.1),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                ),
+                child: Text('Cancel', style: AirMenuTextStyle.normal.bold600()),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(

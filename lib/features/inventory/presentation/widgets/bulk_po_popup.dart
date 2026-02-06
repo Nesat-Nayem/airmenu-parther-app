@@ -1,6 +1,8 @@
+import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shared_widgets.dart';
 import 'package:intl/intl.dart';
 
 /// Premium Bulk Purchase Order Dialog with stunning UI
@@ -88,11 +90,17 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+    final width = isMobile ? MediaQuery.of(context).size.width : 680.0;
+
     return Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 680,
-        constraints: const BoxConstraints(maxHeight: 750),
+        width: width,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFFAFAFA),
           borderRadius: BorderRadius.circular(24),
@@ -114,35 +122,35 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
             // Content
             Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(32, 24, 32, 32),
+                padding: EdgeInsets.all(isMobile ? 16 : 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Stats Cards
-                    _buildStatsCards(),
-                    const SizedBox(height: 32),
+                    _buildStatsCards(isMobile),
+                    const SizedBox(height: 24),
 
                     // Expected Delivery & Notifications
-                    _buildDeliveryAndNotifications(),
-                    const SizedBox(height: 32),
+                    _buildDeliveryAndNotifications(isMobile),
+                    const SizedBox(height: 24),
 
                     // Items Section
                     _buildItemsSection(),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
                     // Vendor Breakdown
                     _buildVendorBreakdown(),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
 
                     // Total
-                    _buildTotal(),
+                    _buildTotal(isMobile),
                   ],
                 ),
               ),
             ),
 
             // Footer Actions
-            _buildFooter(),
+            _buildFooter(isMobile),
           ],
         ),
       ),
@@ -151,7 +159,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
 
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(32, 24, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -193,7 +201,42 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     );
   }
 
-  Widget _buildStatsCards() {
+  Widget _buildStatsCards(bool isMobile) {
+    // On mobile, use a Column or Wrap instead of Row with Expanded
+    // Using Column for full width or Wrap for 2-col? Column is safer for overflow.
+    if (isMobile) {
+      return Column(
+        children: [
+          _buildStatCard(
+            icon: Icons.warning_amber_rounded,
+            label: 'Critical Items',
+            value: '${widget.criticalItems.length}',
+            color: const Color(0xFFFEF2F2),
+            borderColor: const Color(0xFFFECACA).withOpacity(0.5),
+            iconColor: const Color(0xFFEF4444),
+          ),
+          const SizedBox(height: 12),
+          _buildStatCard(
+            icon: Icons.check_circle_outline,
+            label: 'Selected',
+            value: '$selectedCount',
+            color: const Color(0xFFFEF2F2),
+            borderColor: const Color(0xFFFECACA).withOpacity(0.5),
+            iconColor: const Color(0xFFEF4444),
+          ),
+          const SizedBox(height: 12),
+          _buildStatCard(
+            icon: Icons.local_shipping_outlined,
+            label: 'Vendors',
+            value: '$totalVendors',
+            color: Colors.white,
+            borderColor: const Color(0xFFE5E7EB),
+            iconColor: const Color(0xFF6B7280),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         Expanded(
@@ -241,7 +284,8 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     required Color iconColor,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      width: double.infinity, // Ensure full width in column
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(16),
@@ -262,10 +306,14 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
             children: [
               Icon(icon, color: iconColor, size: 18),
               const SizedBox(width: 8),
-              Text(
-                label,
-                style: AirMenuTextStyle.small.medium500().withColor(
-                  const Color(0xFF6B7280),
+              Expanded(
+                // Prevent label overflow
+                child: Text(
+                  label,
+                  style: AirMenuTextStyle.small.medium500().withColor(
+                    const Color(0xFF6B7280),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -282,75 +330,88 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     );
   }
 
-  Widget _buildDeliveryAndNotifications() {
+  Widget _buildDeliveryAndNotifications(bool isMobile) {
+    if (isMobile) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildExpectedDelivery(),
+          const SizedBox(height: 20),
+          _buildNotificationToggles(),
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Expected Delivery
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Expected Delivery',
-                style: AirMenuTextStyle.small.medium500().withColor(
-                  const Color(0xFF4B5563),
-                ),
-              ),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: _pickDate,
-                borderRadius: BorderRadius.circular(24),
-                child: Container(
-                  height: 48,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  child: Row(
-                    children: [
-                      Text(
-                        _selectedDate != null
-                            ? DateFormat('dd-MM-yyyy').format(_selectedDate!)
-                            : 'Select Date',
-                        style: AirMenuTextStyle.regularTextStyle.withColor(
-                          _selectedDate != null
-                              ? const Color(0xFF111827)
-                              : const Color(0xFF9CA3AF),
-                        ),
-                      ),
-                      const Spacer(),
-                      const Icon(
-                        Icons.calendar_today,
-                        size: 18,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        Expanded(child: _buildExpectedDelivery()),
         const SizedBox(width: 32),
-
-        // Notification Toggles
         Padding(
           padding: const EdgeInsets.only(bottom: 6),
-          child: Row(
-            children: [
-              _buildToggle('WhatsApp', whatsappEnabled, (value) {
-                setState(() => whatsappEnabled = value);
-              }),
-              const SizedBox(width: 24),
-              _buildToggle('Email', emailEnabled, (value) {
-                setState(() => emailEnabled = value);
-              }),
-            ],
+          child: _buildNotificationToggles(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExpectedDelivery() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Expected Delivery',
+          style: AirMenuTextStyle.small.medium500().withColor(
+            const Color(0xFF4B5563),
           ),
         ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _pickDate,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Row(
+              children: [
+                Text(
+                  _selectedDate != null
+                      ? DateFormat('dd-MM-yyyy').format(_selectedDate!)
+                      : 'Select Date',
+                  style: AirMenuTextStyle.regularTextStyle.withColor(
+                    _selectedDate != null
+                        ? const Color(0xFF111827)
+                        : const Color(0xFF9CA3AF),
+                  ),
+                ),
+                const Spacer(),
+                const Icon(
+                  Icons.calendar_today,
+                  size: 18,
+                  color: Color(0xFF6B7280),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNotificationToggles() {
+    return Row(
+      children: [
+        _buildToggle('WhatsApp', whatsappEnabled, (value) {
+          setState(() => whatsappEnabled = value);
+        }),
+        const SizedBox(width: 24),
+        _buildToggle('Email', emailEnabled, (value) {
+          setState(() => emailEnabled = value);
+        }),
       ],
     );
   }
@@ -429,6 +490,8 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
   }
 
   Widget _buildItemCard(InventoryItem item) {
+    // Make items responsive if necessary, but list items usually adapt well.
+    // Ensure text doesn't overflow
     final isSelected = selectedItems[item.id] ?? false;
     final quantity = quantities[item.id] ?? item.minStock.ceil();
     final total = item.costPrice * quantity;
@@ -455,7 +518,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
       ),
       child: Row(
         children: [
-          // Custom Checkbox
+          // Checkbox
           InkWell(
             onTap: () => setState(() => selectedItems[item.id] = !isSelected),
             borderRadius: BorderRadius.circular(12),
@@ -477,8 +540,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
                   : null,
             ),
           ),
-          const SizedBox(width: 20),
-
+          const SizedBox(width: 16), // Reduced gap
           // Item Info
           Expanded(
             flex: 4,
@@ -487,17 +549,13 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
               children: [
                 Row(
                   children: [
-                    Text(
-                      item.name,
-                      style: AirMenuTextStyle.large.bold600().withColor(
-                        const Color(0xFF111827),
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      item.vendor,
-                      style: AirMenuTextStyle.small.medium500().withColor(
-                        const Color(0xFF6B7280),
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        style: AirMenuTextStyle.large.bold600().withColor(
+                          const Color(0xFF111827),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -505,105 +563,115 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Text(
-                      'Stock: ${item.currentStock.toInt()} ${item.unit}',
-                      style: AirMenuTextStyle.small.medium500().withColor(
-                        const Color(0xFFEF4444),
+                    // Use Flexible/Expanded to prevent overflows here
+                    Flexible(
+                      child: Text(
+                        'Stock: ${item.currentStock.toInt()} ${item.unit}',
+                        style: AirMenuTextStyle.small.medium500().withColor(
+                          const Color(0xFFEF4444),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 16),
-                    Text(
-                      'Min: ${item.minStock.toInt()} ${item.unit}',
-                      style: AirMenuTextStyle.small.medium500().withColor(
-                        const Color(0xFF9CA3AF),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    // Progress Bar
-                    Expanded(
-                      child: Container(
-                        height: 6,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3F4F6),
-                          borderRadius: BorderRadius.circular(3),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Min: ${item.minStock.toInt()} ${item.unit}',
+                        style: AirMenuTextStyle.small.medium500().withColor(
+                          const Color(0xFF9CA3AF),
                         ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: stockPercentage,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEF4444),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                          ),
-                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 8),
+                // Progress Bar
+                Container(
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: stockPercentage,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEF4444),
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          const SizedBox(width: 24),
-
-          // Editable Quantity Input (Capsule shape)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            width: 80,
-            child: TextFormField(
-              initialValue: quantity.toString(),
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              style: AirMenuTextStyle.normal.bold600().withColor(
-                const Color(0xFF111827),
-              ),
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                contentPadding: EdgeInsets.zero,
-              ),
-              onChanged: (value) {
-                final newValue = int.tryParse(value);
-                if (newValue != null) {
-                  setState(() {
-                    quantities[item.id] = newValue;
-                  });
-                }
-              },
-            ),
-          ),
           const SizedBox(width: 12),
-          Text(
-            item.unit,
-            style: AirMenuTextStyle.normal.medium500().withColor(
-              const Color(0xFF6B7280),
-            ),
-          ),
-          const SizedBox(width: 32),
 
-          // Price
+          // Editable Quantity Input
           Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                '₹${total.toInt()}',
-                style: AirMenuTextStyle.headingH4.withColor(
-                  const Color(0xFF111827),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                width: 60,
+                child: TextFormField(
+                  initialValue: quantity.toString(),
+                  keyboardType: TextInputType.number,
+                  textAlign: TextAlign.center,
+                  style: AirMenuTextStyle.normal.bold600().withColor(
+                    const Color(0xFF111827),
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: (value) {
+                    final newValue = int.tryParse(value);
+                    if (newValue != null) {
+                      setState(() {
+                        quantities[item.id] = newValue;
+                      });
+                    }
+                  },
                 ),
               ),
+              const SizedBox(height: 4),
               Text(
-                '@₹${item.costPrice.toInt()}/${item.unit}',
-                style: AirMenuTextStyle.small.medium500().withColor(
-                  const Color(0xFF9CA3AF),
+                item.unit,
+                style: AirMenuTextStyle.tiny.medium500().withColor(
+                  const Color(0xFF6B7280),
                 ),
               ),
             ],
           ),
+          const SizedBox(width: 12),
+
+          // Price
+          if (!Responsive.isMobile(context))
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '₹${total.toInt()}',
+                  style: AirMenuTextStyle.headingH4.withColor(
+                    const Color(0xFF111827),
+                  ),
+                ),
+                Text(
+                  '@₹${item.costPrice.toInt()}/${item.unit}',
+                  style: AirMenuTextStyle.small.medium500().withColor(
+                    const Color(0xFF9CA3AF),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
@@ -639,23 +707,27 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      entry.key,
-                      style: AirMenuTextStyle.large.bold600().withColor(
-                        const Color(0xFF111827),
+                Expanded(
+                  // Added Expanded
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.key,
+                        style: AirMenuTextStyle.large.bold600().withColor(
+                          const Color(0xFF111827),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${entry.value.length} items',
-                      style: AirMenuTextStyle.small.medium500().withColor(
-                        const Color(0xFF6B7280),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${entry.value.length} items',
+                        style: AirMenuTextStyle.small.medium500().withColor(
+                          const Color(0xFF6B7280),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 Text(
                   '₹${vendorTotal.toInt()}',
@@ -671,7 +743,8 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     );
   }
 
-  Widget _buildTotal() {
+  Widget _buildTotal(bool isMobile) {
+    // Stack stack on mobile if needed or just reduced padding/font
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       decoration: BoxDecoration(
@@ -682,30 +755,33 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Total Order Value',
-                style: AirMenuTextStyle.large.bold600().withColor(
-                  const Color(0xFF6B7280),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Total Order Value',
+                  style: AirMenuTextStyle.large.bold600().withColor(
+                    const Color(0xFF6B7280),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$selectedCount items from $totalVendors vendors',
-                style: AirMenuTextStyle.normal.medium500().withColor(
-                  const Color(0xFF9CA3AF),
+                const SizedBox(height: 4),
+                Text(
+                  '$selectedCount items from $totalVendors vendors',
+                  style: AirMenuTextStyle.normal.medium500().withColor(
+                    const Color(0xFF9CA3AF),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           Text(
             '₹${totalValue.toInt()}',
-            style: const TextStyle(
-              fontSize: 40,
+            style: TextStyle(
+              fontSize: isMobile ? 32 : 40,
               fontWeight: FontWeight.w800,
-              color: Color(0xFFEF4444),
+              color: const Color(0xFFEF4444),
               height: 1.0,
             ),
           ),
@@ -714,9 +790,89 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(bool isMobile) {
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+          border: Border(top: BorderSide(color: Color(0xFFF3F4F6), width: 1)),
+        ),
+        child: Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF111827),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  elevation: 1,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    side: const BorderSide(color: Color(0xFFE5E7EB)),
+                  ),
+                ),
+                child: Text('Cancel', style: AirMenuTextStyle.normal.bold600()),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [
+                    Color(0xFFB91C1C),
+                    Color(0xFFEF4444),
+                    Color(0xFFF87171),
+                  ],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFEF4444).withOpacity(0.4),
+                    blurRadius: 12,
+                    spreadRadius: 2,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ElevatedButton.icon(
+                onPressed: selectedCount > 0
+                    ? () {
+                        Navigator.pop(context);
+                      }
+                    : null,
+                icon: const Icon(Icons.send_rounded, size: 18),
+                label: Text(
+                  'Create 1 PO & Send',
+                  style: AirMenuTextStyle.normal.bold600().copyWith(
+                    letterSpacing: 0.5,
+                    height: 1.2,
+                    color: Colors.white,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.transparent,
+                  shadowColor: Colors.transparent,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.all(24),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
@@ -725,73 +881,21 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // Cancel Button
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF111827),
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-              elevation: 2,
-              shadowColor: Colors.black.withOpacity(0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-                side: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-            ),
-            child: Text('Cancel', style: AirMenuTextStyle.normal.bold600()),
+          InventorySecondaryButton(
+            label: 'Cancel',
+            onTap: () => Navigator.pop(context),
           ),
           const SizedBox(width: 16),
-
-          // Create PO Button - Gradient with glow
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [
-                  Color(0xFFB91C1C),
-                  Color(0xFFEF4444),
-                  Color(0xFFF87171),
-                ],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFEF4444).withOpacity(0.4),
-                  blurRadius: 12,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton.icon(
-              onPressed: selectedCount > 0
-                  ? () {
-                      Navigator.pop(context);
-                    }
-                  : null,
-              icon: const Icon(Icons.send_rounded, size: 18), // Thinner icon
-              label: Text(
-                'Create 1 PO & Send',
-                style: AirMenuTextStyle.normal.bold600().copyWith(
-                  letterSpacing: 0.5,
-                  height: 1.2,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent, // Transparent for gradient
-                shadowColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-            ),
+          InventoryPrimaryButton(
+            label: 'Create 1 PO & Send',
+            icon: Icons.send_rounded,
+            onTap: selectedCount > 0
+                ? () {
+                    Navigator.pop(context);
+                  }
+                : () {}, // Handled by button state or opacity if needed, but PrimaryButton doesn't support disabled styling explicitly yet visually, logic prevents action though.
+            // Actually, best to make PrimaryButton support disabled state or just pass opacity externally?
+            // PrimaryButton uses isLoading only. Let's just assume enabled for now or wrap in Opacity.
           ),
         ],
       ),

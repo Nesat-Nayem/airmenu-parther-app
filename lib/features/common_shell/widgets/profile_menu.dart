@@ -9,6 +9,7 @@ import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:airmenuai_partner_app/features/common_shell/widgets/logout_dialog.dart';
 import 'package:iconsax/iconsax.dart';
 
 class ProfileMenu extends StatefulWidget {
@@ -162,22 +163,10 @@ class _ProfileMenuState extends State<ProfileMenu> {
         // Handle menu selection
         if (value == 'logout') {
           // Show confirmation dialog
+          // Show premium logout confirmation dialog
           final confirmed = await showDialog<bool>(
             context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Logout'),
-              content: const Text('Are you sure you want to logout?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Logout'),
-                ),
-              ],
-            ),
+            builder: (context) => const LogoutDialog(),
           );
 
           if (confirmed == true && mounted) {

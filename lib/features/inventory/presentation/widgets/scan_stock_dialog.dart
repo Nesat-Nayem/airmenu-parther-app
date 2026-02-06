@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 
 class ScanStockDialog extends StatelessWidget {
   final bool isStockIn;
@@ -99,7 +100,7 @@ class ScanStockDialog extends StatelessWidget {
               borderRadius: BorderRadius.circular(30),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFEF4444).withOpacity(0.25),
+                  color: InventoryColors.primaryRed.withOpacity(0.25),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
@@ -112,10 +113,12 @@ class ScanStockDialog extends StatelessWidget {
               icon: const Icon(Icons.camera_alt_outlined, size: 20),
               label: Text(
                 'Start Camera',
-                style: AirMenuTextStyle.normal.bold600(),
+                style: AirMenuTextStyle.normal.bold600().withColor(
+                  Colors.white,
+                ),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEF4444),
+                backgroundColor: InventoryColors.primaryRed,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,

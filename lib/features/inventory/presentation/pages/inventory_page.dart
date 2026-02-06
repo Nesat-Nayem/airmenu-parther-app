@@ -1,12 +1,19 @@
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/bulk_po_popup.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/create_po_dialog.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_widgets.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_fab.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_search_bar.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/scan_stock_dialog.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/manual_stock_dialog.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/supplier_price_comparison_dialog.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_forecasting_dialog.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/locations/inventory_locations_main_dialog.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_export_dialog.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/vendor_management_dialogs.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shimmer.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -33,14 +40,14 @@ class InventoryPageView extends StatelessWidget {
         if (state.isLoading && state.items.isEmpty) {
           return const Scaffold(
             backgroundColor: Color(0xFFFAFAFA),
-            body: Center(child: CircularProgressIndicator()),
+            body: InventoryShimmer(),
           );
         }
 
         final isMobile = Responsive.isMobile(context);
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFAFAFA),
+          backgroundColor: InventoryColors.bgLight,
           body: Builder(
             builder: (innerContext) {
               return CustomScrollView(
@@ -48,14 +55,13 @@ class InventoryPageView extends StatelessWidget {
                   SliverPadding(
                     padding: EdgeInsets.symmetric(
                       horizontal: isMobile ? 12 : 32,
-                      vertical: isMobile ? 16 : 24,
+                      vertical: isMobile ? 16 : 20, // Reduced from 24
                     ),
                     sliver: SliverList(
                       delegate: SliverChildListDelegate([
                         // Stats Cards Grid
                         const _InventoryStatsGrid(),
-                        const SizedBox(height: 24),
-
+                        const SizedBox(height: 20), // Reduced from 24
                         // Critical Alert
                         CriticalItemsAlert(
                           criticalItems: state.items
@@ -94,19 +100,39 @@ class InventoryPageView extends StatelessWidget {
                               .read<InventoryBloc>()
                               .add(ToggleCompactView()),
                           onCostAnalysis: () {
-                            // TODO: Implement cost analysis
+                            showDialog(
+                              context: innerContext,
+                              builder: (context) =>
+                                  const SupplierPriceComparisonDialog(),
+                            );
                           },
                           onForecast: () {
-                            // TODO: Implement forecast
+                            showDialog(
+                              context: innerContext,
+                              builder: (context) =>
+                                  const InventoryForecastingDialog(),
+                            );
                           },
                           onLocations: () {
-                            // TODO: Implement locations
+                            showDialog(
+                              context: innerContext,
+                              builder: (context) =>
+                                  const InventoryLocationsMainDialog(),
+                            );
                           },
                           onExport: () {
-                            // TODO: Implement export
+                            showDialog(
+                              context: innerContext,
+                              builder: (context) =>
+                                  const InventoryExportDialog(),
+                            );
                           },
                           onVendors: () {
-                            // TODO: Implement vendors
+                            showDialog(
+                              context: innerContext,
+                              builder: (context) =>
+                                  const VendorManagementDialog(),
+                            );
                           },
                           onShortcuts: () {
                             // TODO: Show shortcuts dialog
@@ -120,7 +146,7 @@ class InventoryPageView extends StatelessWidget {
                           isCompactView: state.isCompactView,
                           onRestock: (item) {},
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
                         // Secondary Widgets (POs & Recipe Mapping)
                         InventoryDashboardSecondaryWidgets(
@@ -133,7 +159,7 @@ class InventoryPageView extends StatelessWidget {
                             );
                           },
                         ),
-                        const SizedBox(height: 40),
+                        const SizedBox(height: 32),
                       ]),
                     ),
                   ),
@@ -201,7 +227,7 @@ class _InventoryStatsGrid extends StatelessWidget {
                       title: 'Total Items',
                       value: '156',
                       icon: Icons.inventory_2_outlined,
-                      iconColor: const Color(0xFFEF4444),
+                      iconColor: InventoryColors.primaryRed,
                       showViewDetails: true,
                       onTap: () {},
                     ),
@@ -215,7 +241,7 @@ class _InventoryStatsGrid extends StatelessWidget {
                       trend: '2%',
                       isTrendPositive: false,
                       icon: Icons.warning_amber_rounded,
-                      iconColor: Colors.grey.shade400,
+                      iconColor: InventoryColors.textQuaternary,
                       onTap: () {},
                     ),
                   ),
@@ -229,7 +255,7 @@ class _InventoryStatsGrid extends StatelessWidget {
                       title: 'Near Expiry',
                       value: '5',
                       icon: Icons.calendar_today_outlined,
-                      iconColor: Colors.grey.shade400,
+                      iconColor: InventoryColors.textQuaternary,
                       onTap: () {},
                     ),
                   ),
@@ -242,7 +268,7 @@ class _InventoryStatsGrid extends StatelessWidget {
                       trend: '15%',
                       isTrendPositive: true,
                       icon: Icons.trending_up,
-                      iconColor: Colors.grey.shade400,
+                      iconColor: InventoryColors.textQuaternary,
                       onTap: () {},
                     ),
                   ),
@@ -253,7 +279,7 @@ class _InventoryStatsGrid extends StatelessWidget {
                 title: 'Wastage',
                 value: '₹320',
                 icon: Icons.delete_outline_rounded,
-                iconColor: Colors.grey.shade400,
+                iconColor: InventoryColors.textQuaternary,
                 onTap: () {},
               ),
             ],
@@ -268,7 +294,7 @@ class _InventoryStatsGrid extends StatelessWidget {
                 title: 'Total Items',
                 value: '156',
                 icon: Icons.inventory_2_outlined,
-                iconColor: const Color(0xFFEF4444),
+                iconColor: InventoryColors.primaryRed,
                 showViewDetails: true,
                 onTap: () {},
               ),
@@ -309,7 +335,12 @@ class _InventoryStatsGrid extends StatelessWidget {
                 isTrendPositive: true,
                 icon: Icons.trending_up,
                 iconColor: Colors.grey.shade400,
-                onTap: () {},
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const SupplierPriceComparisonDialog(),
+                  );
+                },
               ),
             ),
             const SizedBox(width: 16),

@@ -1,7 +1,7 @@
 #!/bin/sh
 # This is a generated file; do not edit or check into version control.
-export "FLUTTER_ROOT=/Users/nesatnayem/development/flutter"
-export "FLUTTER_APPLICATION_PATH=/Users/nesatnayem/project/airmenuai/flutter"
+export "FLUTTER_ROOT=/Users/airmenudev/flutter"
+export "FLUTTER_APPLICATION_PATH=/Users/airmenudev/Documents/airmenu_project/airmenuai-partner-app"
 export "COCOAPODS_PARALLEL_CODE_SIGN=true"
 export "FLUTTER_BUILD_DIR=build"
 export "FLUTTER_BUILD_NAME=1.0.0"

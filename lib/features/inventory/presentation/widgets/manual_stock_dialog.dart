@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
+import 'package:airmenuai_partner_app/features/responsive.dart';
 
 class ManualStockDialog extends StatefulWidget {
   final bool isStockIn;
@@ -41,13 +43,18 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
   Widget build(BuildContext context) {
     final title = widget.isStockIn ? 'Stock In' : 'Stock Out';
     final actionLabel = widget.isStockIn ? 'Add Stock' : 'Remove Stock';
+    final isMobile = Responsive.isMobile(context);
 
     return Dialog(
       backgroundColor: Colors.transparent,
       elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 500,
-        padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+        width: isMobile ? MediaQuery.of(context).size.width : 500,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
+        padding: const EdgeInsets.all(20), // Reduced from 24
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -59,126 +66,128 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
             ),
           ],
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  title,
-                  style: AirMenuTextStyle.headingH4.bold700().withColor(
-                    const Color(0xFF111827),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: AirMenuTextStyle.headingH4.bold700().withColor(
+                      const Color(0xFF111827),
+                    ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close, size: 20),
-                  color: const Color(0xFF9CA3AF),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  splashRadius: 20,
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Form Fields
-            _buildLabel('Ingredient'),
-            const SizedBox(height: 8),
-            _buildDropdown(
-              value: selectedIngredient,
-              hint: 'Select ingredient',
-              items: ingredients,
-              onChanged: (val) => setState(() => selectedIngredient = val),
-            ),
-            const SizedBox(height: 16),
-
-            _buildLabel('Quantity'),
-            const SizedBox(height: 8),
-            _buildTextField(
-              controller: _quantityController,
-              hint: 'Enter quantity',
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-
-            // Purchase Order (Stock In only)
-            if (widget.isStockIn) ...[
-              _buildLabel('Purchase Order (Optional)'),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, size: 20),
+                    color: const Color(0xFF9CA3AF),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    splashRadius: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20), // Reduced from 24
+              // Form Fields
+              _buildLabel('Ingredient'),
               const SizedBox(height: 8),
               _buildDropdown(
-                value: selectedPO,
-                hint: 'Link to PO',
-                items: purchaseOrders,
-                onChanged: (val) => setState(() => selectedPO = val),
+                value: selectedIngredient,
+                hint: 'Select ingredient',
+                items: ingredients,
+                onChanged: (val) => setState(() => selectedIngredient = val),
               ),
-              const SizedBox(height: 16),
-            ],
+              const SizedBox(height: 12),
 
-            _buildLabel('Notes'),
-            const SizedBox(height: 8),
-            _buildTextField(
-              controller: _notesController,
-              hint: 'Optional notes',
-              maxLines: 2,
-            ),
-            const SizedBox(height: 32),
+              _buildLabel('Quantity'),
+              const SizedBox(height: 8),
+              _buildTextField(
+                controller: _quantityController,
+                hint: 'Enter quantity',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 12),
 
-            // Actions
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF374151),
-                    backgroundColor: Colors.white,
-                    side: const BorderSide(color: Color(0xFFE5E7EB)),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 1, // Subtle shadow for 'White' button feel
-                    shadowColor: Colors.black.withOpacity(0.05),
-                  ),
-                  child: Text(
-                    'Cancel',
-                    style: AirMenuTextStyle.normal.bold600(),
-                  ),
+              // Purchase Order (Stock In only)
+              if (widget.isStockIn) ...[
+                _buildLabel('Purchase Order (Optional)'),
+                const SizedBox(height: 8),
+                _buildDropdown(
+                  value: selectedPO,
+                  hint: 'Link to PO',
+                  items: purchaseOrders,
+                  onChanged: (val) => setState(() => selectedPO = val),
                 ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () {
-                    // TODO: Submit logic
-                    Navigator.pop(context);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFEF4444),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    elevation: 2,
-                    shadowColor: const Color(0xFFEF4444).withOpacity(0.4),
-                  ),
-                  child: Text(
-                    actionLabel,
-                    style: AirMenuTextStyle.normal.bold600(),
-                  ),
-                ),
+                const SizedBox(height: 12),
               ],
-            ),
-          ],
+
+              _buildLabel('Notes'),
+              const SizedBox(height: 8),
+              _buildTextField(
+                controller: _notesController,
+                hint: 'Optional notes',
+                maxLines: 2,
+              ),
+              const SizedBox(height: 24), // Reduced from 32
+              // Actions
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF374151),
+                      backgroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFFE5E7EB)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 1, // Subtle shadow for 'White' button feel
+                      shadowColor: Colors.black.withOpacity(0.05),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: AirMenuTextStyle.normal.bold600(),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      // TODO: Submit logic
+                      Navigator.pop(context);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: InventoryColors.primaryRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 2,
+                      shadowColor: const Color(0xFFEF4444).withOpacity(0.4),
+                    ),
+                    child: Text(
+                      actionLabel,
+                      style: AirMenuTextStyle.normal.bold600().withColor(
+                        Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -205,10 +214,6 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.transparent),
-        boxShadow: [
-          // To match screenshot 'white bg input' style, usually just needs a border or bg
-          // Screenshot shows white bg with very subtle border or just simple container
-        ],
       ),
       child: Material(
         color: Colors.white, // Or Colors.transparent if container has color

@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shared_widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:airmenuai_partner_app/features/responsive.dart';
 
 class CreatePurchaseOrderDialog extends StatefulWidget {
   const CreatePurchaseOrderDialog({super.key});
@@ -100,11 +102,17 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+    final width = isMobile ? MediaQuery.of(context).size.width : 600.0;
+
     return Dialog(
       backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
-        width: 600,
-        constraints: const BoxConstraints(maxHeight: 800),
+        width: width,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.9,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFFFAFAFA), // Matches recipe popup bg
           borderRadius: BorderRadius.circular(24),
@@ -117,222 +125,240 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
           ],
         ),
         child: Column(
+          // Main Column for sticky header/footer
+          mainAxisSize: MainAxisSize.min,
           children: [
             // Header
             _buildHeader(),
 
-            // Scrollable Content
-            Expanded(
+            // Content
+            Flexible(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // AI Upload Section
-                    _buildAIUploadSection(),
-                    const SizedBox(height: 24),
+                child: Padding(
+                  padding: EdgeInsets.all(
+                    isMobile ? 16 : 20,
+                  ), // Reduced from 24
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // AI Upload Section
+                      _buildAIUploadSection(),
+                      const SizedBox(height: 20),
 
-                    // Vendor & Delivery Row
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Vendor *',
-                                style: AirMenuTextStyle.small
-                                    .bold600()
-                                    .withColor(const Color(0xFF374151)),
-                              ),
-                              const SizedBox(height: 8),
-                              _buildDropdown(
-                                value: selectedVendor,
-                                hint: 'Select vendor',
-                                items: vendors,
-                                onChanged: (val) =>
-                                    setState(() => selectedVendor = val),
-                              ),
-                            ],
-                          ),
+                      // Vendor & Delivery Row
+                      if (isMobile)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildVendorSection(),
+                            const SizedBox(height: 16),
+                            _buildDeliverySection(),
+                          ],
+                        )
+                      else
+                        Row(
+                          children: [
+                            Expanded(child: _buildVendorSection()),
+                            const SizedBox(width: 16),
+                            Expanded(child: _buildDeliverySection()),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Expected Delivery',
-                                style: AirMenuTextStyle.small
-                                    .bold600()
-                                    .withColor(const Color(0xFF374151)),
+                      const SizedBox(height: 20),
+
+                      // Notify Vendor Section
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 20,
+                          vertical: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFFF9FAFB,
+                          ), // Very light gray from screenshot
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Notify Vendor',
+                              style: AirMenuTextStyle.small.bold600().withColor(
+                                const Color(0xFF374151),
                               ),
-                              const SizedBox(height: 8),
-                              InkWell(
-                                onTap: _pickDate,
-                                borderRadius: BorderRadius.circular(12),
-                                child: Container(
-                                  height: 48,
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(
-                                      color: Colors.transparent,
-                                    ), // Borderless look in screenshot
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Text(
-                                        expectedDelivery != null
-                                            ? DateFormat(
-                                                'dd-MM-yyyy',
-                                              ).format(expectedDelivery!)
-                                            : 'dd-mm-yyyy',
-                                        style: AirMenuTextStyle.normal
-                                            .medium500()
-                                            .withColor(
-                                              expectedDelivery != null
-                                                  ? const Color(0xFF111827)
-                                                  : const Color(0xFF9CA3AF),
-                                            ),
-                                      ),
-                                      const Spacer(),
-                                      const Icon(
-                                        Icons.calendar_today_outlined,
-                                        size: 18,
-                                        color: Color(0xFF6B7280),
-                                      ),
-                                    ],
-                                  ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 24,
+                              runSpacing: 12,
+                              children: [
+                                _buildToggle(
+                                  'WhatsApp',
+                                  notifyWhatsapp,
+                                  (v) => setState(() => notifyWhatsapp = v),
                                 ),
-                              ),
-                            ],
-                          ),
+                                _buildToggle(
+                                  'Email',
+                                  notifyEmail,
+                                  (v) => setState(() => notifyEmail = v),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
+                      ),
+                      const SizedBox(height: 20),
 
-                    // Notify Vendor Section
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 16,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(
-                          0xFFF9FAFB,
-                        ), // Very light gray from screenshot
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Items Header
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            'Notify Vendor',
+                            'Items *',
                             style: AirMenuTextStyle.small.bold600().withColor(
                               const Color(0xFF374151),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              _buildToggle(
-                                'WhatsApp',
-                                notifyWhatsapp,
-                                (v) => setState(() => notifyWhatsapp = v),
-                              ),
-                              const SizedBox(width: 32),
-                              _buildToggle(
-                                'Email',
-                                notifyEmail,
-                                (v) => setState(() => notifyEmail = v),
-                              ),
-                            ],
+                          TextButton.icon(
+                            onPressed: _addItem,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Add Item'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF111827),
+                              textStyle: AirMenuTextStyle.small.bold600(),
+                            ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 24),
+                      const SizedBox(height: 8),
 
-                    // Items Header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Items *',
-                          style: AirMenuTextStyle.small.bold600().withColor(
-                            const Color(0xFF374151),
+                      // Items List
+                      ...items.asMap().entries.map(
+                        (entry) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildItemRow(
+                            entry.key,
+                            entry.value,
+                            isMobile,
                           ),
                         ),
-                        TextButton.icon(
-                          onPressed: _addItem,
-                          icon: const Icon(Icons.add, size: 16),
-                          label: const Text('Add Item'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF111827),
-                            textStyle: AirMenuTextStyle.small.bold600(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
+                      ),
+                      const SizedBox(height: 20),
 
-                    // Items List
-                    ...items.asMap().entries.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildItemRow(entry.key, entry.value),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Notes
-                    Text(
-                      'Notes',
-                      style: AirMenuTextStyle.small.bold600().withColor(
-                        const Color(0xFF374151),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      height: 80,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Additional instructions or notes...',
-                          border: InputBorder.none,
-                          hintStyle: TextStyle(
-                            color: Color(0xFF9CA3AF),
-                            fontSize: 14,
-                          ),
+                      // Notes
+                      Text(
+                        'Notes',
+                        style: AirMenuTextStyle.small.bold600().withColor(
+                          const Color(0xFF374151),
                         ),
-                        maxLines: 3,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 8),
+                      Container(
+                        height: 80,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Additional instructions or notes...',
+                            border: InputBorder.none,
+                            hintStyle: TextStyle(
+                              color: Color(0xFF9CA3AF),
+                              fontSize: 14,
+                            ),
+                          ),
+                          maxLines: 3,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
 
             // Footer
-            _buildFooter(),
+            _buildFooter(isMobile),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildVendorSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Vendor *',
+          style: AirMenuTextStyle.small.bold600().withColor(
+            const Color(0xFF374151),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildDropdown(
+          value: selectedVendor,
+          hint: 'Select vendor',
+          items: vendors,
+          onChanged: (val) => setState(() => selectedVendor = val),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDeliverySection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Expected Delivery',
+          style: AirMenuTextStyle.small.bold600().withColor(
+            const Color(0xFF374151),
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: _pickDate,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.transparent,
+              ), // Borderless look in screenshot
+            ),
+            child: Row(
+              children: [
+                Text(
+                  expectedDelivery != null
+                      ? DateFormat('dd-MM-yyyy').format(expectedDelivery!)
+                      : 'dd-mm-yyyy',
+                  style: AirMenuTextStyle.normal.medium500().withColor(
+                    expectedDelivery != null
+                        ? const Color(0xFF111827)
+                        : const Color(0xFF9CA3AF),
+                  ),
+                ),
+                const Spacer(),
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 18,
+                  color: Color(0xFF6B7280),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildHeader() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 16, 16, 16), // Reduced from 24, 20
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -369,7 +395,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
   Widget _buildAIUploadSection() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 24),
+      padding: const EdgeInsets.symmetric(vertical: 20), // Reduced from 24
       decoration: BoxDecoration(
         color: const Color(0xFFFEF2F2), // Light pink bg
         borderRadius: BorderRadius.circular(16),
@@ -572,7 +598,59 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     );
   }
 
-  Widget _buildItemRow(int index, POItem item) {
+  Widget _buildItemRow(int index, POItem item, bool isMobile) {
+    if (isMobile) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: _buildItemDropdown(item)),
+                IconButton(
+                  onPressed: () => _removeItem(index),
+                  icon: const Icon(Icons.close, size: 16),
+                  color: const Color(0xFFEF4444).withOpacity(0.6),
+                  splashRadius: 20,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildInput(item.quantity.toString(), (val) {
+                    final q = int.tryParse(val);
+                    if (q != null) setState(() => item.quantity = q);
+                  }),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: _buildInput('kg', (val) {}, readOnly: true)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 60,
+                  child: Text(
+                    '₹${item.price.toInt()}',
+                    textAlign: TextAlign.right,
+                    style: AirMenuTextStyle.normal.bold600().withColor(
+                      const Color(0xFF111827),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
     return Row(
       children: [
         Expanded(flex: 4, child: _buildItemDropdown(item)),
@@ -724,6 +802,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
       decoration: BoxDecoration(
         color: Colors.white, // White background
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
       ),
       child: TextFormField(
         initialValue: value,
@@ -740,9 +819,9 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     );
   }
 
-  Widget _buildFooter() {
+  Widget _buildFooter(bool isMobile) {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
@@ -780,78 +859,46 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
           const SizedBox(height: 24),
 
           // Actions
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF374151),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 16,
-                  ),
-                  elevation: 2,
-                  shadowColor: Colors.black.withOpacity(0.1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    side: const BorderSide(color: Color(0xFFE5E7EB)),
-                  ),
+          // Actions
+          if (isMobile)
+            Column(
+              children: [
+                InventorySecondaryButton(
+                  label: 'Cancel',
+                  onTap: () => Navigator.pop(context),
+                  width: double.infinity,
                 ),
-                child: Text('Cancel', style: AirMenuTextStyle.normal.bold600()),
-              ),
-              const SizedBox(width: 16),
-              Container(
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [
-                      Color(0xFFB91C1C),
-                      Color(0xFFEF4444),
-                      Color(0xFFF87171),
-                    ],
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                  ),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFEF4444).withOpacity(0.4),
-                      blurRadius: 12,
-                      spreadRadius: 2,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ElevatedButton.icon(
-                  onPressed: () {
+                const SizedBox(height: 12),
+                InventoryPrimaryButton(
+                  label: 'Create & Send PO',
+                  icon: Icons.send_rounded,
+                  onTap: () {
                     // TODO: Create PO
                     Navigator.pop(context);
                   },
-                  icon: const Icon(Icons.send_rounded, size: 18),
-                  label: Text(
-                    'Create & Send PO',
-                    style: AirMenuTextStyle.normal.bold600().copyWith(
-                      letterSpacing: 0.5,
-                      height: 1.2,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent,
-                    shadowColor: Colors.transparent,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
+                  width: double.infinity,
                 ),
-              ),
-            ],
-          ),
+              ],
+            )
+          else
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                InventorySecondaryButton(
+                  label: 'Cancel',
+                  onTap: () => Navigator.pop(context),
+                ),
+                const SizedBox(width: 16),
+                InventoryPrimaryButton(
+                  label: 'Create & Send PO',
+                  icon: Icons.send_rounded,
+                  onTap: () {
+                    // TODO: Create PO
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
         ],
       ),
     );
