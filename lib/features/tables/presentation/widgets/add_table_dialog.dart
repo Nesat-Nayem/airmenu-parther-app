@@ -124,8 +124,9 @@ class _AddTableDialogState extends State<AddTableDialog> {
                       keyboardType: TextInputType.number,
                       validator: (value) {
                         if (value == null || value.isEmpty) return 'Required';
-                        if (int.tryParse(value) == null)
+                        if (int.tryParse(value) == null) {
                           return 'Must be a number';
+                        }
                         return null;
                       },
                     ),
@@ -151,8 +152,9 @@ class _AddTableDialogState extends State<AddTableDialog> {
                             );
                           }).toList(),
                           onChanged: (val) {
-                            if (val != null)
+                            if (val != null) {
                               setState(() => _selectedZone = val);
+                            }
                           },
                         ),
                       ),

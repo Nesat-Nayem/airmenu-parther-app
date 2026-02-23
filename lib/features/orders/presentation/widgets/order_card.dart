@@ -372,7 +372,7 @@ class OrderCard extends StatelessWidget {
         const SizedBox(width: 4),
         Expanded(
           child: Text(
-            '${firstItem.menuItemData?.title ?? "Unknown"}',
+            firstItem.menuItemData?.title ?? "Unknown",
             style: const TextStyle(fontSize: 11, color: Color(0xFF374151)),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

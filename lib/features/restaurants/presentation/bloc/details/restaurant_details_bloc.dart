@@ -7,14 +7,11 @@ import 'restaurant_details_state.dart';
 class RestaurantDetailsBloc
     extends Bloc<RestaurantDetailsEvent, RestaurantDetailsState> {
   final AdminRestaurantsRepository _repository;
-  // Temporary storage for restaurant passed via constructor if loading by ID is skipped
-  final RestaurantModel? _initialRestaurant;
 
   RestaurantDetailsBloc({
     required AdminRestaurantsRepository repository,
     RestaurantModel? restaurant,
   }) : _repository = repository,
-       _initialRestaurant = restaurant,
        super(RestaurantDetailsInitial()) {
     on<LoadRestaurantDetails>(_onLoadRestaurantDetails);
     on<SwitchDetailsTab>(_onSwitchDetailsTab);
@@ -27,16 +24,10 @@ class RestaurantDetailsBloc
     emit(RestaurantDetailsLoading());
 
     try {
-      RestaurantModel restaurant;
-
-      if (_initialRestaurant != null &&
-          _initialRestaurant.id == event.restaurantId) {
-        restaurant = _initialRestaurant;
-      } else {
-        restaurant = await _repository.getRestaurantDetails(
-          restaurantId: event.restaurantId,
-        );
-      }
+      // Always fetch fresh data to ensure we have complete restaurant details including galleryImages
+      final restaurant = await _repository.getRestaurantDetails(
+        restaurantId: event.restaurantId,
+      );
 
       // Generate Mock Data based on screenshots
 
@@ -315,20 +306,47 @@ class RestaurantDetailsBloc
         ],
       };
 
+      // Emit initial state with loading for buffets
       emit(
         RestaurantDetailsLoaded(
           restaurant: restaurant,
           overviewStats: overviewStats,
           menuIssues: menuIssues,
-          tables: tables, // fixed variable usage
+          tables: tables,
           inventoryHealth: inventoryHealth,
           branches: branches,
           billingInfo: billingInfo,
           staffList: staffList,
           integrationsData: integrationsData,
           onboardingData: onboardingData,
+          isBuffetsLoading: true,
         ),
       );
+
+      // Fetch buffets from API
+      try {
+        final buffets = await _repository.getRestaurantBuffets(
+          restaurantId: event.restaurantId,
+        );
+        
+        if (state is RestaurantDetailsLoaded) {
+          emit(
+            (state as RestaurantDetailsLoaded).copyWith(
+              buffets: buffets,
+              isBuffetsLoading: false,
+            ),
+          );
+        }
+      } catch (e) {
+        // Silently fail for buffets - just mark as not loading
+        if (state is RestaurantDetailsLoaded) {
+          emit(
+            (state as RestaurantDetailsLoaded).copyWith(
+              isBuffetsLoading: false,
+            ),
+          );
+        }
+      }
     } catch (e) {
       emit(RestaurantDetailsError(e.toString()));
     }

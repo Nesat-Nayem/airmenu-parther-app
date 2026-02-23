@@ -32,6 +32,7 @@ class OrdersLoaded extends OrdersState {
   final int currentPage;
   final String? selectedStatus;
   final String? selectedPaymentStatus;
+  final String? selectedRestaurantId;
   final bool isGridView;
   final String searchQuery;
 
@@ -54,6 +55,7 @@ class OrdersLoaded extends OrdersState {
     this.allOrders = const [],
     this.selectedStatus,
     this.selectedPaymentStatus,
+    this.selectedRestaurantId,
     this.isGridView = true,
     this.searchQuery = '',
     this.isRefreshing = false,
@@ -108,20 +110,51 @@ class OrdersLoaded extends OrdersState {
     return counts;
   }
 
-  /// Get filtered orders based on search query
+  /// Get filtered orders based on search query and restaurant filter
   List<OrderModel> get filteredOrders {
-    if (searchQuery.isEmpty) return orders;
+    var result = orders;
 
-    final query = searchQuery.toLowerCase();
-    return orders.where((order) {
-      final orderId = order.id?.toLowerCase() ?? '';
-      final tableNumber = order.tableNumber?.toLowerCase() ?? '';
-      final userName = order.users?.firstOrNull?.name?.toLowerCase() ?? '';
+    // Filter by restaurant
+    if (selectedRestaurantId != null && selectedRestaurantId!.isNotEmpty) {
+      result = result.where((order) {
+        final hotelId = order.hotelId ?? order.hotel?.id ?? '';
+        return hotelId == selectedRestaurantId;
+      }).toList();
+    }
 
-      return orderId.contains(query) ||
-          tableNumber.contains(query) ||
-          userName.contains(query);
-    }).toList();
+    // Filter by search query
+    if (searchQuery.isNotEmpty) {
+      final query = searchQuery.toLowerCase();
+      result = result.where((order) {
+        final orderId = order.id?.toLowerCase() ?? '';
+        final tableNumber = order.tableNumber?.toLowerCase() ?? '';
+        final userName = order.users?.firstOrNull?.name?.toLowerCase() ?? '';
+        final restaurantName = (order.hotelName ?? order.hotel?.name ?? '').toLowerCase();
+
+        return orderId.contains(query) ||
+            tableNumber.contains(query) ||
+            userName.contains(query) ||
+            restaurantName.contains(query);
+      }).toList();
+    }
+
+    return result;
+  }
+
+  /// Get unique restaurants from all orders for the filter dropdown
+  List<({String id, String name})> get uniqueRestaurants {
+    final source = allOrders.isNotEmpty ? allOrders : orders;
+    final seen = <String>{};
+    final restaurants = <({String id, String name})>[];
+    for (final order in source) {
+      final id = order.hotelId ?? order.hotel?.id ?? '';
+      final name = order.hotelName ?? order.hotel?.name ?? '';
+      if (id.isNotEmpty && name.isNotEmpty && seen.add(id)) {
+        restaurants.add((id: id, name: name));
+      }
+    }
+    restaurants.sort((a, b) => a.name.compareTo(b.name));
+    return restaurants;
   }
 
   OrdersLoaded copyWith({
@@ -131,6 +164,8 @@ class OrdersLoaded extends OrdersState {
     int? currentPage,
     String? selectedStatus,
     String? selectedPaymentStatus,
+    String? selectedRestaurantId,
+    bool clearRestaurantFilter = false,
     bool? isGridView,
     String? searchQuery,
     bool? isRefreshing,
@@ -146,6 +181,9 @@ class OrdersLoaded extends OrdersState {
       selectedStatus: selectedStatus ?? this.selectedStatus,
       selectedPaymentStatus:
           selectedPaymentStatus ?? this.selectedPaymentStatus,
+      selectedRestaurantId: clearRestaurantFilter
+          ? null
+          : (selectedRestaurantId ?? this.selectedRestaurantId),
       isGridView: isGridView ?? this.isGridView,
       searchQuery: searchQuery ?? this.searchQuery,
       isRefreshing: isRefreshing ?? this.isRefreshing,
@@ -163,6 +201,7 @@ class OrdersLoaded extends OrdersState {
     currentPage,
     selectedStatus,
     selectedPaymentStatus,
+    selectedRestaurantId,
     isGridView,
     searchQuery,
     isRefreshing,

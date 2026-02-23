@@ -173,6 +173,17 @@ class AirMenuColors {
   );
 
   static const int _neutralPrimaryColor = 0xFF6B7280;
+
+  // Menu Specific Colors
+  static const Color primaryRed = Color(0xFFDC2626); // Red-600
+  static const Color primaryRedLight = Color(0xFFFEF2F2); // Red-50
+  static const Color primaryRedBorder = Color(0xFFFECACA); // Red-200
+  static const Color vegGreen = Color(0xFF10B981); // Emerald-500
+  static const Color vegGreenLight = Color(0xFFECFDF5); // Emerald-50
+  static const Color nonVegRed = Color(0xFFEF4444); // Red-500
+  static const Color nonVegRedLight = Color(0xFFFEF2F2); // Red-50
+  static const Color eggYellow = Color(0xFFF59E0B); // Amber-500
+  static const Color eggYellowLight = Color(0xFFFFFBEB); // Amber-50
 }
 
 class AirMenuColor extends ColorSwatch<int> {

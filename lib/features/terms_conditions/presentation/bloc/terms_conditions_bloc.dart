@@ -122,8 +122,9 @@ class TermsConditionsBloc
       emit(TermsConditionsLoaded(policy.content));
     } catch (e) {
       emit(TermsConditionsError(e.toString()));
-      if (currentContent.isNotEmpty)
+      if (currentContent.isNotEmpty) {
         emit(TermsConditionsLoaded(currentContent));
+      }
     }
   }
 

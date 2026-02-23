@@ -16,7 +16,7 @@ class GetOrdersUseCase {
     String? status,
     String? paymentStatus,
     int page = 1,
-    int limit = 20,
+    int limit = 5,
   }) {
     return _ordersRepository.getOrders(
       status: status,

@@ -5,10 +5,14 @@ class ApiEndpoints {
   static const String platformActivitiesAll = "/activities/all";
 
   //Partner Kyc Desk
-  static const String kycAll = "kyc/all";
-  static const String kycStats = "kyc/stats";
-  static String kycReview(String id) => "kyc/review/$id";
-  static const String kycDelete = "kyc";
+  static const String kycAll = "/kyc/all";
+  static const String kycStats = "/kyc/stats";
+  static String kycReview(String id) => "/kyc/review/$id";
+  static const String kycDelete = "/kyc";
+
+  // KYC Adobe Sign endpoints
+  static String kycAdminSigningView(String id) => "/kyc/$id/adobe/admin-view";
+  static String kycAdobeSync(String id) => "/kyc/$id/adobe/sync";
 
   // Policy Pages endpoints
   static const String privacyPolicy = "/privacy-policy";
@@ -107,4 +111,45 @@ class ApiEndpoints {
   static const String combosCreate = "/combos/create";
   static String comboById(String id) => "/combos/$id";
   static String comboToggleStatus(String id) => "/combos/$id/toggle-status";
+
+  // Hotel Buffets endpoints
+  static String hotelBuffets(String hotelId) => "/hotels/$hotelId/buffets";
+  static String hotelBuffet(String hotelId, String buffetId) => "/hotels/$hotelId/buffets/$buffetId";
+
+  // Hotel Gallery endpoints
+  static String hotelGallery(String hotelId) => "/hotels/$hotelId/gallery";
+  static String hotelGalleryImage(String hotelId) => "/hotels/$hotelId/gallery/remove";
+
+  // Hotel Reviews endpoints
+  static String hotelReviews(String hotelId) => "/hotels/$hotelId/reviews";
+
+  // Hotel Offers endpoints (restaurant offers)
+  static String hotelOffersData(String hotelId) => "/hotels/$hotelId/offers";
+
+  // Hotel About Info endpoints
+  static String hotelAboutInfo(String hotelId) => "/hotels/$hotelId/about";
+
+  // Menu endpoints
+  static String hotelMenu(String hotelId) => "/hotels/$hotelId/menu";
+  static String menuCategories(String hotelId) => "/hotels/$hotelId/menu-categories";
+  static String menuCategory(String hotelId, String categoryName) =>
+      "/hotels/$hotelId/menu-categories/$categoryName";
+  static String menuCategoryItems(String hotelId, String categoryName) =>
+      "/hotels/$hotelId/menu-categories/$categoryName/items";
+  static String foodItem(String hotelId, String foodId) =>
+      "/hotels/$hotelId/food/$foodId";
+  static String menuSettings(String hotelId) => "/hotels/$hotelId/menu-settings";
+
+  // AI Menu endpoints
+  static const String extractMenuFromImage = "/ai/extract-menu-from-image";
+  static const String importExtractedMenu = "/ai/import-extracted-menu";
+
+  // Kitchen Management endpoints
+  static String kitchenStations(String hotelId) => "/kitchen/stations/hotel/$hotelId";
+  static String kitchenStation(String stationId) => "/kitchen/stations/$stationId";
+  static String kitchenStationAdjust(String stationId) => "/kitchen/stations/$stationId/adjust-slots";
+  static String kitchenConfiguration(String hotelId) => "/kitchen-config/$hotelId";
+  static String kitchenConfigurationReset(String hotelId) => "/kitchen/config/$hotelId/reset";
+  static String kitchenStatus(String hotelId) => "/kitchen-load/status/$hotelId";
+  static String kitchenInitialize(String hotelId) => "/kitchen/stations/$hotelId/initialize";
 }

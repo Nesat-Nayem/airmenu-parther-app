@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/data/models/kyc_submission.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_bloc.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_event.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/admin_adobe_signing_section.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 
@@ -122,6 +123,27 @@ class _KycDetailContent extends StatelessWidget {
                     kyc.adminSigned ? 'Yes' : 'No',
                   ),
                 ]),
+
+                // Admin Signing Action
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Admin Signature',
+                        style: GoogleFonts.sora(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF111827),
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      AdminAdobeSigningSection(kyc: kyc),
+                    ],
+                  ),
+                ),
 
                 // Submission Details
                 _buildSection('Submission Details', [

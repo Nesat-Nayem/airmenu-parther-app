@@ -14,18 +14,23 @@ class DetailsTabs extends StatelessWidget {
     {'icon': Icons.restaurant_menu_outlined, 'label': 'Menu & Issues'},
     {'icon': Icons.qr_code_2_outlined, 'label': 'Tables & QR'},
     {'icon': Icons.inventory_2_outlined, 'label': 'Inventory Health'},
-    {'icon': Icons.receipt_long_outlined, 'label': 'Billing'},
-    {'icon': Icons.people_outline, 'label': 'Staff & Roles'},
-    {'icon': Icons.integration_instructions_outlined, 'label': 'Integrations'},
-    {'icon': Icons.checklist_outlined, 'label': 'Onboarding'},
+    // {'icon': Icons.receipt_long_outlined, 'label': 'Billing'},
+    // {'icon': Icons.people_outline, 'label': 'Staff & Roles'},
+    // {'icon': Icons.integration_instructions_outlined, 'label': 'Integrations'},
+    // {'icon': Icons.checklist_outlined, 'label': 'Onboarding'},
+    {'icon': Icons.brunch_dining_outlined, 'label': 'Buffets'},
+    {'icon': Icons.photo_library_outlined, 'label': 'Gallery'},
+    {'icon': Icons.reviews_outlined, 'label': 'Reviews'},
+    {'icon': Icons.local_offer_outlined, 'label': 'Offers'},
+    {'icon': Icons.info_outline, 'label': 'About'},
+    {'icon': Icons.soup_kitchen_outlined, 'label': 'Kitchen'},
   ];
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List.generate(_tabs.length, (index) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(_tabs.length, (index) {
           final isSelected = selectedIndex == index;
           return Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -73,7 +78,6 @@ class DetailsTabs extends StatelessWidget {
             ),
           );
         }),
-      ),
     );
   }
 }

@@ -246,7 +246,9 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
           ),
         _buildIconText(
           Icons.calendar_today_outlined,
-          'Joined ${widget.restaurant.createdAt.split('-').first}', // Mock Year/Date
+          widget.restaurant.createdAt.isNotEmpty
+              ? 'Joined ${widget.restaurant.createdAt}'
+              : 'Recently joined',
         ),
       ],
     );
@@ -271,7 +273,9 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
             Expanded(
               child: _buildIconText(
                 Icons.calendar_today_outlined,
-                'Joined ${widget.restaurant.createdAt.split('-').first}',
+                widget.restaurant.createdAt.isNotEmpty
+                    ? 'Joined ${widget.restaurant.createdAt}'
+                    : 'Recently joined',
               ),
             ),
           ],
@@ -339,13 +343,21 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
   }
 
   Widget _buildStatsRow() {
-    // Mock data for UI matching as these fields are not yet in API
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildStatColumn('156', 'Orders Today'),
-        _buildStatColumn('₹4.8L', 'Revenue'),
-        _buildStatColumn('3', 'Branches'),
+        _buildStatColumn(
+          widget.restaurant.ordersToday.toString(),
+          'Orders Today',
+        ),
+        _buildStatColumn(
+          widget.restaurant.formattedRevenue,
+          'Revenue',
+        ),
+        _buildStatColumn(
+          widget.restaurant.branches.toString(),
+          'Branches',
+        ),
       ],
     );
   }

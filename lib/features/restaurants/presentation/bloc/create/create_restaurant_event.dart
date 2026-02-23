@@ -27,3 +27,52 @@ class SubmitRestaurant extends CreateRestaurantEvent {
   @override
   List<Object?> get props => [request];
 }
+
+class SubmitRestaurantWithImage extends CreateRestaurantEvent {
+  final String name;
+  final String cuisine;
+  final String description;
+  final String location;
+  final String? googlePlaceId;
+  final String price;
+  final double? rating;
+  final String? offer;
+  final num? cgstRate;
+  final num? sgstRate;
+  final num? serviceCharge;
+  final List<WeeklyTimingModel> weeklyTimings;
+  final String imagePath;
+
+  const SubmitRestaurantWithImage({
+    required this.name,
+    required this.cuisine,
+    required this.description,
+    required this.location,
+    this.googlePlaceId,
+    required this.price,
+    this.rating,
+    this.offer,
+    this.cgstRate,
+    this.sgstRate,
+    this.serviceCharge,
+    required this.weeklyTimings,
+    required this.imagePath,
+  });
+
+  @override
+  List<Object?> get props => [
+        name,
+        cuisine,
+        description,
+        location,
+        googlePlaceId,
+        price,
+        rating,
+        offer,
+        cgstRate,
+        sgstRate,
+        serviceCharge,
+        weeklyTimings,
+        imagePath,
+      ];
+}

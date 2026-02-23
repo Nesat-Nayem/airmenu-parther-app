@@ -38,5 +38,5 @@ Future<bool> isAuthenticated() async {
   }
 }
 
-get isAuth => validateURL;
+List<String> get isAuth => validateURL;
 List<String> validateURL = [AppRoutes.loginAndSignUp.path];

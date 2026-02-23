@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
+import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/restaurant_creation_models.dart';
 
 abstract class RestaurantDetailsState extends Equatable {
   const RestaurantDetailsState();
@@ -26,6 +27,8 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
   final List<Map<String, dynamic>> staffList;
   final Map<String, dynamic> integrationsData;
   final Map<String, dynamic> onboardingData;
+  final List<BuffetModel> buffets;
+  final bool isBuffetsLoading;
 
   const RestaurantDetailsLoaded({
     required this.restaurant,
@@ -39,6 +42,8 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
     required this.staffList,
     required this.integrationsData,
     required this.onboardingData,
+    this.buffets = const [],
+    this.isBuffetsLoading = false,
   });
 
   RestaurantDetailsLoaded copyWith({
@@ -53,6 +58,8 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
     List<Map<String, dynamic>>? staffList,
     Map<String, dynamic>? integrationsData,
     Map<String, dynamic>? onboardingData,
+    List<BuffetModel>? buffets,
+    bool? isBuffetsLoading,
   }) {
     return RestaurantDetailsLoaded(
       restaurant: restaurant ?? this.restaurant,
@@ -66,6 +73,8 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
       staffList: staffList ?? this.staffList,
       integrationsData: integrationsData ?? this.integrationsData,
       onboardingData: onboardingData ?? this.onboardingData,
+      buffets: buffets ?? this.buffets,
+      isBuffetsLoading: isBuffetsLoading ?? this.isBuffetsLoading,
     );
   }
 
@@ -82,6 +91,8 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
     staffList,
     integrationsData,
     onboardingData,
+    buffets,
+    isBuffetsLoading,
   ];
 }
 

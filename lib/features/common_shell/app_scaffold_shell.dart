@@ -578,6 +578,8 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         return 'SuperAdmin Dashboard';
       case NavMenuItem.inventory:
         return 'Inventory';
+      case NavMenuItem.menu:
+        return 'Menu Management';
       default:
         return item.toString().split('.').last;
     }
@@ -625,6 +627,8 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         return 'Platform promotions and offers';
       case NavMenuItem.inventory:
         return 'Stock levels and management';
+      case NavMenuItem.menu:
+        return 'Manage your restaurant menu';
       default:
         return '';
     }

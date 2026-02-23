@@ -113,7 +113,7 @@ class AdminDashboardRepository {
   }) async {
     try {
       final response = await _apiService.invoke(
-        urlPath: ApiEndpoints.adminOrdersByType + '?period=$period',
+        urlPath: '${ApiEndpoints.adminOrdersByType}?period=$period',
         type: RequestType.get,
         fun: (responseBody) => responseBody,
       );
@@ -136,7 +136,7 @@ class AdminDashboardRepository {
   }) async {
     try {
       final response = await _apiService.invoke(
-        urlPath: ApiEndpoints.adminKitchenLoad + '?period=$period',
+        urlPath: '${ApiEndpoints.adminKitchenLoad}?period=$period',
         type: RequestType.get,
         fun: (responseBody) => responseBody,
       );

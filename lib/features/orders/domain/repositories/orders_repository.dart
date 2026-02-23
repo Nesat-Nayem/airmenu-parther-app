@@ -53,4 +53,7 @@ abstract class OrdersRepository {
     required String tableNumber,
     String paymentMethod = "cash",
   });
+
+  /// Get branch/restaurant list for filter dropdown and name resolution
+  Future<Either<Failure, List<({String id, String name})>>> getBranches();
 }

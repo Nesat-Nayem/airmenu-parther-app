@@ -152,8 +152,9 @@ class PaymentsMobileView extends StatelessWidget {
   }
 
   Widget _buildMobileSettlementsList(PaymentsLoaded state) {
-    if (state.selectedTabIndex != 0)
+    if (state.selectedTabIndex != 0) {
       return const Center(child: Text("Disputes List"));
+    }
 
     return ListView.separated(
       physics: const NeverScrollableScrollPhysics(),

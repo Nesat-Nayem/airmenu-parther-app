@@ -60,13 +60,15 @@ class MenuCategoryModel {
 
 /// Sub-model for buffets
 class BuffetModel {
+  final String id;
   final String name;
   final String type;
   final List<String> days;
   final String hours;
-  final num price;
+  final double price;
 
   BuffetModel({
+    this.id = '',
     required this.name,
     required this.type,
     required this.days,
@@ -74,7 +76,22 @@ class BuffetModel {
     required this.price,
   });
 
+  factory BuffetModel.fromJson(Map<String, dynamic> json) {
+    return BuffetModel(
+      id: json['_id'] as String? ?? json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      type: json['type'] as String? ?? '',
+      days: (json['days'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      hours: json['hours'] as String? ?? '',
+      price: (json['price'] as num?)?.toDouble() ?? 0,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
+    if (id.isNotEmpty) '_id': id,
     'name': name,
     'type': type,
     'days': days,

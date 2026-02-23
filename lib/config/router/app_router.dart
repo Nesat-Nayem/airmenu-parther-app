@@ -18,7 +18,11 @@ import 'package:airmenuai_partner_app/features/login/presentation/views/login.da
 import 'package:airmenuai_partner_app/features/malls/presentation/views/malls_page.dart';
 import 'package:airmenuai_partner_app/features/my_account/presentation/views/my_account_page.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/presentation/views/my_kyc_page.dart';
-import 'package:airmenuai_partner_app/features/orders/presentation/pages/order_page.dart';
+import 'package:airmenuai_partner_app/features/orders/data/models/order_model.dart';
+import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_bloc.dart';
+import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_event.dart';
+import 'package:airmenuai_partner_app/features/orders/presentation/views/order_details_page.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/platform_activity/presentation/pages/platform_activity_page.dart';
 import 'package:airmenuai_partner_app/features/privacy_policy/presentation/pages/privacy_policy_page.dart';
 import 'package:airmenuai_partner_app/features/pricing/presentation/views/pricing_page.dart';
@@ -45,6 +49,7 @@ import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/de
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/add_webhook_page.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/pages/marketing_page.dart';
 import 'package:airmenuai_partner_app/utils/keys/airmenu_keys.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/features/admin_orders/presentation/pages/admin_orders_page.dart';
 import 'package:airmenuai_partner_app/features/external_integrations/presentation/pages/external_integrations_page.dart';
@@ -57,6 +62,7 @@ import 'package:airmenuai_partner_app/features/menu/presentation/pages/menu_page
 import 'package:airmenuai_partner_app/features/hotel_rooms/presentation/pages/hotel_rooms_page.dart';
 import 'package:airmenuai_partner_app/features/feedback_rating/presentation/pages/feedback_rating_page.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/pages/inventory_page.dart';
+import 'package:airmenuai_partner_app/features/orders/presentation/pages/order_page.dart';
 import 'package:go_router/go_router.dart';
 
 final _sectionNavigatorKey = GlobalKey<NavigatorState>();
@@ -438,6 +444,20 @@ class AppRouter {
               transitionGoRoute(
                 path: AppRoutes.adminOrders.path,
                 pageBuilder: (context, state) => const AdminOrdersPage(),
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.adminOrders;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.adminOrderDetails.path,
+                pageBuilder: (context, state) {
+                  final order = state.extra as OrderModel;
+                  return BlocProvider(
+                    create: (_) => locator<OrdersBloc>()..add(const LoadOrders()),
+                    child: OrderDetailsPage(order: order),
+                  );
+                },
                 redirect: (context, state) {
                   selectedNavMenuItem = NavMenuItem.adminOrders;
                   return null;

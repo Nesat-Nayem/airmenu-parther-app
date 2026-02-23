@@ -1,55 +1,56 @@
 class ServerException implements Exception {
   final message;
   ServerException([this.message]);
+  @override
   String toString() {
     return "Exception: $message";
   }
 }
 
 class ForbiddenException extends ServerException {
-  ForbiddenException([String? message]) : super(message);
+  ForbiddenException([String? super.message]);
 }
 
 class ConflictException extends ServerException {
-  ConflictException([String? message]) : super(message);
+  ConflictException([String? super.message]);
 }
 
 class InternalServerErrorException extends ServerException {
-  InternalServerErrorException([String? message]) : super(message);
+  InternalServerErrorException([String? super.message]);
 }
 
 class ServiceUnavailableException extends ServerException {
-  ServiceUnavailableException([String? message]) : super(message);
+  ServiceUnavailableException([String? super.message]);
 }
 
 class NotFoundException extends ServerException {
-  NotFoundException([String? message]) : super(message);
+  NotFoundException([String? super.message]);
 }
 
 class NotConnectedException extends ServerException {
-  NotConnectedException([String? message]) : super(message);
+  NotConnectedException([String? super.message]);
 }
 
 class UnauthorizedException extends ServerException {
-  UnauthorizedException([String? message]) : super(message);
+  UnauthorizedException([String? super.message]);
 }
 
 class CacheException extends ServerException {
-  CacheException([String? message]) : super(message);
+  CacheException([String? super.message]);
 }
 
 class ItemNotFoundException extends ServerException {
-  ItemNotFoundException([String? message]) : super(message);
+  ItemNotFoundException([String? super.message]);
 }
 
 class FetchDataException extends ServerException {
-  FetchDataException([String? message]) : super(message);
+  FetchDataException([String? super.message]);
 }
 
 class BadRequestException extends ServerException {
-  BadRequestException(String? message) : super(message);
+  BadRequestException(String? super.message);
 }
 
 class InvalidInputException extends ServerException {
-  InvalidInputException([String? message]) : super(message);
+  InvalidInputException([String? super.message]);
 }

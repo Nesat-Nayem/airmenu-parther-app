@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/data/models/kyc_submission.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_bloc.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_state.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/admin_adobe_signing_section.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 /// Premium KYC Detail Modal - Clean & Simple Design
-class KycDetailModal extends StatelessWidget {
+/// StatefulWidget so Verification Status rows update after Adobe sync.
+class KycDetailModal extends StatefulWidget {
   final KycSubmission kyc;
   final VoidCallback onClose;
   final Function(String, String) onAction;
@@ -17,12 +22,45 @@ class KycDetailModal extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final displayName = kyc.restaurantName.isNotEmpty
-        ? kyc.restaurantName
-        : (kyc.fullName.isNotEmpty ? kyc.fullName : 'Restaurant');
+  State<KycDetailModal> createState() => _KycDetailModalState();
+}
 
-    return Container(
+class _KycDetailModalState extends State<KycDetailModal> {
+  late bool _vendorSigned;
+  late bool _adminSigned;
+
+  @override
+  void initState() {
+    super.initState();
+    _vendorSigned = widget.kyc.vendorSigned;
+    _adminSigned = widget.kyc.adminSigned;
+  }
+
+  @override
+  void didUpdateWidget(covariant KycDetailModal oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.kyc != widget.kyc) {
+      _vendorSigned = widget.kyc.vendorSigned;
+      _adminSigned = widget.kyc.adminSigned;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName = widget.kyc.restaurantName.isNotEmpty
+        ? widget.kyc.restaurantName
+        : (widget.kyc.fullName.isNotEmpty ? widget.kyc.fullName : 'Restaurant');
+
+    return BlocListener<OnboardingPipelineBloc, OnboardingPipelineState>(
+      listener: (context, state) {
+        if (state is AdobeStatusSynced) {
+          setState(() {
+            _vendorSigned = state.data['vendorSignedAt'] != null;
+            _adminSigned = state.data['adminSignedAt'] != null;
+          });
+        }
+      },
+      child: Container(
       width: 420,
       height: double.infinity,
       color: Colors.white,
@@ -45,7 +83,7 @@ class KycDetailModal extends StatelessWidget {
                   ),
                 ),
                 GestureDetector(
-                  onTap: onClose,
+                  onTap: widget.onClose,
                   child: Icon(
                     Icons.close,
                     size: 24,
@@ -69,7 +107,7 @@ class KycDetailModal extends StatelessWidget {
                       Expanded(
                         child: _buildInfoTile(
                           'City',
-                          kyc.city.isNotEmpty ? kyc.city : 'N/A',
+                          widget.kyc.city.isNotEmpty ? widget.kyc.city : 'N/A',
                           Colors.grey.shade50,
                         ),
                       ),
@@ -77,7 +115,7 @@ class KycDetailModal extends StatelessWidget {
                       Expanded(
                         child: _buildInfoTile(
                           'Category',
-                          kyc.packageName.isNotEmpty ? kyc.packageName : 'N/A',
+                          widget.kyc.packageName.isNotEmpty ? widget.kyc.packageName : 'N/A',
                           Colors.grey.shade50,
                         ),
                       ),
@@ -89,8 +127,8 @@ class KycDetailModal extends StatelessWidget {
                       Expanded(
                         child: _buildInfoTile(
                           'Manager',
-                          kyc.fullName.isNotEmpty
-                              ? kyc.fullName.split(' ').first
+                          widget.kyc.fullName.isNotEmpty
+                              ? widget.kyc.fullName.split(' ').first
                               : 'N/A',
                           Colors.grey.shade50,
                         ),
@@ -99,7 +137,7 @@ class KycDetailModal extends StatelessWidget {
                       Expanded(
                         child: _buildInfoTile(
                           'Days in Stage',
-                          kyc.daysInStage.toString(),
+                          widget.kyc.daysInStage.toString(),
                           Colors.amber.shade50,
                         ),
                       ),
@@ -114,35 +152,35 @@ class KycDetailModal extends StatelessWidget {
                   _buildDetailRow(
                     Icons.person_outline,
                     'Full Name',
-                    kyc.fullName,
+                    widget.kyc.fullName,
                   ),
-                  _buildDetailRow(Icons.email_outlined, 'Email', kyc.email),
-                  _buildDetailRow(Icons.phone_outlined, 'Phone', kyc.phone),
+                  _buildDetailRow(Icons.email_outlined, 'Email', widget.kyc.email),
+                  _buildDetailRow(Icons.phone_outlined, 'Phone', widget.kyc.phone),
 
                   const SizedBox(height: 24),
 
                   // Location Details Section
                   _buildSectionTitle('Location'),
                   const SizedBox(height: 12),
-                  _buildDetailRow(Icons.location_city, 'City', kyc.city),
+                  _buildDetailRow(Icons.location_city, 'City', widget.kyc.city),
                   _buildDetailRow(
                     Icons.location_on_outlined,
                     'Locality',
-                    kyc.locality,
+                    widget.kyc.locality,
                   ),
-                  _buildDetailRow(Icons.store, 'Shop No', kyc.shopNo),
-                  _buildDetailRow(Icons.layers, 'Floor', kyc.floor),
-                  if (kyc.landmark.isNotEmpty)
+                  _buildDetailRow(Icons.store, 'Shop No', widget.kyc.shopNo),
+                  _buildDetailRow(Icons.layers, 'Floor', widget.kyc.floor),
+                  if (widget.kyc.landmark.isNotEmpty)
                     _buildDetailRow(
                       Icons.place_outlined,
                       'Landmark',
-                      kyc.landmark,
+                      widget.kyc.landmark,
                     ),
 
                   const SizedBox(height: 24),
 
                   // Package Details Section
-                  if (kyc.packageName.isNotEmpty) ...[
+                  if (widget.kyc.packageName.isNotEmpty) ...[
                     _buildSectionTitle('Package'),
                     const SizedBox(height: 12),
                     Container(
@@ -163,16 +201,16 @@ class KycDetailModal extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            kyc.packageName,
+                            widget.kyc.packageName,
                             style: GoogleFonts.sora(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                               color: AirMenuColors.primary,
                             ),
                           ),
-                          if (kyc.packageDisplayPrice.isNotEmpty)
+                          if (widget.kyc.packageDisplayPrice.isNotEmpty)
                             Text(
-                              kyc.packageDisplayPrice,
+                              widget.kyc.packageDisplayPrice,
                               style: GoogleFonts.sora(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -191,30 +229,30 @@ class KycDetailModal extends StatelessWidget {
                   _buildDetailRow(
                     Icons.article_outlined,
                     'PAN Number',
-                    kyc.panNumber ?? 'N/A',
+                    widget.kyc.panNumber ?? 'N/A',
                   ),
                   _buildDetailRow(
                     Icons.receipt_long,
                     'GST Number',
-                    kyc.gstNumber ?? 'N/A',
+                    widget.kyc.gstNumber ?? 'N/A',
                   ),
                   _buildDetailRow(
                     Icons.verified_outlined,
                     'FSSAI Number',
-                    kyc.fssaiNumber ?? 'N/A',
+                    widget.kyc.fssaiNumber ?? 'N/A',
                   ),
-                  if (kyc.fssaiExpiry != null && kyc.fssaiExpiry!.isNotEmpty)
+                  if (widget.kyc.fssaiExpiry != null && widget.kyc.fssaiExpiry!.isNotEmpty)
                     _buildDetailRow(
                       Icons.calendar_today,
                       'FSSAI Expiry',
-                      kyc.fssaiExpiry!,
+                      widget.kyc.fssaiExpiry!,
                     ),
 
                   const SizedBox(height: 24),
 
                   // Digital Signature
-                  if (kyc.signatureUrl != null &&
-                      kyc.signatureUrl!.isNotEmpty) ...[
+                  if (widget.kyc.signatureUrl != null &&
+                      widget.kyc.signatureUrl!.isNotEmpty) ...[
                     _buildSectionTitle('Digital Signature'),
                     const SizedBox(height: 12),
                     Container(
@@ -229,7 +267,7 @@ class KycDetailModal extends StatelessWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(8),
                         child: Image.network(
-                          kyc.signatureUrl!,
+                          widget.kyc.signatureUrl!,
                           fit: BoxFit.contain,
                           errorBuilder: (_, __, ___) => Center(
                             child: Icon(
@@ -247,32 +285,40 @@ class KycDetailModal extends StatelessWidget {
                   // Verification Status
                   _buildSectionTitle('Verification Status'),
                   const SizedBox(height: 12),
-                  _buildStatusRow('Documents Verified', kyc.documentsVerified),
-                  _buildStatusRow('GST Registered', kyc.gstRegistered == 'yes'),
-                  _buildStatusRow('Vendor Signed', kyc.vendorSigned),
+                  _buildStatusRow('Documents Verified', widget.kyc.documentsVerified),
+                  _buildStatusRow('GST Registered', widget.kyc.gstRegistered == 'yes'),
+                  _buildStatusRow('Vendor Signed', _vendorSigned),
+                  _buildStatusRow('Admin Signed', _adminSigned),
+
+                  const SizedBox(height: 24),
+
+                  // Adobe Agreement & Admin Signing
+                  _buildSectionTitle('Adobe Agreement'),
+                  const SizedBox(height: 12),
+                  AdminAdobeSigningSection(kyc: widget.kyc),
 
                   const SizedBox(height: 24),
 
                   // Submission Timeline
                   _buildSectionTitle('Timeline'),
                   const SizedBox(height: 12),
-                  if (kyc.submittedAt != null)
+                  if (widget.kyc.submittedAt != null)
                     _buildDetailRow(
                       Icons.upload_file,
                       'Submitted',
-                      _formatDate(kyc.submittedAt!),
+                      _formatDate(widget.kyc.submittedAt!),
                     ),
-                  if (kyc.reviewedAt != null)
+                  if (widget.kyc.reviewedAt != null)
                     _buildDetailRow(
                       Icons.verified_user,
                       'Reviewed',
-                      _formatDate(kyc.reviewedAt!),
+                      _formatDate(widget.kyc.reviewedAt!),
                     ),
-                  if (kyc.reviewerName != null && kyc.reviewerName!.isNotEmpty)
+                  if (widget.kyc.reviewerName != null && widget.kyc.reviewerName!.isNotEmpty)
                     _buildDetailRow(
                       Icons.person,
                       'Reviewed By',
-                      kyc.reviewerName!,
+                      widget.kyc.reviewerName!,
                     ),
 
                   const SizedBox(height: 100),
@@ -282,7 +328,7 @@ class KycDetailModal extends StatelessWidget {
           ),
 
           // Bottom Action Buttons
-          if (kyc.status == 'pending')
+          if (widget.kyc.status == 'pending')
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -301,7 +347,7 @@ class KycDetailModal extends StatelessWidget {
                     child: SizedBox(
                       height: 48,
                       child: OutlinedButton.icon(
-                        onPressed: () => onAction('rejected', kyc.id),
+                        onPressed: () => widget.onAction('rejected', widget.kyc.id),
                         icon: const Icon(Icons.close, size: 18),
                         label: Text(
                           'Reject',
@@ -322,7 +368,7 @@ class KycDetailModal extends StatelessWidget {
                     child: SizedBox(
                       height: 48,
                       child: ElevatedButton.icon(
-                        onPressed: () => onAction('approved', kyc.id),
+                        onPressed: () => widget.onAction('approved', widget.kyc.id),
                         icon: const Icon(
                           Icons.check,
                           size: 18,
@@ -350,31 +396,31 @@ class KycDetailModal extends StatelessWidget {
             ),
 
           // Status banner
-          if (kyc.status != 'pending')
+          if (widget.kyc.status != 'pending')
             Container(
               padding: const EdgeInsets.all(16),
-              color: kyc.status == 'approved'
+              color: widget.kyc.status == 'approved'
                   ? AirMenuColors.success.withOpacity(0.1)
                   : AirMenuColors.error.withOpacity(0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    kyc.status == 'approved'
+                    widget.kyc.status == 'approved'
                         ? Icons.check_circle
                         : Icons.cancel,
-                    color: kyc.status == 'approved'
+                    color: widget.kyc.status == 'approved'
                         ? AirMenuColors.success
                         : AirMenuColors.error,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    'Application ${kyc.status}',
+                    'Application ${widget.kyc.status}',
                     style: GoogleFonts.sora(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: kyc.status == 'approved'
+                      color: widget.kyc.status == 'approved'
                           ? AirMenuColors.success
                           : AirMenuColors.error,
                     ),
@@ -384,6 +430,7 @@ class KycDetailModal extends StatelessWidget {
             ),
         ],
       ),
+    ),
     );
   }
 

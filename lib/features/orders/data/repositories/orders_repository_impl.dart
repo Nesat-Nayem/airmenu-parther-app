@@ -367,4 +367,47 @@ class OrdersRepositoryImpl implements OrdersRepository {
     final query = params.entries.map((e) => '${e.key}=${e.value}').join('&');
     return '?$query';
   }
+
+  @override
+  Future<Either<Failure, List<({String id, String name})>>> getBranches() async {
+    try {
+      final response = await _apiService.invoke(
+        urlPath: '/orders/branches',
+        type: RequestType.get,
+        fun: (data) => jsonDecode(data),
+      );
+
+      if (response is DataSuccess) {
+        final data = response.data;
+        List<dynamic>? list;
+        if (data is Map<String, dynamic>) {
+          if (data['data'] is List) {
+            list = data['data'] as List;
+          } else if (data['branches'] is List) {
+            list = data['branches'] as List;
+          }
+        } else if (data is List) {
+          list = data;
+        }
+
+        if (list != null) {
+          return Right(
+            list
+                .map((e) => (
+                      id: (e['id'] ?? e['_id'] ?? '').toString(),
+                      name: (e['name'] ?? '').toString(),
+                    ))
+                .where((b) => b.id.isNotEmpty && b.name.isNotEmpty)
+                .toList(),
+          );
+        }
+      }
+
+      return const Right([]);
+    } catch (e) {
+      return Left(
+        ServerFailure(message: 'Failed to fetch branches: $e'),
+      );
+    }
+  }
 }

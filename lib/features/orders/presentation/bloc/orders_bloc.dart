@@ -34,10 +34,29 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     on<ToggleView>(_onToggleView);
     on<SearchOrders>(_onSearchOrders);
     on<RefreshOrders>(_onRefreshOrders);
+    on<FilterByRestaurant>(_onFilterByRestaurant);
   }
 
   /// Stores ALL orders from initial unfiltered load (for tiles)
   List<OrderModel> _allOrders = [];
+
+  /// Cached branch map: hotelId -> hotelName
+  Map<String, String> _branchMap = {};
+
+  /// Enrich orders with hotel names from the branch map
+  List<OrderModel> _enrichOrdersWithHotelNames(List<OrderModel> orders) {
+    if (_branchMap.isEmpty) return orders;
+    return orders.map((order) {
+      // Skip if already has a hotel name
+      if (order.hotelName != null && order.hotelName!.isNotEmpty) return order;
+
+      final hId = order.hotelId ?? order.hotel?.id ?? order.items?.firstOrNull?.hotelId;
+      if (hId != null && _branchMap.containsKey(hId)) {
+        return order.withHotelInfo(hotelName: _branchMap[hId], hotelId: hId);
+      }
+      return order;
+    }).toList();
+  }
 
   Future<void> _onLoadOrders(
     LoadOrders event,
@@ -64,17 +83,27 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           : null,
     );
 
-    // Fetch order stats from API (for filter counts)
+    // Fetch order stats and branches in parallel
     final statsResult = await locator<OrdersRepository>().getOrderStats();
     statsResult.fold(
       (failure) {
-        // Stats fetch failed, continue with null stats
         _cachedOrderStats = null;
       },
       (stats) {
         _cachedOrderStats = stats;
       },
     );
+
+    // Fetch branches for hotel name resolution
+    if (_branchMap.isEmpty) {
+      final branchesResult = await locator<OrdersRepository>().getBranches();
+      branchesResult.fold(
+        (failure) {},
+        (branches) {
+          _branchMap = {for (final b in branches) b.id: b.name};
+        },
+      );
+    }
 
     ordersResult.fold(
       (error) {
@@ -93,6 +122,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
             ),
           );
         } else {
+          // Enrich orders with hotel names from branch map
+          final enrichedOrders = _enrichOrdersWithHotelNames(response.data!);
+
           // If this is initial load (no filter), save ALL orders for tiles
           final isInitialLoad =
               event.status == null ||
@@ -100,12 +132,12 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
               event.status?.toLowerCase() == 'all';
 
           if (isInitialLoad) {
-            _allOrders = response.data!;
+            _allOrders = enrichedOrders;
           }
 
           emit(
             OrdersLoaded(
-              orders: response.data!,
+              orders: enrichedOrders,
               allOrders: preservedAllOrders.isNotEmpty
                   ? preservedAllOrders
                   : _allOrders,
@@ -113,9 +145,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
               pagination:
                   response.pagination ??
                   PaginationModel(
-                    totalItems: response.data!.length,
+                    totalItems: enrichedOrders.length,
                     currentPage: 1,
-                    itemsPerPage: response.data!.length,
+                    itemsPerPage: enrichedOrders.length,
                     totalPages: 1,
                   ),
               currentPage: 1,
@@ -162,7 +194,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         emit(currentState.copyWith(isLoadingMore: false));
       },
       (response) {
-        final newOrders = response.data ?? [];
+        final newOrders = _enrichOrdersWithHotelNames(response.data ?? []);
         final hasReachedMax =
             newOrders.isEmpty ||
             nextPage >= (response.pagination?.totalPages ?? 1);
@@ -367,6 +399,20 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     _searchQuery = event.query;
     if (state is OrdersLoaded) {
       emit((state as OrdersLoaded).copyWith(searchQuery: event.query));
+    }
+  }
+
+  void _onFilterByRestaurant(
+    FilterByRestaurant event,
+    Emitter<OrdersState> emit,
+  ) {
+    if (state is OrdersLoaded) {
+      final currentState = state as OrdersLoaded;
+      if (event.restaurantId == null) {
+        emit(currentState.copyWith(clearRestaurantFilter: true));
+      } else {
+        emit(currentState.copyWith(selectedRestaurantId: event.restaurantId));
+      }
     }
   }
 

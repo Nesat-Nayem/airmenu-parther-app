@@ -7,6 +7,8 @@ import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/pages/kyc_detail_page.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/onboarding_kanban_column.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/kyc_detail_modal.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/kyc_skeleton_loading.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/kyc_filter_widget.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/ui_manager.dart';
@@ -24,6 +26,8 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+    
     return Scaffold(
       backgroundColor: const Color(0xFFF5F4F4),
       body: Stack(
@@ -38,32 +42,26 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
             child: Column(
               children: [
                 Expanded(
-                  child:
-                      BlocBuilder<
-                        OnboardingPipelineBloc,
-                        OnboardingPipelineState
-                      >(
-                        builder: (context, state) {
-                          if (state is PipelineLoading) {
-                            return const Center(
-                              child: CircularProgressIndicator(),
-                            );
-                          }
+                  child: BlocBuilder<
+                    OnboardingPipelineBloc,
+                    OnboardingPipelineState
+                  >(
+                    builder: (context, state) {
+                      if (state is PipelineLoading) {
+                        return OnboardingPipelineSkeleton(isMobile: isMobile);
+                      }
 
-                          if (state is PipelineError) {
-                            return Center(child: Text(state.message));
-                          }
+                      if (state is PipelineError) {
+                        return _buildErrorState(context, state.message);
+                      }
 
-                          if (state is PipelineLoaded) {
-                            return _buildLoadedContent(
-                              context,
-                              state.kycByStatus,
-                            );
-                          }
+                      if (state is PipelineLoaded) {
+                        return _buildLoadedContent(context, state);
+                      }
 
-                          return const SizedBox.shrink();
-                        },
-                      ),
+                      return const SizedBox.shrink();
+                    },
+                  ),
                 ),
               ],
             ),
@@ -102,13 +100,36 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
     );
   }
 
-  Widget _buildLoadedContent(
-    BuildContext context,
-    Map<String, List<KycSubmission>> data,
-  ) {
-    final pending = data['pending'] ?? [];
-    final approved = data['approved'] ?? [];
-    final rejected = data['rejected'] ?? [];
+  Widget _buildErrorState(BuildContext context, String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 48, color: Colors.red.shade300),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(color: Colors.red),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              context.read<OnboardingPipelineBloc>().add(const LoadKycBoard());
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadedContent(BuildContext context, PipelineLoaded state) {
+    final stats = state.stats;
+    final pendingState = state.pendingState;
+    final approvedState = state.approvedState;
+    final rejectedState = state.rejectedState;
 
     // Check if we are on mobile to change layout
     final isMobile = Responsive.isMobile(context);
@@ -124,7 +145,7 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Stats - Horizontal scroll on mobile
+          // Header Stats - Using counts from stats API
           if (isMobile)
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -133,21 +154,21 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
                   _buildMobileStatusTile(
                     Icons.pending_actions,
                     AirMenuColors.warning,
-                    pending.length,
+                    stats.pending,
                     'Pending',
                   ),
                   const SizedBox(width: 12),
                   _buildMobileStatusTile(
                     Icons.verified,
                     AirMenuColors.success,
-                    approved.length,
+                    stats.approved,
                     'Approved',
                   ),
                   const SizedBox(width: 12),
                   _buildMobileStatusTile(
                     Icons.cancel,
                     AirMenuColors.error,
-                    rejected.length,
+                    stats.rejected,
                     'Rejected',
                   ),
                 ],
@@ -161,21 +182,21 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
                   icon: Icons.pending_actions,
                   iconBgColor: AirMenuColors.warning.withOpacity(0.1),
                   iconColor: AirMenuColors.warning,
-                  count: pending.length,
+                  count: stats.pending,
                   label: 'Pending KYC',
                 ),
                 StatusTile(
                   icon: Icons.verified,
                   iconBgColor: AirMenuColors.success.withOpacity(0.1),
                   iconColor: AirMenuColors.success,
-                  count: approved.length,
+                  count: stats.approved,
                   label: 'Approved',
                 ),
                 StatusTile(
                   icon: Icons.cancel,
                   iconBgColor: AirMenuColors.error.withOpacity(0.1),
                   iconColor: AirMenuColors.error,
-                  count: rejected.length,
+                  count: stats.rejected,
                   label: 'Rejected',
                 ),
               ],
@@ -183,7 +204,13 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
 
           UIManager.verticalSpaceMedium,
 
-          // Kanban Columns
+          // Filters - Right aligned below stats
+          KycFilterWidget(
+            currentFilter: state.filterState,
+            isFiltering: state.isFiltering,
+          ),
+
+          // Kanban Columns with pagination
           SizedBox(
             height: kanbanHeight.toDouble(),
             child: isMobile
@@ -195,9 +222,11 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
                         SizedBox(
                           width: 300,
                           child: _buildColumn(
+                            context,
                             'Pending',
+                            'pending',
                             AirMenuColors.warning,
-                            pending,
+                            pendingState,
                             300,
                             isMobile: true,
                           ),
@@ -206,9 +235,11 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
                         SizedBox(
                           width: 300,
                           child: _buildColumn(
+                            context,
                             'Approved',
+                            'approved',
                             AirMenuColors.success,
-                            approved,
+                            approvedState,
                             300,
                             isMobile: true,
                           ),
@@ -217,9 +248,11 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
                         SizedBox(
                           width: 300,
                           child: _buildColumn(
+                            context,
                             'Rejected',
+                            'rejected',
                             AirMenuColors.error,
-                            rejected,
+                            rejectedState,
                             300,
                             isMobile: true,
                           ),
@@ -232,27 +265,33 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
                     children: [
                       Expanded(
                         child: _buildColumn(
+                          context,
                           'Pending',
+                          'pending',
                           AirMenuColors.warning,
-                          pending,
+                          pendingState,
                           double.infinity,
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildColumn(
+                          context,
                           'Approved',
+                          'approved',
                           AirMenuColors.success,
-                          approved,
+                          approvedState,
                           double.infinity,
                         ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: _buildColumn(
+                          context,
                           'Rejected',
+                          'rejected',
                           AirMenuColors.error,
-                          rejected,
+                          rejectedState,
                           double.infinity,
                         ),
                       ),
@@ -264,7 +303,7 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
     );
   }
 
-  /// Compact status tile for mobile
+  /// Compact status tile for mobile with animated count
   Widget _buildMobileStatusTile(
     IconData icon,
     Color color,
@@ -299,13 +338,20 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
             child: Icon(icon, size: 18, color: color),
           ),
           const SizedBox(height: 12),
-          Text(
-            '$count',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF111827),
-            ),
+          TweenAnimationBuilder<int>(
+            tween: IntTween(begin: 0, end: count),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Text(
+                '$value',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111827),
+                ),
+              );
+            },
           ),
           const SizedBox(height: 2),
           Text(
@@ -322,18 +368,29 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
   }
 
   Widget _buildColumn(
+    BuildContext context,
     String title,
+    String status,
     Color color,
-    List<KycSubmission> items,
+    StatusPaginationState paginationState,
     double width, {
     bool isMobile = false,
   }) {
     return OnboardingKanbanColumn(
       title: title,
+      status: status,
       color: color,
-      submissions: items,
+      submissions: paginationState.items,
       width: width,
       isMobile: isMobile,
+      hasMore: paginationState.hasMore,
+      isLoadingMore: paginationState.isLoadingMore,
+      totalCount: paginationState.totalItems,
+      onLoadMore: () {
+        context.read<OnboardingPipelineBloc>().add(
+          LoadMoreKycByStatus(status: status),
+        );
+      },
       onItemTap: (kyc) {
         if (isMobile) {
           // On mobile, navigate to detail page

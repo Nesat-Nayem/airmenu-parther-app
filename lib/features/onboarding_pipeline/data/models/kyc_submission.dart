@@ -160,10 +160,14 @@ class KycSubmission extends Equatable {
           json['digitalSignature']?.toString() ?? json['signature']?.toString(),
 
       // Adobe Agreement
-      agreementId: adobeObj['agreementId']?.toString(),
-      agreementStatus: adobeObj['status']?.toString(),
-      vendorSigned: adobeObj['vendorSigned'] == true,
-      adminSigned: adobeObj['adminSigned'] == true,
+      agreementId: adobeObj['agreementId']?.toString() ??
+          json['adobeAgreementId']?.toString(),
+      agreementStatus: adobeObj['status']?.toString() ??
+          json['adobeStatus']?.toString(),
+      vendorSigned: adobeObj['vendorSigned'] == true ||
+          json['vendorSignedAt'] != null,
+      adminSigned: adobeObj['adminSigned'] == true ||
+          json['adminSignedAt'] != null,
 
       // Dates
       submittedAt: json['submittedAt'] != null

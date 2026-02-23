@@ -21,6 +21,15 @@ class RestaurantModel {
   final double? latitude;
   final double? longitude;
   final bool? isActive;
+  final String? status;
+  final int ordersToday;
+  final double revenueToday;
+  final int branches;
+  final double cgstRate;
+  final double sgstRate;
+  final double serviceCharge;
+  final List<WeeklyTimingModel> weeklyTimings;
+  final List<GalleryImageModel> galleryImages;
 
   RestaurantModel({
     required this.id,
@@ -42,6 +51,15 @@ class RestaurantModel {
     this.latitude,
     this.longitude,
     this.isActive,
+    this.status,
+    this.ordersToday = 0,
+    this.revenueToday = 0,
+    this.branches = 1,
+    this.cgstRate = 0,
+    this.sgstRate = 0,
+    this.serviceCharge = 0,
+    this.weeklyTimings = const [],
+    this.galleryImages = const [],
   });
 
   factory RestaurantModel.fromJson(Map<String, dynamic> json) {
@@ -56,8 +74,8 @@ class RestaurantModel {
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       mainImage: (json['mainImage'] as String? ?? '').trim(),
       offer: json['offer'] as String? ?? '',
-      createdAt: json['createdAt'] as String? ?? '',
-      updatedAt: json['updatedAt'] as String? ?? '',
+      createdAt: _parseDate(json['createdAt']),
+      updatedAt: _parseDate(json['updatedAt']),
       address: json['address'] as String?,
       phone: json['phone'] as String?,
       email: json['email'] as String?,
@@ -66,8 +84,48 @@ class RestaurantModel {
           .toList(),
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
-      isActive: json['isActive'] as bool?,
+      isActive: json['isActive'] as bool? ?? (json['status'] == 'active'),
+      status: json['status'] as String?,
+      ordersToday: (json['ordersToday'] as num?)?.toInt() ?? 0,
+      revenueToday: (json['revenueToday'] as num?)?.toDouble() ?? 0,
+      branches: (json['branches'] as num?)?.toInt() ?? 1,
+      cgstRate: (json['cgstRate'] as num?)?.toDouble() ?? 0,
+      sgstRate: (json['sgstRate'] as num?)?.toDouble() ?? 0,
+      serviceCharge: (json['serviceCharge'] as num?)?.toDouble() ?? 0,
+      weeklyTimings: (json['weeklyTimings'] as List<dynamic>?)
+              ?.map((e) => WeeklyTimingModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      galleryImages: (json['galleryImages'] as List<dynamic>?)
+              ?.map((e) => GalleryImageModel.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
     );
+  }
+
+  /// Parse date from various formats
+  static String _parseDate(dynamic dateValue) {
+    if (dateValue == null) return '';
+    
+    final dateStr = dateValue.toString();
+    if (dateStr.isEmpty || dateStr == 'Invalid Date') return '';
+    
+    try {
+      // Try parsing as ISO date first
+      final date = DateTime.tryParse(dateStr);
+      if (date != null) {
+        return '${date.day}/${date.month}/${date.year}';
+      }
+      
+      // If it's already formatted (e.g., "1/6/2025, 12:30:00 PM"), extract date part
+      if (dateStr.contains(',')) {
+        return dateStr.split(',').first.trim();
+      }
+      
+      return dateStr;
+    } catch (e) {
+      return dateStr;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -91,7 +149,26 @@ class RestaurantModel {
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
       if (isActive != null) 'isActive': isActive,
+      if (status != null) 'status': status,
+      'ordersToday': ordersToday,
+      'revenueToday': revenueToday,
+      'branches': branches,
+      'cgstRate': cgstRate,
+      'sgstRate': sgstRate,
+      'serviceCharge': serviceCharge,
+      'weeklyTimings': weeklyTimings.map((e) => e.toJson()).toList(),
+      'galleryImages': galleryImages.map((e) => e.toJson()).toList(),
     };
+  }
+
+  /// Format revenue for display
+  String get formattedRevenue {
+    if (revenueToday >= 100000) {
+      return '₹${(revenueToday / 100000).toStringAsFixed(1)}L';
+    } else if (revenueToday >= 1000) {
+      return '₹${(revenueToday / 1000).toStringAsFixed(1)}K';
+    }
+    return '₹${revenueToday.toStringAsFixed(0)}';
   }
 
   /// Get rating color based on rating value
@@ -375,6 +452,56 @@ class RestaurantFormModel {
       if (cuisines != null && cuisines!.isNotEmpty) 'cuisines': cuisines,
       if (latitude != null) 'latitude': latitude,
       if (longitude != null) 'longitude': longitude,
+    };
+  }
+}
+
+/// Model for weekly timing
+class WeeklyTimingModel {
+  final String day;
+  final String hours;
+
+  WeeklyTimingModel({
+    required this.day,
+    required this.hours,
+  });
+
+  factory WeeklyTimingModel.fromJson(Map<String, dynamic> json) {
+    return WeeklyTimingModel(
+      day: json['day'] as String? ?? '',
+      hours: json['hours'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'day': day,
+      'hours': hours,
+    };
+  }
+}
+
+/// Model for gallery image
+class GalleryImageModel {
+  final String url;
+  final String alt;
+
+  GalleryImageModel({
+    required this.url,
+    required this.alt,
+  });
+
+  factory GalleryImageModel.fromJson(Map<String, dynamic> json) {
+    return GalleryImageModel(
+      url: json['url'] as String? ?? '',
+      alt: json['alt'] as String? ?? '',
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'url': url,
+      'alt': alt,
     };
   }
 }

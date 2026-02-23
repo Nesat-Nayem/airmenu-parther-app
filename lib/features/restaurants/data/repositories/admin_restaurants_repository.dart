@@ -303,6 +303,41 @@ class AdminRestaurantsRepository {
     }
   }
 
+  /// Get buffets for a restaurant
+  Future<List<BuffetModel>> getRestaurantBuffets({
+    required String restaurantId,
+  }) async {
+    try {
+      final response = await _apiService.invoke(
+        urlPath: ApiEndpoints.hotelBuffets(restaurantId),
+        type: RequestType.get,
+        fun: (data) => jsonDecode(data),
+      );
+
+      if (response is DataSuccess) {
+        final data = response.data;
+        List<dynamic>? buffetsList;
+        
+        if (data is List) {
+          buffetsList = data;
+        } else if (data is Map<String, dynamic>) {
+          buffetsList = data['data'] as List<dynamic>? ?? 
+                        data['buffets'] as List<dynamic>? ?? 
+                        [];
+        }
+        
+        return buffetsList
+                ?.map((item) => BuffetModel.fromJson(item as Map<String, dynamic>))
+                .toList() ??
+            [];
+      } else {
+        return [];
+      }
+    } catch (e) {
+      return [];
+    }
+  }
+
   /// Build query string from parameters
   String _buildQueryString(Map<String, String> params) {
     if (params.isEmpty) return '';

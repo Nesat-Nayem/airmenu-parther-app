@@ -289,7 +289,7 @@ class _RichTextEditorWidgetState extends State<RichTextEditorWidget> {
     final newContent = '<$listTag>\n  $listItem\n</$listTag>';
 
     if (selection.baseOffset == -1) {
-      _controller.text = text + '\n' + newContent;
+      _controller.text = '$text\n$newContent';
     } else {
       final newText = text.replaceRange(
         selection.start,

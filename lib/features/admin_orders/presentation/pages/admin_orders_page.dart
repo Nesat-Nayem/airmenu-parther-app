@@ -3,13 +3,14 @@ import 'package:airmenuai_partner_app/features/orders/data/models/order_model.da
 import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_bloc.dart';
 import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_event.dart';
 import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_state.dart';
-import 'package:airmenuai_partner_app/features/orders/presentation/widgets/order_detail_dialog.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/widgets/status_tile.dart';
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -115,35 +116,90 @@ class _AdminOrdersPageView extends StatelessWidget {
     final orderStats = state is OrdersLoaded ? state.orderStats : null;
     final stats = orderStats?.stats;
 
-    // If no API stats, show skeleton
-    if (stats == null || stats.isEmpty) {
-      return _buildSkeletonTiles();
+    // If API stats are available, use them
+    if (stats != null && stats.isNotEmpty) {
+      return StatusTilesRow(
+        tiles: stats.map((stat) {
+          final shouldShowComparison = _shouldShowComparisonBadge(
+            stat.comparison,
+            stat.trend,
+          );
+          final isStringValue = stat.value is String;
+
+          return StatusTile(
+            icon: _getIconForAdminStatKey(stat.key),
+            iconBgColor: _getIconBgColorForKey(stat.key),
+            iconColor: _getIconColorForKey(stat.key),
+            count: stat.intValue,
+            displayValue: isStringValue ? stat.displayValue : null,
+            label: stat.label ?? stat.key ?? '',
+            subtitle: shouldShowComparison ? stat.comparisonLabel : null,
+            comparisonBadge: shouldShowComparison ? stat.comparison : null,
+            isPositiveComparison: stat.isPositiveTrend,
+          );
+        }).toList(),
+      );
     }
 
-    // Build tiles dynamically from API stats (admin format)
-    return StatusTilesRow(
-      tiles: stats.map((stat) {
-        final shouldShowComparison = _shouldShowComparisonBadge(
-          stat.comparison,
-          stat.trend,
-        );
+    // Fallback: compute stats from allOrders when API stats are null/empty
+    if (state is OrdersLoaded) {
+      final allOrders = state.allOrders.isNotEmpty ? state.allOrders : state.orders;
+      if (allOrders.isEmpty) return _buildSkeletonTiles();
 
-        // Check if value is a string (like "18 min") vs integer
-        final isStringValue = stat.value is String;
+      int active = 0;
+      int delayed = 0;
+      int completed = 0;
+      for (final order in allOrders) {
+        final s = order.status?.toLowerCase() ?? '';
+        if (s == 'delivered' || s == 'completed') {
+          completed++;
+        } else if (s != 'cancelled') {
+          active++;
+          // Delayed = active orders older than 30 min
+          if (order.createdAt != null) {
+            try {
+              final created = DateTime.parse(order.createdAt!);
+              if (DateTime.now().difference(created).inMinutes > 30) delayed++;
+            } catch (_) {}
+          }
+        }
+      }
 
-        return StatusTile(
-          icon: _getIconForAdminStatKey(stat.key),
-          iconBgColor: _getIconBgColorForKey(stat.key),
-          iconColor: _getIconColorForKey(stat.key),
-          count: stat.intValue,
-          displayValue: isStringValue ? stat.displayValue : null,
-          label: stat.label ?? stat.key ?? '',
-          subtitle: shouldShowComparison ? stat.comparisonLabel : null,
-          comparisonBadge: shouldShowComparison ? stat.comparison : null,
-          isPositiveComparison: stat.isPositiveTrend,
-        );
-      }).toList(),
-    );
+      return StatusTilesRow(
+        tiles: [
+          StatusTile(
+            icon: Icons.receipt_long_outlined,
+            iconBgColor: const Color(0xFFFEE2E2),
+            iconColor: const Color(0xFFDC2626),
+            count: active,
+            label: 'Active Orders',
+          ),
+          StatusTile(
+            icon: Icons.timer_outlined,
+            iconBgColor: const Color(0xFFFEF3C7),
+            iconColor: const Color(0xFFD97706),
+            count: allOrders.length,
+            label: 'Total Orders',
+          ),
+          StatusTile(
+            icon: Icons.warning_amber_outlined,
+            iconBgColor: const Color(0xFFFEE2E2),
+            iconColor: const Color(0xFFDC2626),
+            count: delayed,
+            label: 'Delayed',
+          ),
+          StatusTile(
+            icon: Icons.check_circle_outlined,
+            iconBgColor: const Color(0xFFDCFCE7),
+            iconColor: const Color(0xFF16A34A),
+            count: completed,
+            label: 'Completed',
+          ),
+        ],
+      );
+    }
+
+    return _buildSkeletonTiles();
   }
 
   bool _shouldShowComparisonBadge(String? comparison, String? trend) {
@@ -291,20 +347,8 @@ class _AdminOrdersPageView extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          // Filter button
-          Container(
-            height: 44,
-            width: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: IconButton(
-              icon: Icon(Icons.tune_outlined, color: Colors.grey.shade700),
-              onPressed: () {},
-            ),
-          ),
+          // Restaurant filter dropdown
+          _buildRestaurantFilter(context, state),
           const Spacer(),
           // Live indicator
           Container(
@@ -368,6 +412,73 @@ class _AdminOrdersPageView extends StatelessWidget {
     );
   }
 
+  Widget _buildRestaurantFilter(BuildContext context, OrdersState state) {
+    if (state is! OrdersLoaded) return const SizedBox.shrink();
+
+    final restaurants = state.uniqueRestaurants;
+    if (restaurants.isEmpty) return const SizedBox.shrink();
+
+    final selectedId = state.selectedRestaurantId;
+
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: selectedId != null ? const Color(0xFFF0F4FF) : Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: selectedId != null
+              ? AirMenuColors.primary.withValues(alpha: 0.4)
+              : Colors.grey.shade200,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: selectedId,
+          hint: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.store_outlined, size: 16, color: Colors.grey.shade500),
+              const SizedBox(width: 6),
+              Text(
+                'All Restaurants',
+                style: AirMenuTextStyle.small.copyWith(
+                  color: Colors.grey.shade600,
+                ),
+              ),
+            ],
+          ),
+          icon: Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey.shade500),
+          isDense: true,
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text(
+                'All Restaurants',
+                style: AirMenuTextStyle.small.copyWith(
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ),
+            ...restaurants.map((r) => DropdownMenuItem<String?>(
+              value: r.id,
+              child: Text(
+                r.name,
+                style: AirMenuTextStyle.small.copyWith(
+                  color: const Color(0xFF212121),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            )),
+          ],
+          onChanged: (value) {
+            context.read<OrdersBloc>().add(FilterByRestaurant(value));
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildFilterTabs(BuildContext context, OrdersState state) {
     final selectedStatus = state is OrdersLoaded
         ? state.selectedStatus ?? 'all'
@@ -377,9 +488,56 @@ class _AdminOrdersPageView extends StatelessWidget {
     final orderStats = state is OrdersLoaded ? state.orderStats : null;
     final apiFilters = orderStats?.filters;
 
-    // If no API filters, show skeleton
+    // If no API filters, compute from allOrders as fallback
     if (apiFilters == null || apiFilters.isEmpty) {
-      return _buildFilterTabsSkeleton();
+      if (state is! OrdersLoaded) return _buildFilterTabsSkeleton();
+      final allOrders = state.allOrders.isNotEmpty ? state.allOrders : state.orders;
+      if (allOrders.isEmpty) return _buildFilterTabsSkeleton();
+
+      // Compute counts from orders
+      final counts = <String, int>{'all': allOrders.length};
+      for (final order in allOrders) {
+        final s = order.status?.toLowerCase() ?? 'pending';
+        counts[s] = (counts[s] ?? 0) + 1;
+      }
+
+      final fallbackFilters = [
+        ('all', 'All Orders', allOrders.length),
+        ('pending', 'Pending', counts['pending'] ?? 0),
+        ('processing', 'Preparing', counts['processing'] ?? 0),
+        ('ready', 'Ready', counts['ready'] ?? 0),
+        ('delivered', 'Delivered', counts['delivered'] ?? 0),
+        ('cancelled', 'Cancelled', counts['cancelled'] ?? 0),
+      ];
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: fallbackFilters.map((f) {
+              final (key, label, count) = f;
+              final isActive =
+                  selectedStatus.toLowerCase() == key ||
+                  (key == 'all' &&
+                      (selectedStatus == 'All Status' ||
+                          selectedStatus.toLowerCase() == 'all'));
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _FilterChip(
+                  label: label,
+                  count: count,
+                  isActive: isActive,
+                  onTap: () {
+                    final statusToSend = key == 'all' ? 'All Status' : key;
+                    context.read<OrdersBloc>().add(FilterByStatus(statusToSend));
+                  },
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      );
     }
 
     return Padding(
@@ -560,10 +718,7 @@ class _AdminOrdersPageView extends StatelessWidget {
   }
 
   void _showOrderDetail(BuildContext context, OrderModel order) {
-    showDialog(
-      context: context,
-      builder: (context) => OrderDetailDialog(order: order),
-    );
+    context.push(AppRoutes.adminOrderDetails.path, extra: order);
   }
 }
 

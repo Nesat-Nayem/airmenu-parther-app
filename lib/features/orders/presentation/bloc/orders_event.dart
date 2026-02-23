@@ -132,6 +132,16 @@ class SearchOrders extends OrdersEvent {
   List<Object?> get props => [query];
 }
 
+/// Filter orders by restaurant
+class FilterByRestaurant extends OrdersEvent {
+  final String? restaurantId;
+
+  const FilterByRestaurant(this.restaurantId);
+
+  @override
+  List<Object?> get props => [restaurantId];
+}
+
 /// Refresh orders list
 class RefreshOrders extends OrdersEvent {
   const RefreshOrders();

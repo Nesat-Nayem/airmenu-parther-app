@@ -43,6 +43,7 @@ enum AppRoutes {
   // New admin features
   adminDashboard,
   adminOrders,
+  adminOrderDetails,
   adminInventory,
   adminSettings,
   externalIntegrations,
@@ -154,6 +155,8 @@ extension RouterExt on AppRoutes {
         return "/admin-dashboard";
       case AppRoutes.adminOrders:
         return "/admin-orders";
+      case AppRoutes.adminOrderDetails:
+        return "/admin-orders/details";
       case AppRoutes.adminInventory:
         return "/admin-inventory";
       case AppRoutes.adminSettings:

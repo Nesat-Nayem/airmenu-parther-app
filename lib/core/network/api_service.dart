@@ -100,7 +100,7 @@ class ApiService implements DataService {
         case RequestType.post:
           var uri = Uri.parse(url);
           final response = await http
-              .post(uri, body: jsonEncode(params), headers: headers)
+              .post(uri, body: params != null ? jsonEncode(params) : '{}', headers: headers)
               .timeout(durationTimeout);
           Log.info("apiResponse ${type.name} $url ${response.statusCode}");
 
@@ -251,6 +251,80 @@ class ApiService implements DataService {
     } catch (e, s) {
       Log.error(
         "Unexpected error in ApiService multipart - $urlPath: ${e.toString()}\\nStack trace: $s",
+      );
+      return DataFailure<T>(
+        DataError(message: "Unexpected error: ${e.toString()}", statusCode: 0),
+      );
+    }
+  }
+
+  /// Multipart request with bytes (for Flutter Web compatibility)
+  Future<dynamic> invokeMultipartWithBytes<T>({
+    String urlBase = EnvConfig.apiUrl,
+    required String urlPath,
+    required T Function(String) fun,
+    required RequestType type,
+    required Map<String, String> fields,
+    Map<String, Uint8List>? fileBytes,
+    Map<String, String>? headers,
+    void Function(int)? statusCode,
+  }) async {
+    final token = await locator<AuthService>().getAccessToken();
+    headers ??= {};
+
+    if (token != null && token.isNotEmpty) {
+      headers["Authorization"] = "Bearer $token";
+      Log.info("Token added to multipart bytes request: $urlPath");
+    }
+
+    String url = urlPath.startsWith('/')
+        ? "$urlBase$urlPath"
+        : "$urlBase/$urlPath";
+
+    Log.info("apiCall Multipart Bytes Initiated ${type.name} $url");
+
+    try {
+      const durationTimeout = Duration(minutes: 2);
+      var uri = Uri.parse(url);
+      var request = http.MultipartRequest(type.name.toUpperCase(), uri);
+
+      request.headers.addAll(headers);
+      request.fields.addAll(fields);
+
+      // Add files from bytes
+      if (fileBytes != null) {
+        for (var entry in fileBytes.entries) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              entry.key,
+              entry.value,
+              filename: 'upload_${DateTime.now().millisecondsSinceEpoch}.jpg',
+            ),
+          );
+        }
+      }
+
+      final streamedResponse = await request.send().timeout(durationTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      Log.info(
+        "apiResponse Multipart Bytes ${type.name} $url ${response.statusCode}",
+      );
+
+      return await responseHandler.responseHandlerFun<T>(
+        response: response,
+        urlPath: urlPath,
+        fun: fun,
+        statusCode: statusCode,
+      );
+    } on TimeoutException catch (e, s) {
+      Log.error("Timeout - $urlPath: ${e.toString()}\\nStack trace: $s");
+      return DataFailure<T>(
+        DataError(message: "Request timeout", statusCode: 0),
+      );
+    } catch (e, s) {
+      Log.error(
+        "Unexpected error in ApiService multipart bytes - $urlPath: ${e.toString()}\\nStack trace: $s",
       );
       return DataFailure<T>(
         DataError(message: "Unexpected error: ${e.toString()}", statusCode: 0),

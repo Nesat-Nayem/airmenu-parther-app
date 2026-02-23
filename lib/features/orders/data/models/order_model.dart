@@ -61,18 +61,62 @@ class OrderModel {
     this.hotelId,
   });
 
+  /// Create a copy with updated hotelName/hotelId
+  OrderModel withHotelInfo({String? hotelName, String? hotelId}) {
+    return OrderModel(
+      id: id,
+      user: user,
+      users: users,
+      items: items,
+      subtotal: subtotal,
+      cgstAmount: cgstAmount,
+      sgstAmount: sgstAmount,
+      serviceCharge: serviceCharge,
+      totalAmount: totalAmount,
+      status: status,
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus,
+      tableNumber: tableNumber,
+      couponCode: couponCode,
+      discountAmount: discountAmount,
+      offerDiscount: offerDiscount,
+      amountPaid: amountPaid,
+      amountRefunded: amountRefunded,
+      orderType: orderType,
+      inventoryConsumed: inventoryConsumed,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      paymentDetails: paymentDetails,
+      paymentId: paymentId,
+      kitchenStatus: kitchenStatus,
+      hotel: hotel,
+      refunds: refunds,
+      hotelName: hotelName ?? this.hotelName,
+      hotelId: hotelId ?? this.hotelId,
+    );
+  }
+
   factory OrderModel.fromJson(Map<String, dynamic> json) {
+    // Parse items first so we can extract hotelId from the first item
+    final parsedItems = json['items'] != null
+        ? (json['items'] as List)
+              .map((i) => OrderItemModel.fromJson(i))
+              .toList()
+        : null;
+
+    // Extract hotelId from first item if not provided at order level
+    String? hotelId = json['hotelId'];
+    if (hotelId == null && parsedItems != null && parsedItems.isNotEmpty) {
+      hotelId = parsedItems.first.hotelId;
+    }
+
     return OrderModel(
       id: json['_id'],
       user: json['user'],
       users: json['users'] != null
           ? (json['users'] as List).map((i) => OrderUser.fromJson(i)).toList()
           : null,
-      items: json['items'] != null
-          ? (json['items'] as List)
-                .map((i) => OrderItemModel.fromJson(i))
-                .toList()
-          : null,
+      items: parsedItems,
       subtotal: json['subtotal'],
       cgstAmount: json['cgstAmount'],
       sgstAmount: json['sgstAmount'],
@@ -103,7 +147,7 @@ class OrderModel {
                 .toList()
           : null,
       hotelName: json['hotelName'],
-      hotelId: json['hotelId'],
+      hotelId: hotelId,
     );
   }
 }
@@ -129,6 +173,7 @@ class OrderUser {
 class OrderItemModel {
   final String? id;
   final String? menuItem;
+  final String? hotelId;
   final int? quantity;
   final String? size;
   final num? price;
@@ -142,6 +187,7 @@ class OrderItemModel {
   OrderItemModel({
     this.id,
     this.menuItem,
+    this.hotelId,
     this.quantity,
     this.size,
     this.price,
@@ -157,6 +203,7 @@ class OrderItemModel {
     return OrderItemModel(
       id: json['_id'],
       menuItem: json['menuItem'],
+      hotelId: json['hotelId']?.toString(),
       quantity: json['quantity'],
       size: json['size'],
       price: json['price'],

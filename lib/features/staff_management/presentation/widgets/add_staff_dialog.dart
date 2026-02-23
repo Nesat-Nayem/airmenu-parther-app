@@ -358,7 +358,7 @@ class _AddStaffDialogState extends State<AddStaffDialog> {
         ),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           items: items.map((item) {
             return DropdownMenuItem(
               value: item,
@@ -430,7 +430,7 @@ class _AddStaffDialogState extends State<AddStaffDialog> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: const Color(0xFFDC2626),
+            activeThumbColor: const Color(0xFFDC2626),
           ),
         ],
       ),
