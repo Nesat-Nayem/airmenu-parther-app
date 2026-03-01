@@ -200,6 +200,14 @@ class MenuTabModals {
     final offerController = TextEditingController(text: item?.offer ?? '');
     
     Uint8List? imageBytes;
+    // For editing, find which category the item belongs to
+    MenuCategory selectedCategory = category;
+    if (isEditing) {
+      final ownerCat = state.categories.where(
+        (c) => c.items.any((i) => i.id == item.id),
+      ).firstOrNull;
+      if (ownerCat != null) selectedCategory = ownerCat;
+    }
     List<String> selectedItemTypes = List.from(item?.itemType ?? []);
     List<String> selectedAttributes = List.from(item?.attributes ?? []);
     List<FoodItemOption> options = List.from(item?.options ?? []);
@@ -236,6 +244,33 @@ class MenuTabModals {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
+                                  _buildLabel('Category *'),
+                                  const SizedBox(height: 6),
+                                  DropdownButtonFormField<MenuCategory>(
+                                    value: selectedCategory,
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(Icons.category_outlined, size: 18),
+                                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: Colors.grey.shade300),
+                                      ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                        borderSide: BorderSide(color: Colors.grey.shade300),
+                                      ),
+                                      filled: true,
+                                      fillColor: Colors.grey.shade50,
+                                    ),
+                                    items: state.categories.map((cat) => DropdownMenuItem(
+                                      value: cat,
+                                      child: Text(cat.name, overflow: TextOverflow.ellipsis),
+                                    )).toList(),
+                                    onChanged: (cat) {
+                                      if (cat != null) setDialogState(() => selectedCategory = cat);
+                                    },
+                                  ),
+                                  const SizedBox(height: 16),
                                   _buildLabel('Item Title *'),
                                   const SizedBox(height: 6),
                                   _buildTextField(titleController, 'e.g., Margherita Pizza', Icons.title),
@@ -357,7 +392,7 @@ class MenuTabModals {
                         ));
                       } else {
                         menuBloc.add(AddFoodItemWithBytes(
-                          hotelId: hotelId, categoryName: category.name, title: title, description: description, price: price,
+                          hotelId: hotelId, categoryName: selectedCategory.name, title: title, description: description, price: price,
                           imageBytes: imageBytes!, itemType: selectedItemTypes, attributes: selectedAttributes,
                           options: options.isNotEmpty ? options : null,
                           sortdesc: sortdescController.text.trim().isNotEmpty ? sortdescController.text.trim() : null,

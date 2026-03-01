@@ -1,6 +1,4 @@
 import 'package:airmenuai_partner_app/features/menu/presentation/bloc/menu_cubit.dart';
-import 'package:airmenuai_partner_app/features/menu/presentation/widgets/add_edit_item_dialog.dart';
-import 'package:airmenuai_partner_app/features/menu/presentation/widgets/ai_import_dialog.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
@@ -100,7 +98,7 @@ class MobileMenuHeader extends StatelessWidget {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (_) => const AiMenuImportDialog(),
+                    builder: (_) => const SizedBox.shrink(),
                   );
                 },
                 icon: const Icon(Icons.auto_awesome, size: 16),
@@ -124,7 +122,7 @@ class MobileMenuHeader extends StatelessWidget {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (_) => const AddEditMenuItemDialog(),
+                    builder: (_) => const SizedBox.shrink(),
                   );
                 },
                 style: ElevatedButton.styleFrom(

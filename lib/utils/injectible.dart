@@ -49,6 +49,9 @@ import 'package:airmenuai_partner_app/features/onboarding_pipeline/domain/reposi
 import 'package:airmenuai_partner_app/features/my_kyc/data/vendor_kyc_repository.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/presentation/bloc/vendor_kyc_bloc.dart';
 
+// Menu Feature (Restaurants)
+import 'package:airmenuai_partner_app/features/restaurants/data/repositories/menu_repository.dart';
+
 // Menu Audit Feature
 import 'package:airmenuai_partner_app/features/menu_audit/data/repositories/menu_audit_repository_impl.dart';
 import 'package:airmenuai_partner_app/features/menu_audit/domain/repositories/i_menu_audit_repository.dart';
@@ -197,6 +200,11 @@ void initializeDependencies() {
   );
   locator.registerFactory<VendorKycBloc>(
     () => VendorKycBloc(locator<VendorKycRepository>()),
+  );
+
+  // Menu Repository (for vendor & admin menu management)
+  locator.registerLazySingleton<MenuRepository>(
+    () => MenuRepository(locator<ApiService>()),
   );
 
   // Menu Audit Feature

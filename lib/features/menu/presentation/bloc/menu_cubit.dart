@@ -17,4 +17,20 @@ class MenuCubit extends Cubit<MenuState> {
   void updateSearchQuery(String query) {
     emit(state.copyWith(searchQuery: query));
   }
+
+  void setHotelId(String hotelId) {
+    emit(state.copyWith(hotelId: hotelId));
+  }
+
+  void setLoading() {
+    emit(state.copyWith(isLoadingHotel: true, hotelError: null, clearError: true));
+  }
+
+  void setHotelError(String error) {
+    emit(state.copyWith(isLoadingHotel: false, hotelError: error));
+  }
+
+  void setHotelLoaded(String hotelId) {
+    emit(state.copyWith(hotelId: hotelId, isLoadingHotel: false, hotelError: null, clearError: true));
+  }
 }
