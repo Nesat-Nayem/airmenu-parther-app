@@ -1,36 +1,33 @@
+import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ManualStockDialog extends StatefulWidget {
   final bool isStockIn;
+  final InventoryItem? preselectedItem;
 
-  const ManualStockDialog({super.key, required this.isStockIn});
+  const ManualStockDialog({super.key, required this.isStockIn, this.preselectedItem});
 
   @override
   State<ManualStockDialog> createState() => _ManualStockDialogState();
 }
 
 class _ManualStockDialogState extends State<ManualStockDialog> {
-  String? selectedIngredient;
-  String? selectedPO;
+  InventoryItem? selectedIngredient;
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
 
-  final List<String> ingredients = [
-    'Paneer',
-    'Chicken',
-    'Basmati Rice',
-    'Fresh Cream',
-    'Cooking Oil',
-  ];
-
-  final List<String> purchaseOrders = [
-    'PO-2024-158',
-    'PO-2024-159',
-    'PO-2024-160',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    if (widget.preselectedItem != null) {
+      selectedIngredient = widget.preselectedItem;
+    }
+  }
 
   @override
   void dispose() {
@@ -39,11 +36,27 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
     super.dispose();
   }
 
+  void _submit() {
+    if (selectedIngredient == null) return;
+    final qty = double.tryParse(_quantityController.text.trim());
+    if (qty == null || qty <= 0) return;
+
+    final txnType = widget.isStockIn ? 'purchase' : 'adjustment';
+    context.read<InventoryBloc>().add(CreateTransaction({
+      'materialId': selectedIngredient!.id,
+      'type': txnType,
+      'quantity': qty,
+      if (_notesController.text.trim().isNotEmpty) 'note': _notesController.text.trim(),
+    }));
+    Navigator.pop(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = widget.isStockIn ? 'Stock In' : 'Stock Out';
     final actionLabel = widget.isStockIn ? 'Add Stock' : 'Remove Stock';
     final isMobile = Responsive.isMobile(context);
+    final materials = context.watch<InventoryBloc>().state.items;
 
     return Dialog(
       backgroundColor: Colors.transparent,
@@ -51,19 +64,13 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: Container(
         width: isMobile ? MediaQuery.of(context).size.width : 500,
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.of(context).size.height * 0.9,
-        ),
-        padding: const EdgeInsets.all(20), // Reduced from 24
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.15),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
+            BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 24, offset: const Offset(0, 8)),
           ],
         ),
         child: SingleChildScrollView(
@@ -75,12 +82,7 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    title,
-                    style: AirMenuTextStyle.headingH4.bold700().withColor(
-                      const Color(0xFF111827),
-                    ),
-                  ),
+                  Text(title, style: AirMenuTextStyle.headingH4.bold700().withColor(const Color(0xFF111827))),
                   IconButton(
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close, size: 20),
@@ -91,48 +93,35 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20), // Reduced from 24
-              // Form Fields
+              const SizedBox(height: 20),
+              // Ingredient dropdown from real state
               _buildLabel('Ingredient'),
               const SizedBox(height: 8),
-              _buildDropdown(
+              DropdownButtonFormField<InventoryItem>(
                 value: selectedIngredient,
-                hint: 'Select ingredient',
-                items: ingredients,
+                hint: Text('Select ingredient', style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF))),
                 onChanged: (val) => setState(() => selectedIngredient = val),
+                items: materials.map((m) => DropdownMenuItem(
+                  value: m,
+                  child: Text(
+                    '${m.name}${m.category.isNotEmpty ? " (${m.category})" : ""} — ${m.currentStock.toStringAsFixed(1)} ${m.unit}',
+                    style: AirMenuTextStyle.normal.medium500(),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                )).toList(),
+                decoration: _dropdownDecoration(),
+                dropdownColor: Colors.white,
+                icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9CA3AF)),
               ),
               const SizedBox(height: 12),
-
               _buildLabel('Quantity'),
               const SizedBox(height: 8),
-              _buildTextField(
-                controller: _quantityController,
-                hint: 'Enter quantity',
-                keyboardType: TextInputType.number,
-              ),
+              _buildTextField(controller: _quantityController, hint: 'Enter quantity', keyboardType: TextInputType.number),
               const SizedBox(height: 12),
-
-              // Purchase Order (Stock In only)
-              if (widget.isStockIn) ...[
-                _buildLabel('Purchase Order (Optional)'),
-                const SizedBox(height: 8),
-                _buildDropdown(
-                  value: selectedPO,
-                  hint: 'Link to PO',
-                  items: purchaseOrders,
-                  onChanged: (val) => setState(() => selectedPO = val),
-                ),
-                const SizedBox(height: 12),
-              ],
-
               _buildLabel('Notes'),
               const SizedBox(height: 8),
-              _buildTextField(
-                controller: _notesController,
-                hint: 'Optional notes',
-                maxLines: 2,
-              ),
-              const SizedBox(height: 24), // Reduced from 32
+              _buildTextField(controller: _notesController, hint: 'Optional notes', maxLines: 2),
+              const SizedBox(height: 24),
               // Actions
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -143,46 +132,23 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
                       foregroundColor: const Color(0xFF374151),
                       backgroundColor: Colors.white,
                       side: const BorderSide(color: Color(0xFFE5E7EB)),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
-                      elevation: 1, // Subtle shadow for 'White' button feel
-                      shadowColor: Colors.black.withOpacity(0.05),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     ),
-                    child: Text(
-                      'Cancel',
-                      style: AirMenuTextStyle.normal.bold600(),
-                    ),
+                    child: Text('Cancel', style: AirMenuTextStyle.normal.bold600()),
                   ),
                   const SizedBox(width: 12),
                   ElevatedButton(
-                    onPressed: () {
-                      // TODO: Submit logic
-                      Navigator.pop(context);
-                    },
+                    onPressed: _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: InventoryColors.primaryRed,
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                       elevation: 2,
                       shadowColor: const Color(0xFFEF4444).withOpacity(0.4),
                     ),
-                    child: Text(
-                      actionLabel,
-                      style: AirMenuTextStyle.normal.bold600().withColor(
-                        Colors.white,
-                      ),
-                    ),
+                    child: Text(actionLabel, style: AirMenuTextStyle.normal.bold600().withColor(Colors.white)),
                   ),
                 ],
               ),
@@ -193,78 +159,20 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
     );
   }
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: AirMenuTextStyle.small.bold600().withColor(
-        const Color(0xFF374151),
-      ),
-    );
-  }
+  Widget _buildLabel(String text) => Text(
+    text,
+    style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF374151)),
+  );
 
-  Widget _buildDropdown({
-    required String? value,
-    required String hint,
-    required List<String> items,
-    required Function(String) onChanged,
-  }) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.transparent),
-      ),
-      child: Material(
-        color: Colors.white, // Or Colors.transparent if container has color
-        borderRadius: BorderRadius.circular(12),
-        child: DropdownButtonFormField<String>(
-          value: value,
-          onChanged: (val) {
-            if (val != null) onChanged(val);
-          },
-          items: items
-              .map(
-                (item) => DropdownMenuItem(
-                  value: item,
-                  child: Text(item, style: AirMenuTextStyle.normal.medium500()),
-                ),
-              )
-              .toList(),
-          decoration: InputDecoration(
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 12,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFE5E7EB),
-              ), // Subtle border
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFFF3F4F6),
-              ), // Even subtler inactive
-            ),
-            hintText: hint,
-            hintStyle: AirMenuTextStyle.normal.medium500().withColor(
-              const Color(0xFF9CA3AF),
-            ),
-            fillColor: const Color(
-              0xFFFAFAFA,
-            ), // Slightly off-white? Or purely white.
-            // Screenshot input bg looks very light grey or white. Let's stick to white.
-            filled: true,
-          ),
-          icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9CA3AF)),
-          dropdownColor: Colors.white,
-        ),
-      ),
-    );
-  }
+  InputDecoration _dropdownDecoration() => InputDecoration(
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
+    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444))),
+    fillColor: const Color(0xFFFAFAFA),
+    filled: true,
+  );
 
   Widget _buildTextField({
     required TextEditingController controller,
@@ -280,26 +188,12 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
       cursorColor: const Color(0xFFEF4444),
       decoration: InputDecoration(
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 12,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFF3F4F6)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFEF4444)),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444))),
         hintText: hint,
-        hintStyle: AirMenuTextStyle.normal.medium500().withColor(
-          const Color(0xFF9CA3AF),
-        ),
+        hintStyle: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF)),
         fillColor: const Color(0xFFFAFAFA),
         filled: true,
       ),

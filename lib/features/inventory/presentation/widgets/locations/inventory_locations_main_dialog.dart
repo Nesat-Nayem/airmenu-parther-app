@@ -1,7 +1,9 @@
-import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/locations_cubit.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/locations_extended_cubit.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/locations/locations_tab_content.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/locations/stock_by_location_tab_content.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/locations/transfers_tab_content.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -12,7 +14,7 @@ class InventoryLocationsMainDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => LocationsCubit(),
+      create: (_) => LocationsExtCubit(locator<InventoryRepository>())..loadLocations(),
       child: const _DialogShell(),
     );
   }
@@ -48,9 +50,9 @@ class _DialogShell extends StatelessWidget {
 
             // Content Area
             Expanded(
-              child: BlocBuilder<LocationsCubit, LocationsState>(
+              child: BlocBuilder<LocationsExtCubit, LocationsExtState>(
                 builder: (context, state) {
-                  final index = (state as LocationsInitial).selectedTabIndex;
+                  final index = state.selectedTabIndex;
                   return AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
                     child: KeyedSubtree(
@@ -135,10 +137,9 @@ class _Header extends StatelessWidget {
                 color: const Color(0xFFFAFAFA),
                 borderRadius: BorderRadius.circular(30),
               ),
-              child: BlocBuilder<LocationsCubit, LocationsState>(
+              child: BlocBuilder<LocationsExtCubit, LocationsExtState>(
                 builder: (context, state) {
-                  final selectedIndex =
-                      (state as LocationsInitial).selectedTabIndex;
+                  final selectedIndex = state.selectedTabIndex;
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -148,21 +149,21 @@ class _Header extends StatelessWidget {
                           label: 'Locations',
                           isSelected: selectedIndex == 0,
                           onTap: () =>
-                              context.read<LocationsCubit>().selectTab(0),
+                              context.read<LocationsExtCubit>().selectTab(0),
                         ),
                         const SizedBox(width: 4),
                         _TabButton(
                           label: 'Stock by Location',
                           isSelected: selectedIndex == 1,
                           onTap: () =>
-                              context.read<LocationsCubit>().selectTab(1),
+                              context.read<LocationsExtCubit>().selectTab(1),
                         ),
                         const SizedBox(width: 4),
                         _TabButton(
                           label: 'Transfers',
                           isSelected: selectedIndex == 2,
                           onTap: () =>
-                              context.read<LocationsCubit>().selectTab(2),
+                              context.read<LocationsExtCubit>().selectTab(2),
                         ),
                       ],
                     ),

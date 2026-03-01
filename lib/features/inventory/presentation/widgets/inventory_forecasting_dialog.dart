@@ -1,4 +1,6 @@
-import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/forecasting_cubit.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/forecasting_extended_cubit.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/create_po_dialog.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
@@ -12,7 +14,7 @@ class InventoryForecastingDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => ForecastingCubit(),
+      create: (_) => ForecastingExtCubit(locator<InventoryRepository>())..load(),
       child: const _DialogContent(),
     );
   }
@@ -232,127 +234,90 @@ class _HeaderSection extends StatelessWidget {
           ),
 
           // Urgent Banner
-          Container(
-            margin: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 0,
-            ).copyWith(bottom: 20),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF2F2),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFFECACA)),
-            ),
-            child: isMobile
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+          BlocBuilder<ForecastingExtCubit, ForecastingExtState>(
+            builder: (context, fState) {
+              final urgentItems = fState.data.urgentItems;
+              final urgentCount = fState.data.criticalCount + fState.data.warningCount;
+              if (urgentCount == 0) return const SizedBox.shrink();
+              return Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24).copyWith(bottom: 20),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: isMobile
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            color: InventoryColors.primaryRed,
-                            size: 20,
+                          Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded, color: InventoryColors.primaryRed, size: 20),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Urgent: $urgentCount items need reorder now',
+                                  style: AirMenuTextStyle.normal.bold700().withColor(const Color(0xFFB91C1C)),
+                                ),
+                              ),
+                            ],
                           ),
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: urgentItems.take(5).map((l) => _UrgentChip(label: l)).toList(),
+                          ),
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                showDialog(context: context, builder: (context) => const CreatePurchaseOrderDialog());
+                              },
+                              icon: const Icon(Icons.shopping_cart_outlined, size: 16),
+                              label: const Text('Create Urgent PO'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: InventoryColors.primaryRed,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Color(0xFFEF4444), size: 20),
                           const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Urgent: 2 items need reorder now',
-                              style: AirMenuTextStyle.normal
-                                  .bold700()
-                                  .withColor(const Color(0xFFB91C1C)),
+                          Text(
+                            'Urgent: $urgentCount items need reorder now',
+                            style: AirMenuTextStyle.normal.bold700().withColor(const Color(0xFFB91C1C)),
+                          ),
+                          const Spacer(),
+                          ...urgentItems.take(3).expand((l) => [_UrgentChip(label: l), const SizedBox(width: 8)]),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              showDialog(context: context, builder: (context) => const CreatePurchaseOrderDialog());
+                            },
+                            icon: const Icon(Icons.shopping_cart_outlined, size: 16),
+                            label: const Text('Create Urgent PO'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              foregroundColor: Colors.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: const [
-                          _UrgentChip(label: 'Paneer - 2d left'),
-                          _UrgentChip(label: 'Chicken - 3d left'),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) =>
-                                  const CreatePurchaseOrderDialog(),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.shopping_cart_outlined,
-                            size: 16,
-                          ),
-                          label: const Text('Create Urgent PO'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: InventoryColors.primaryRed,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 12,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      const Icon(
-                        Icons.warning_amber_rounded,
-                        color: Color(0xFFEF4444),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Urgent: 2 items need reorder now',
-                        style: AirMenuTextStyle.normal.bold700().withColor(
-                          const Color(0xFFB91C1C),
-                        ),
-                      ),
-                      const Spacer(),
-                      const _UrgentChip(label: 'Paneer - 2d left'),
-                      const SizedBox(width: 8),
-                      const _UrgentChip(label: 'Chicken - 3d left'),
-                      const SizedBox(width: 16),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          showDialog(
-                            context: context,
-                            builder: (context) =>
-                                const CreatePurchaseOrderDialog(),
-                          );
-                        },
-                        icon: const Icon(
-                          Icons.shopping_cart_outlined,
-                          size: 16,
-                        ),
-                        label: const Text('Create Urgent PO'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC2626),
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              );
+            },
           ),
         ],
       ),
@@ -366,9 +331,9 @@ class _TimeRangeDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ForecastingCubit, ForecastingState>(
+    return BlocBuilder<ForecastingExtCubit, ForecastingExtState>(
       builder: (context, state) {
-        final current = (state as ForecastingInitial).selectedTimeRange;
+        final current = state.selectedTimeRange;
         return PopupMenuButton<String>(
           offset: const Offset(0, 48),
           shape: RoundedRectangleBorder(
@@ -380,7 +345,7 @@ class _TimeRangeDropdown extends StatelessWidget {
             _buildItem(context, 'Next 30 Days', current == 'Next 30 Days'),
           ],
           onSelected: (value) =>
-              context.read<ForecastingCubit>().selectTimeRange(value),
+              context.read<ForecastingExtCubit>().selectTimeRange(value),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -483,111 +448,42 @@ class _KPIGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
-
-    if (isMobile) {
-      return Column(
-        children: [
-          Row(
+    return BlocBuilder<ForecastingExtCubit, ForecastingExtState>(
+      builder: (context, state) {
+        final d = state.data;
+        if (isMobile) {
+          return Column(
             children: [
-              Expanded(
-                child: _KPI(
-                  label: 'Critical (≤3 days)',
-                  value: '2',
-                  color: const Color(0xFFFEF2F2),
-                  textColor: const Color(0xFFB91C1C),
-                  borderColor: const Color(0xFFFECACA),
-                  icon: Icons.warning_amber_rounded,
-                ),
+              Row(
+                children: [
+                  Expanded(child: _KPI(label: 'Critical (≤3 days)', value: '${d.criticalCount}', color: const Color(0xFFFEF2F2), textColor: const Color(0xFFB91C1C), borderColor: const Color(0xFFFECACA), icon: Icons.warning_amber_rounded)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _KPI(label: 'Warning (4-5 days)', value: '${d.warningCount}', color: const Color(0xFFFFFBEB), textColor: const Color(0xFFB45309), borderColor: const Color(0xFFFDE68A), icon: Icons.access_time)),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _KPI(
-                  label: 'Warning (4-5 days)',
-                  value: '1',
-                  color: const Color(0xFFFFFBEB),
-                  textColor: const Color(0xFFB45309),
-                  borderColor: const Color(0xFFFDE68A),
-                  icon: Icons.access_time,
-                ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _KPI(label: 'Healthy (>5 days)', value: '${d.healthyCount}', color: const Color(0xFFECFDF5), textColor: const Color(0xFF047857), borderColor: const Color(0xFFA7F3D0), icon: Icons.calendar_today_outlined)),
+                  const SizedBox(width: 16),
+                  Expanded(child: _KPI(label: 'Avg Confidence', value: '${d.avgConfidence}%', color: const Color(0xFFFEF2F2), textColor: const Color(0xFFB91C1C), borderColor: const Color(0xFFFECACA), icon: Icons.auto_awesome)),
+                ],
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _KPI(
-                  label: 'Healthy (>5 days)',
-                  value: '2',
-                  color: const Color(0xFFECFDF5),
-                  textColor: const Color(0xFF047857),
-                  borderColor: const Color(0xFFA7F3D0),
-                  icon: Icons.calendar_today_outlined,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _KPI(
-                  label: 'Avg Confidence',
-                  value: '90%',
-                  color: const Color(0xFFFEF2F2),
-                  textColor: const Color(0xFFB91C1C),
-                  borderColor: const Color(0xFFFECACA),
-                  icon: Icons.auto_awesome,
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: _KPI(
-            label: 'Critical (≤3 days)',
-            value: '2',
-            color: const Color(0xFFFEF2F2),
-            textColor: const Color(0xFFB91C1C),
-            borderColor: const Color(0xFFFECACA),
-            icon: Icons.warning_amber_rounded,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _KPI(
-            label: 'Warning (4-5 days)',
-            value: '1',
-            color: const Color(0xFFFFFBEB),
-            textColor: const Color(0xFFB45309),
-            borderColor: const Color(0xFFFDE68A),
-            icon: Icons.access_time,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _KPI(
-            label: 'Healthy (>5 days)',
-            value: '2',
-            color: const Color(0xFFECFDF5),
-            textColor: const Color(0xFF047857),
-            borderColor: const Color(0xFFA7F3D0),
-            icon: Icons.calendar_today_outlined,
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _KPI(
-            label: 'Avg Confidence',
-            value: '90%',
-            color: const Color(0xFFFEF2F2),
-            textColor: const Color(0xFFB91C1C),
-            borderColor: const Color(0xFFFECACA),
-            icon: Icons.auto_awesome,
-          ),
-        ),
-      ],
+          );
+        }
+        return Row(
+          children: [
+            Expanded(child: _KPI(label: 'Critical (≤3 days)', value: '${d.criticalCount}', color: const Color(0xFFFEF2F2), textColor: const Color(0xFFB91C1C), borderColor: const Color(0xFFFECACA), icon: Icons.warning_amber_rounded)),
+            const SizedBox(width: 16),
+            Expanded(child: _KPI(label: 'Warning (4-5 days)', value: '${d.warningCount}', color: const Color(0xFFFFFBEB), textColor: const Color(0xFFB45309), borderColor: const Color(0xFFFDE68A), icon: Icons.access_time)),
+            const SizedBox(width: 16),
+            Expanded(child: _KPI(label: 'Healthy (>5 days)', value: '${d.healthyCount}', color: const Color(0xFFECFDF5), textColor: const Color(0xFF047857), borderColor: const Color(0xFFA7F3D0), icon: Icons.calendar_today_outlined)),
+            const SizedBox(width: 16),
+            Expanded(child: _KPI(label: 'Avg Confidence', value: '${d.avgConfidence}%', color: const Color(0xFFFEF2F2), textColor: const Color(0xFFB91C1C), borderColor: const Color(0xFFFECACA), icon: Icons.auto_awesome)),
+          ],
+        );
+      },
     );
   }
 }
@@ -652,64 +548,32 @@ class _ReorderScheduleList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheduleItems = Column(
-      children: const [
-        _ScheduleItem(
-          id: 'paneer',
-          name: 'Paneer',
-          daysLeft: '2d left',
-          stock: '2 kg',
-          use: '1.2 kg',
-          reorder: 'Today',
-          conf: '92%',
-          isCritical: true,
-        ),
-        SizedBox(height: 12),
-        _ScheduleItem(
-          id: 'chicken',
-          name: 'Chicken',
-          daysLeft: '3d left',
-          stock: '8 kg',
-          use: '2.5 kg',
-          reorder: 'Tomorrow',
-          conf: '88%',
-          isWarning: true,
-        ),
-        SizedBox(height: 12),
-        _ScheduleItem(
-          id: 'cream',
-          name: 'Fresh Cream',
-          daysLeft: '4d left',
-          stock: '3 L',
-          use: '0.8 L',
-          reorder: 'In 2 days',
-          conf: '85%',
-          isWarning: true,
-        ),
-        SizedBox(height: 12),
-        _ScheduleItem(
-          id: 'rice',
-          name: 'Basmati Rice',
-          daysLeft: '8d left',
-          stock: '25 kg',
-          use: '3.2 kg',
-          reorder: 'In 5 days',
-          conf: '90%',
-          isHealthy: true,
-        ),
-        SizedBox(height: 12),
-        _ScheduleItem(
-          id: 'oil',
-          name: 'Cooking Oil',
-          daysLeft: '8d left',
-          stock: '12 L',
-          use: '1.5 L',
-          reorder: 'In 5 days',
-          conf: '94%',
-          isHealthy: true,
-        ),
-        SizedBox(height: 24),
-      ],
+    final scheduleItems = BlocBuilder<ForecastingExtCubit, ForecastingExtState>(
+      builder: (context, state) {
+        if (state.status == ForecastingExtStatus.loading && state.data.forecasts.isEmpty) {
+          return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
+        }
+        return Column(
+          children: [
+            ...state.data.forecasts.expand((f) => [
+              _ScheduleItem(
+                id: f.id,
+                name: f.name,
+                daysLeft: f.daysLeft >= 999 ? 'OK' : '${f.daysLeft}d left',
+                stock: '${f.currentStock.toStringAsFixed(1)} ${f.unit}',
+                use: '${f.avgDailyUse.toStringAsFixed(1)} ${f.unit}',
+                reorder: f.reorderDate,
+                conf: '${f.confidence}%',
+                isCritical: f.status == 'critical',
+                isWarning: f.status == 'warning',
+                isHealthy: f.status == 'healthy',
+              ),
+              const SizedBox(height: 12),
+            ]).toList(),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
 
     return Column(
@@ -773,9 +637,9 @@ class _ScheduleItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ForecastingCubit, ForecastingState>(
+    return BlocBuilder<ForecastingExtCubit, ForecastingExtState>(
       builder: (context, state) {
-        final isSelected = (state as ForecastingInitial).selectedItemId == id;
+        final isSelected = state.selectedItemId == id;
 
         Color bg = Colors.white;
         Color border = const Color(0xFFE5E7EB);
@@ -798,7 +662,7 @@ class _ScheduleItem extends StatelessWidget {
         }
 
         return GestureDetector(
-          onTap: () => context.read<ForecastingCubit>().selectItem(id),
+          onTap: () => context.read<ForecastingExtCubit>().selectItem(id),
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             child: AnimatedContainer(
@@ -963,17 +827,11 @@ class _StockProjectionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ForecastingCubit, ForecastingState>(
+    return BlocBuilder<ForecastingExtCubit, ForecastingExtState>(
       builder: (context, state) {
-        final itemId = (state as ForecastingInitial).selectedItemId;
-        final itemNames = {
-          'paneer': 'Paneer',
-          'chicken': 'Chicken',
-          'cream': 'Fresh Cream',
-          'rice': 'Basmati Rice',
-          'oil': 'Cooking Oil',
-        };
-        final itemName = itemNames[itemId] ?? 'Paneer';
+        final selectedId = state.selectedItemId;
+        final forecast = state.data.forecasts.where((f) => f.id == selectedId).firstOrNull;
+        final itemName = forecast?.name ?? (state.data.forecasts.isNotEmpty ? state.data.forecasts.first.name : '—');
 
         final content = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1111,7 +969,7 @@ class _StockProjectionPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Based on 92% confidence analysis of 30-day consumption patterns, we recommend ordering 9 kg of $itemName by Today to maintain optimal stock levels and avoid stockouts.',
+                    'Based on ${forecast?.confidence ?? 0}% confidence analysis of 30-day consumption patterns, we recommend ordering ${((forecast?.avgDailyUse ?? 0) * 7).toStringAsFixed(1)} ${forecast?.unit ?? ''} of $itemName by ${forecast?.reorderDate ?? 'soon'} to maintain optimal stock levels and avoid stockouts.',
                     style: AirMenuTextStyle.normal.medium500().withColor(
                       const Color(0xFF6B7280),
                     ),

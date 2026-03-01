@@ -1,8 +1,11 @@
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:equatable/equatable.dart';
 
-// Events
+// ─── Events ────────────────────────────────────────────────────────────────────
+
 abstract class InventoryEvent extends Equatable {
   const InventoryEvent();
   @override
@@ -38,74 +41,134 @@ class ToggleCompactView extends InventoryEvent {}
 
 class ToggleAnalytics extends InventoryEvent {}
 
-// State
+// Material CRUD
+class AddMaterial extends InventoryEvent {
+  final Map<String, dynamic> data;
+  const AddMaterial(this.data);
+  @override
+  List<Object?> get props => [data];
+}
+
+class EditMaterial extends InventoryEvent {
+  final String id;
+  final Map<String, dynamic> data;
+  const EditMaterial(this.id, this.data);
+  @override
+  List<Object?> get props => [id, data];
+}
+
+class DeleteMaterial extends InventoryEvent {
+  final String id;
+  const DeleteMaterial(this.id);
+  @override
+  List<Object?> get props => [id];
+}
+
+// Transaction
+class CreateTransaction extends InventoryEvent {
+  final Map<String, dynamic> data;
+  const CreateTransaction(this.data);
+  @override
+  List<Object?> get props => [data];
+}
+
+// Recipes
+class LoadRecipes extends InventoryEvent {}
+
+class AddRecipe extends InventoryEvent {
+  final Map<String, dynamic> data;
+  const AddRecipe(this.data);
+  @override
+  List<Object?> get props => [data];
+}
+
+class EditRecipe extends InventoryEvent {
+  final String id;
+  final Map<String, dynamic> data;
+  const EditRecipe(this.id, this.data);
+  @override
+  List<Object?> get props => [id, data];
+}
+
+class DeleteRecipe extends InventoryEvent {
+  final String id;
+  const DeleteRecipe(this.id);
+  @override
+  List<Object?> get props => [id];
+}
+
+// ─── State ─────────────────────────────────────────────────────────────────────
+
 class InventoryState extends Equatable {
   final bool isLoading;
+  final bool isActionLoading;
   final List<InventoryItem> items;
-  final List<PurchaseOrder> recentOrders;
-  final InventoryAnalytics? analytics;
+  final List<RecipeModel> recipes;
+  final InventoryAnalytics analytics;
   final String searchQuery;
   final String categoryFilter;
   final String statusFilter;
   final bool isCompactView;
   final bool showAnalytics;
   final String? errorMessage;
+  final String? successMessage;
 
   const InventoryState({
     this.isLoading = false,
+    this.isActionLoading = false,
     this.items = const [],
-    this.recentOrders = const [],
-    this.analytics,
+    this.recipes = const [],
+    this.analytics = InventoryAnalytics.empty,
     this.searchQuery = '',
     this.categoryFilter = 'All',
     this.statusFilter = 'All',
     this.isCompactView = false,
     this.showAnalytics = false,
     this.errorMessage,
+    this.successMessage,
   });
+
+  // ── Derived stats ────────────────────────────────────────────────────────────
+
+  int get totalItems => items.length;
+  int get lowStockCount => items.where((i) => i.status == StockStatus.low || i.status == StockStatus.critical).length;
+  int get criticalCount => items.where((i) => i.status == StockStatus.critical).length;
+
+  List<String> get categories {
+    final cats = items.map((i) => i.category).where((c) => c.isNotEmpty).toSet().toList()..sort();
+    return cats;
+  }
 
   List<InventoryItem> get filteredItems {
     var filtered = items;
-
-    // Apply search filter
     if (searchQuery.isNotEmpty) {
-      filtered = filtered
-          .where(
-            (item) =>
-                item.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                item.category.toLowerCase().contains(searchQuery.toLowerCase()),
-          )
-          .toList();
+      final q = searchQuery.toLowerCase();
+      filtered = filtered.where((item) =>
+          item.name.toLowerCase().contains(q) ||
+          item.category.toLowerCase().contains(q) ||
+          item.sku.toLowerCase().contains(q)).toList();
     }
-
-    // Apply category filter
     if (categoryFilter != 'All') {
-      filtered = filtered
-          .where((item) => item.category == categoryFilter)
-          .toList();
+      filtered = filtered.where((item) => item.category == categoryFilter).toList();
     }
-
-    // Apply status filter
     if (statusFilter != 'All') {
       filtered = filtered.where((item) {
         switch (statusFilter) {
-          case 'Critical':
-            return item.status == StockStatus.critical;
-          case 'Low':
-            return item.status == StockStatus.low;
-          default:
-            return true;
+          case 'Critical': return item.status == StockStatus.critical;
+          case 'Low': return item.status == StockStatus.low;
+          case 'Healthy': return item.status == StockStatus.healthy;
+          default: return true;
         }
       }).toList();
     }
-
     return filtered;
   }
 
   InventoryState copyWith({
     bool? isLoading,
+    bool? isActionLoading,
     List<InventoryItem>? items,
-    List<PurchaseOrder>? recentOrders,
+    List<RecipeModel>? recipes,
     InventoryAnalytics? analytics,
     String? searchQuery,
     String? categoryFilter,
@@ -113,227 +176,162 @@ class InventoryState extends Equatable {
     bool? isCompactView,
     bool? showAnalytics,
     String? errorMessage,
+    String? successMessage,
   }) {
     return InventoryState(
       isLoading: isLoading ?? this.isLoading,
+      isActionLoading: isActionLoading ?? this.isActionLoading,
       items: items ?? this.items,
-      recentOrders: recentOrders ?? this.recentOrders,
+      recipes: recipes ?? this.recipes,
       analytics: analytics ?? this.analytics,
       searchQuery: searchQuery ?? this.searchQuery,
       categoryFilter: categoryFilter ?? this.categoryFilter,
       statusFilter: statusFilter ?? this.statusFilter,
       isCompactView: isCompactView ?? this.isCompactView,
       showAnalytics: showAnalytics ?? this.showAnalytics,
-      errorMessage: errorMessage ?? this.errorMessage,
+      errorMessage: errorMessage,
+      successMessage: successMessage,
     );
   }
 
   @override
   List<Object?> get props => [
-    isLoading,
-    items,
-    recentOrders,
-    analytics,
-    searchQuery,
-    categoryFilter,
-    statusFilter,
-    isCompactView,
-    showAnalytics,
-    errorMessage,
+    isLoading, isActionLoading, items, recipes, analytics,
+    searchQuery, categoryFilter, statusFilter,
+    isCompactView, showAnalytics, errorMessage, successMessage,
   ];
 }
 
-// Bloc
+// ─── Bloc ──────────────────────────────────────────────────────────────────────
+
 class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
-  InventoryBloc() : super(const InventoryState()) {
-    on<LoadInventory>(_onLoadInventory);
-    on<RefreshInventory>(_onRefreshInventory);
-    on<UpdateSearchQuery>(_onUpdateSearchQuery);
-    on<UpdateCategoryFilter>(_onUpdateCategoryFilter);
-    on<UpdateStatusFilter>(_onUpdateStatusFilter);
-    on<ToggleCompactView>(_onToggleCompactView);
-    on<ToggleAnalytics>(_onToggleAnalytics);
+  final InventoryRepository _repo;
+
+  InventoryBloc(this._repo) : super(const InventoryState()) {
+    on<LoadInventory>(_onLoad);
+    on<RefreshInventory>((_, emit) => _onLoad(LoadInventory(), emit));
+    on<UpdateSearchQuery>((e, emit) => emit(state.copyWith(searchQuery: e.query)));
+    on<UpdateCategoryFilter>((e, emit) => emit(state.copyWith(categoryFilter: e.category)));
+    on<UpdateStatusFilter>((e, emit) => emit(state.copyWith(statusFilter: e.status)));
+    on<ToggleCompactView>((_, emit) => emit(state.copyWith(isCompactView: !state.isCompactView)));
+    on<ToggleAnalytics>((_, emit) => emit(state.copyWith(showAnalytics: !state.showAnalytics)));
+    on<AddMaterial>(_onAddMaterial);
+    on<EditMaterial>(_onEditMaterial);
+    on<DeleteMaterial>(_onDeleteMaterial);
+    on<CreateTransaction>(_onCreateTransaction);
+    on<LoadRecipes>(_onLoadRecipes);
+    on<AddRecipe>(_onAddRecipe);
+    on<EditRecipe>(_onEditRecipe);
+    on<DeleteRecipe>(_onDeleteRecipe);
   }
 
-  Future<void> _onLoadInventory(
-    LoadInventory event,
-    Emitter<InventoryState> emit,
-  ) async {
-    emit(state.copyWith(isLoading: true));
+  Future<void> _onLoad(LoadInventory event, Emitter<InventoryState> emit) async {
+    emit(state.copyWith(isLoading: true, errorMessage: null));
+    final materialsRes = await _repo.getMaterials();
+    final analyticsRes = await _repo.getOverviewReport();
 
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Mock Data
-    final mockItems = [
-      const InventoryItem(
-        id: '1',
-        name: 'Paneer',
-        category: 'Dairy',
-        currentStock: 2,
-        minStock: 5,
-        maxStock: 10,
-        costPrice: 320,
-        unit: 'kg',
-        status: StockStatus.critical,
-        consumption: ConsumptionLevel.high,
-        vendor: 'Fresh Dairy Co.',
-      ),
-      const InventoryItem(
-        id: '2',
-        name: 'Chicken',
-        category: 'Meat',
-        currentStock: 8,
-        minStock: 10,
-        maxStock: 20,
-        costPrice: 450,
-        unit: 'kg',
-        status: StockStatus.low,
-        consumption: ConsumptionLevel.high,
-        vendor: 'Farm Fresh Meats',
-      ),
-      const InventoryItem(
-        id: '3',
-        name: 'Basmati Rice',
-        category: 'Grains',
-        currentStock: 25,
-        minStock: 20,
-        maxStock: 50,
-        costPrice: 120,
-        unit: 'kg',
-        status: StockStatus.healthy,
-        consumption: ConsumptionLevel.medium,
-        vendor: 'Grain Traders',
-      ),
-      const InventoryItem(
-        id: '4',
-        name: 'Fresh Cream',
-        category: 'Dairy',
-        currentStock: 3,
-        minStock: 5,
-        maxStock: 10,
-        costPrice: 180,
-        unit: 'L',
-        status: StockStatus.low,
-        consumption: ConsumptionLevel.high,
-        vendor: 'Fresh Dairy Co.',
-      ),
-      const InventoryItem(
-        id: '5',
-        name: 'Onions',
-        category: 'Vegetables',
-        currentStock: 15,
-        minStock: 10,
-        maxStock: 30,
-        costPrice: 40,
-        unit: 'kg',
-        status: StockStatus.healthy,
-        consumption: ConsumptionLevel.high,
-        vendor: 'Veggie Hub',
-      ),
-      const InventoryItem(
-        id: '6',
-        name: 'Cooking Oil',
-        category: 'Oils',
-        currentStock: 12,
-        minStock: 10,
-        maxStock: 20,
-        costPrice: 150,
-        unit: 'L',
-        status: StockStatus.healthy,
-        consumption: ConsumptionLevel.medium,
-        vendor: 'Oil Mills Ltd.',
-      ),
-    ];
-
-    final mockOrders = [
-      PurchaseOrder(
-        id: '1',
-        poNumber: 'PO-2024-158',
-        vendorName: 'Fresh Dairy Co.',
-        amount: 4100,
-        status: PurchaseOrderStatus.pending,
-        date: DateTime.now(),
-      ),
-      PurchaseOrder(
-        id: '2',
-        poNumber: 'PO-2024-157',
-        vendorName: 'Farm Fresh Meats',
-        amount: 4200,
-        status: PurchaseOrderStatus.ordered,
-        date: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      PurchaseOrder(
-        id: '3',
-        poNumber: 'PO-2024-156',
-        vendorName: 'Fresh Dairy Co.',
-        amount: 1600,
-        status: PurchaseOrderStatus.received,
-        date: DateTime.now().subtract(const Duration(days: 2)),
-      ),
-    ];
-
-    const mockAnalytics = InventoryAnalytics(
-      totalConsumption: 52450,
-      totalCost: 115000,
-      totalWastage: 11700,
-      efficiencyScore: 0.942,
-      consumptionTrend: [
-        ChartDataPoint('Jan', 43000),
-        ChartDataPoint('Feb', 49000),
-        ChartDataPoint('Mar', 30000),
-        ChartDataPoint('Apr', 25000),
-        ChartDataPoint('May', 17000),
-        ChartDataPoint('Jun', 22000),
-      ],
-    );
-
-    emit(
-      state.copyWith(
+    if (materialsRes is DataSuccess<List<InventoryItem>>) {
+      final analytics = analyticsRes is DataSuccess<InventoryAnalytics>
+          ? analyticsRes.data!
+          : InventoryAnalytics.empty;
+      emit(state.copyWith(
         isLoading: false,
-        items: mockItems,
-        recentOrders: mockOrders,
-        analytics: mockAnalytics,
-      ),
-    );
+        items: materialsRes.data!,
+        analytics: analytics,
+      ));
+    } else {
+      emit(state.copyWith(
+        isLoading: false,
+        errorMessage: materialsRes.error?.message ?? 'Failed to load inventory',
+      ));
+    }
   }
 
-  void _onRefreshInventory(
-    RefreshInventory event,
-    Emitter<InventoryState> emit,
-  ) {
-    add(LoadInventory());
+  Future<void> _onAddMaterial(AddMaterial event, Emitter<InventoryState> emit) async {
+    emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
+    final res = await _repo.createMaterial(event.data);
+    if (res is DataSuccess<InventoryItem>) {
+      final updated = [res.data!, ...state.items];
+      emit(state.copyWith(isActionLoading: false, items: updated, successMessage: 'Material added'));
+    } else {
+      emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to add material'));
+    }
   }
 
-  void _onUpdateSearchQuery(
-    UpdateSearchQuery event,
-    Emitter<InventoryState> emit,
-  ) {
-    emit(state.copyWith(searchQuery: event.query));
+  Future<void> _onEditMaterial(EditMaterial event, Emitter<InventoryState> emit) async {
+    emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
+    final res = await _repo.updateMaterial(event.id, event.data);
+    if (res is DataSuccess<InventoryItem>) {
+      final updated = state.items.map((i) => i.id == event.id ? res.data! : i).toList();
+      emit(state.copyWith(isActionLoading: false, items: updated, successMessage: 'Material updated'));
+    } else {
+      emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to update material'));
+    }
   }
 
-  void _onToggleAnalytics(ToggleAnalytics event, Emitter<InventoryState> emit) {
-    emit(state.copyWith(showAnalytics: !state.showAnalytics));
+  Future<void> _onDeleteMaterial(DeleteMaterial event, Emitter<InventoryState> emit) async {
+    emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
+    final res = await _repo.deleteMaterial(event.id);
+    if (res is DataSuccess<bool>) {
+      final updated = state.items.where((i) => i.id != event.id).toList();
+      emit(state.copyWith(isActionLoading: false, items: updated, successMessage: 'Material deleted'));
+    } else {
+      emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to delete material'));
+    }
   }
 
-  void _onUpdateCategoryFilter(
-    UpdateCategoryFilter event,
-    Emitter<InventoryState> emit,
-  ) {
-    emit(state.copyWith(categoryFilter: event.category));
+  Future<void> _onCreateTransaction(CreateTransaction event, Emitter<InventoryState> emit) async {
+    emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
+    final res = await _repo.createTransaction(event.data);
+    if (res is DataSuccess<bool>) {
+      // Reload materials to reflect updated stock
+      final materialsRes = await _repo.getMaterials();
+      if (materialsRes is DataSuccess<List<InventoryItem>>) {
+        emit(state.copyWith(isActionLoading: false, items: materialsRes.data!, successMessage: 'Stock updated'));
+      } else {
+        emit(state.copyWith(isActionLoading: false, successMessage: 'Stock updated'));
+      }
+    } else {
+      emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to update stock'));
+    }
   }
 
-  void _onUpdateStatusFilter(
-    UpdateStatusFilter event,
-    Emitter<InventoryState> emit,
-  ) {
-    emit(state.copyWith(statusFilter: event.status));
+  Future<void> _onLoadRecipes(LoadRecipes event, Emitter<InventoryState> emit) async {
+    final res = await _repo.getRecipes();
+    if (res is DataSuccess<List<RecipeModel>>) {
+      emit(state.copyWith(recipes: res.data!));
+    }
   }
 
-  void _onToggleCompactView(
-    ToggleCompactView event,
-    Emitter<InventoryState> emit,
-  ) {
-    emit(state.copyWith(isCompactView: !state.isCompactView));
+  Future<void> _onAddRecipe(AddRecipe event, Emitter<InventoryState> emit) async {
+    emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
+    final res = await _repo.createRecipe(event.data);
+    if (res is DataSuccess<RecipeModel>) {
+      emit(state.copyWith(isActionLoading: false, recipes: [res.data!, ...state.recipes], successMessage: 'Recipe saved'));
+    } else {
+      emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to save recipe'));
+    }
+  }
+
+  Future<void> _onEditRecipe(EditRecipe event, Emitter<InventoryState> emit) async {
+    emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
+    final res = await _repo.updateRecipe(event.id, event.data);
+    if (res is DataSuccess<RecipeModel>) {
+      final updated = state.recipes.map((r) => r.id == event.id ? res.data! : r).toList();
+      emit(state.copyWith(isActionLoading: false, recipes: updated, successMessage: 'Recipe updated'));
+    } else {
+      emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to update recipe'));
+    }
+  }
+
+  Future<void> _onDeleteRecipe(DeleteRecipe event, Emitter<InventoryState> emit) async {
+    emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
+    final res = await _repo.deleteRecipe(event.id);
+    if (res is DataSuccess<bool>) {
+      final updated = state.recipes.where((r) => r.id != event.id).toList();
+      emit(state.copyWith(isActionLoading: false, recipes: updated, successMessage: 'Recipe deleted'));
+    } else {
+      emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to delete recipe'));
+    }
   }
 }

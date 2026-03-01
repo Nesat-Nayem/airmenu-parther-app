@@ -1,4 +1,7 @@
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/inventory_bloc.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/add_edit_material_dialog.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 import 'package:airmenuai_partner_app/features/reports/presentation/widgets/report_shared_components.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
@@ -292,6 +295,40 @@ class InventoryItemsTable extends StatelessWidget {
     this.isCompactView = false,
   });
 
+  void _showEditDialog(BuildContext context, InventoryItem item) {
+    showDialog(
+      context: context,
+      builder: (_) => BlocProvider.value(
+        value: context.read<InventoryBloc>(),
+        child: AddEditMaterialDialog(item: item),
+      ),
+    );
+  }
+
+  void _showDeleteConfirm(BuildContext context, InventoryItem item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Material'),
+        content: Text('Delete "${item.name}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              context.read<InventoryBloc>().add(DeleteMaterial(item.id));
+              Navigator.of(ctx).pop();
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
@@ -482,8 +519,26 @@ class InventoryItemsTable extends StatelessWidget {
                         flex: 2,
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: _RestockActionButton(
-                            onTap: () => onRestock(item),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _RestockActionButton(
+                                onTap: () => onRestock(item),
+                              ),
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, size: 16),
+                                tooltip: 'Edit',
+                                color: Colors.grey.shade500,
+                                onPressed: () => _showEditDialog(context, item),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 16),
+                                tooltip: 'Delete',
+                                color: Colors.red.shade300,
+                                onPressed: () => _showDeleteConfirm(context, item),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -819,12 +874,10 @@ class InventoryAnalyticsSection extends StatelessWidget {
 
 /// Purchase Orders & Recipe Mapping (Compact Sidebar/Grid widgets)
 class InventoryDashboardSecondaryWidgets extends StatelessWidget {
-  final List<PurchaseOrder> recentOrders;
   final VoidCallback onNewPO;
 
   const InventoryDashboardSecondaryWidgets({
     super.key,
-    required this.recentOrders,
     required this.onNewPO,
   });
 
@@ -853,7 +906,12 @@ class InventoryDashboardSecondaryWidgets extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...recentOrders.map((po) => _poTile(po)),
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text('No purchase orders yet', style: TextStyle(color: Colors.grey)),
+            ),
+          ),
         ],
       ),
     );
@@ -934,6 +992,7 @@ class InventoryDashboardSecondaryWidgets extends StatelessWidget {
     );
   }
 
+  // ignore: unused_element
   Widget _poTile(PurchaseOrder po) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,

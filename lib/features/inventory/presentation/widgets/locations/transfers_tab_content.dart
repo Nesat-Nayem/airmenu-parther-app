@@ -1,6 +1,8 @@
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/locations_extended_cubit.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/locations/transfer_stock_form_dialog.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 
 class TransfersTabContent extends StatelessWidget {
@@ -8,73 +10,67 @@ class TransfersTabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocBuilder<LocationsExtCubit, LocationsExtState>(
+      builder: (context, state) {
+        if (state.status == LocationsExtStatus.loading && state.transfers.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final transfers = state.transfers;
+        final activeCount = transfers.where((t) => t.status != 'completed' && t.status != 'cancelled').length;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '2 active transfers',
-                style: AirMenuTextStyle.normal.medium500().withColor(
-                  const Color(0xFF6B7280),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => const TransferStockFormDialog(),
-                  );
-                },
-                icon: const Icon(Icons.swap_horiz, size: 16),
-                label: const Text('New Transfer'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '$activeCount active transfer${activeCount == 1 ? '' : 's'}',
+                    style: AirMenuTextStyle.normal.medium500().withColor(
+                      const Color(0xFF6B7280),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => BlocProvider.value(
+                          value: context.read<LocationsExtCubit>(),
+                          child: const TransferStockFormDialog(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.swap_horiz, size: 16),
+                    label: const Text('New Transfer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
-                ),
+                ],
               ),
+              const SizedBox(height: 24),
+              if (transfers.isEmpty)
+                const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No transfers found')))
+              else
+                ...transfers.expand((t) => [
+                  _TransferCard(
+                    item: t.materialName,
+                    qty: '${t.quantity.toStringAsFixed(1)} ${t.unit}',
+                    from: t.fromLocationName,
+                    to: t.toLocationName,
+                    date: 'Created: ${t.createdAt.toLocal().toString().substring(0, 16)}',
+                    status: t.status,
+                  ),
+                  const SizedBox(height: 16),
+                ]),
             ],
           ),
-          const SizedBox(height: 24),
-
-          const _TransferCard(
-            item: 'Paneer',
-            qty: '10 kg',
-            from: 'Central Warehouse',
-            to: 'Main Kitchen',
-            date: 'Created: 2024-01-15 10:30 • Completed: 2024-01-15 14:00',
-            status: 'completed',
-          ),
-          const SizedBox(height: 16),
-          const _TransferCard(
-            item: 'Chicken',
-            qty: '15 kg',
-            from: 'Cold Storage',
-            to: 'Downtown Branch',
-            date: 'Created: 2024-01-16 08:00',
-            status: 'in transit',
-          ),
-          const SizedBox(height: 16),
-          const _TransferCard(
-            item: 'Basmati Rice',
-            qty: '25 kg',
-            from: 'Central Warehouse',
-            to: 'Downtown Branch',
-            date: 'Created: 2024-01-16 09:30',
-            status: 'pending',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

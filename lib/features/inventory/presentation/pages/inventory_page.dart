@@ -1,5 +1,7 @@
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/inventory_bloc.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/add_edit_material_dialog.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/bulk_po_popup.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/create_po_dialog.dart';
@@ -15,6 +17,7 @@ import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/in
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/vendor_management_dialogs.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shimmer.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -24,7 +27,7 @@ class InventoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => InventoryBloc()..add(LoadInventory()),
+      create: (_) => InventoryBloc(locator<InventoryRepository>())..add(LoadInventory()),
       child: const InventoryPageView(),
     );
   }
@@ -144,13 +147,23 @@ class InventoryPageView extends StatelessWidget {
                         InventoryItemsTable(
                           items: state.filteredItems,
                           isCompactView: state.isCompactView,
-                          onRestock: (item) {},
+                          onRestock: (item) {
+                            showDialog(
+                              context: innerContext,
+                              builder: (_) => BlocProvider.value(
+                                value: innerContext.read<InventoryBloc>(),
+                                child: ManualStockDialog(
+                                  isStockIn: true,
+                                  preselectedItem: item,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 20),
 
-                        // Secondary Widgets (POs & Recipe Mapping)
+                        // Secondary Widgets (Recipe Mapping)
                         InventoryDashboardSecondaryWidgets(
-                          recentOrders: state.recentOrders,
                           onNewPO: () {
                             showDialog(
                               context: innerContext,
@@ -169,7 +182,13 @@ class InventoryPageView extends StatelessWidget {
           ),
           floatingActionButton: InventoryFAB(
             onAddItem: () {
-              // TODO: Implement add item
+              showDialog(
+                context: context,
+                builder: (_) => BlocProvider.value(
+                  value: context.read<InventoryBloc>(),
+                  child: const AddEditMaterialDialog(),
+                ),
+              );
             },
             onCreatePO: () {
               showDialog(
@@ -217,6 +236,16 @@ class _InventoryStatsGrid extends StatelessWidget {
       builder: (context, state) {
         final isMobile = Responsive.isMobile(context);
 
+        final totalItems = state.totalItems.toString();
+        final lowStock = state.lowStockCount.toString();
+        final criticalCount = state.criticalCount.toString();
+        final totalCost = state.analytics.totalCost > 0
+            ? '₹${state.analytics.totalCost.toStringAsFixed(0)}'
+            : '—';
+        final wastage = state.analytics.totalWastage > 0
+            ? '₹${state.analytics.totalWastage.toStringAsFixed(0)}'
+            : '—';
+
         if (isMobile) {
           return Column(
             children: [
@@ -225,7 +254,7 @@ class _InventoryStatsGrid extends StatelessWidget {
                   Expanded(
                     child: InventoryStatCard(
                       title: 'Total Items',
-                      value: '156',
+                      value: totalItems,
                       icon: Icons.inventory_2_outlined,
                       iconColor: InventoryColors.primaryRed,
                       showViewDetails: true,
@@ -236,9 +265,7 @@ class _InventoryStatsGrid extends StatelessWidget {
                   Expanded(
                     child: InventoryStatCard(
                       title: 'Low Stock',
-                      value: '12',
-                      subtitle: 'vs yesterday',
-                      trend: '2%',
+                      value: lowStock,
                       isTrendPositive: false,
                       icon: Icons.warning_amber_rounded,
                       iconColor: InventoryColors.textQuaternary,
@@ -252,9 +279,9 @@ class _InventoryStatsGrid extends StatelessWidget {
                 children: [
                   Expanded(
                     child: InventoryStatCard(
-                      title: 'Near Expiry',
-                      value: '5',
-                      icon: Icons.calendar_today_outlined,
+                      title: 'Critical',
+                      value: criticalCount,
+                      icon: Icons.error_outline_rounded,
                       iconColor: InventoryColors.textQuaternary,
                       onTap: () {},
                     ),
@@ -262,10 +289,8 @@ class _InventoryStatsGrid extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: InventoryStatCard(
-                      title: 'Today Usage',
-                      value: '₹8.45M',
-                      subtitle: 'vs yesterday',
-                      trend: '15%',
+                      title: 'Total Cost',
+                      value: totalCost,
                       isTrendPositive: true,
                       icon: Icons.trending_up,
                       iconColor: InventoryColors.textQuaternary,
@@ -277,7 +302,7 @@ class _InventoryStatsGrid extends StatelessWidget {
               const SizedBox(height: 12),
               InventoryStatCard(
                 title: 'Wastage',
-                value: '₹320',
+                value: wastage,
                 icon: Icons.delete_outline_rounded,
                 iconColor: InventoryColors.textQuaternary,
                 onTap: () {},
@@ -292,7 +317,7 @@ class _InventoryStatsGrid extends StatelessWidget {
               child: InventoryStatCard(
                 key: const ValueKey('total_items'),
                 title: 'Total Items',
-                value: '156',
+                value: totalItems,
                 icon: Icons.inventory_2_outlined,
                 iconColor: InventoryColors.primaryRed,
                 showViewDetails: true,
@@ -304,9 +329,7 @@ class _InventoryStatsGrid extends StatelessWidget {
               child: InventoryStatCard(
                 key: const ValueKey('low_stock'),
                 title: 'Low Stock',
-                value: '12',
-                subtitle: 'vs yesterday',
-                trend: '2%',
+                value: lowStock,
                 isTrendPositive: false,
                 icon: Icons.warning_amber_rounded,
                 iconColor: Colors.grey.shade400,
@@ -316,22 +339,20 @@ class _InventoryStatsGrid extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: InventoryStatCard(
-                key: const ValueKey('near_expiry'),
-                title: 'Near Expiry',
-                value: '5',
-                icon: Icons.calendar_today_outlined,
-                iconColor: Colors.grey.shade400,
+                key: const ValueKey('critical'),
+                title: 'Critical',
+                value: criticalCount,
+                icon: Icons.error_outline_rounded,
+                iconColor: Colors.red.shade400,
                 onTap: () {},
               ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: InventoryStatCard(
-                key: const ValueKey('todays_usage'),
-                title: 'Today\'s Usage',
-                value: '₹8,450,450',
-                subtitle: 'vs yesterday',
-                trend: '15%',
+                key: const ValueKey('total_cost'),
+                title: 'Total Cost',
+                value: totalCost,
                 isTrendPositive: true,
                 icon: Icons.trending_up,
                 iconColor: Colors.grey.shade400,
@@ -348,7 +369,7 @@ class _InventoryStatsGrid extends StatelessWidget {
               child: InventoryStatCard(
                 key: const ValueKey('wastage'),
                 title: 'Wastage',
-                value: '₹320',
+                value: wastage,
                 icon: Icons.delete_outline_rounded,
                 iconColor: Colors.grey.shade400,
                 onTap: () {},

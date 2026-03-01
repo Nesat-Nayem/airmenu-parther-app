@@ -1,4 +1,6 @@
-import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/export_cubit.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/export_extended_cubit.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,7 +12,7 @@ class InventoryExportDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => ExportCubit(),
+      create: (_) => ExportExtCubit(locator<InventoryRepository>()),
       child: const _DialogContent(),
     );
   }
@@ -39,12 +41,12 @@ class _DialogContent extends StatelessWidget {
             ),
           ],
         ),
-        child: BlocBuilder<ExportCubit, ExportState>(
+        child: BlocBuilder<ExportExtCubit, ExportExtState>(
           builder: (context, state) {
             final isPdf = state.selectedFormat == ExportFormat.pdf;
             final isExcel = state.selectedFormat == ExportFormat.excel;
-            final isLoading = state.status == ExportStatus.loading;
-            final isSuccess = state.status == ExportStatus.success;
+            final isLoading = state.status == ExportExtStatus.loading;
+            final isSuccess = state.status == ExportExtStatus.success;
 
             return SingleChildScrollView(
               child: Column(
@@ -95,7 +97,7 @@ class _DialogContent extends StatelessWidget {
                           label: 'Excel (.xlsx)',
                           sub: 'Spreadsheet format',
                           isSelected: isExcel,
-                          onTap: () => context.read<ExportCubit>().selectFormat(
+                          onTap: () => context.read<ExportExtCubit>().selectFormat(
                             ExportFormat.excel,
                           ),
                           color: const Color(0xFF10B981), // Green for Excel
@@ -110,7 +112,7 @@ class _DialogContent extends StatelessWidget {
                           label: 'PDF',
                           sub: 'Print-ready format',
                           isSelected: isPdf,
-                          onTap: () => context.read<ExportCubit>().selectFormat(
+                          onTap: () => context.read<ExportExtCubit>().selectFormat(
                             ExportFormat.pdf,
                           ),
                           color: const Color(0xFFEF4444), // Red for PDF
@@ -136,7 +138,7 @@ class _DialogContent extends StatelessWidget {
                     isSelected: state.selectedDataTypes.contains(
                       ExportDataType.inventoryItems,
                     ),
-                    onTap: () => context.read<ExportCubit>().toggleDataType(
+                    onTap: () => context.read<ExportExtCubit>().toggleDataType(
                       ExportDataType.inventoryItems,
                     ),
                   ),
@@ -147,7 +149,7 @@ class _DialogContent extends StatelessWidget {
                     isSelected: state.selectedDataTypes.contains(
                       ExportDataType.purchaseOrders,
                     ),
-                    onTap: () => context.read<ExportCubit>().toggleDataType(
+                    onTap: () => context.read<ExportExtCubit>().toggleDataType(
                       ExportDataType.purchaseOrders,
                     ),
                   ),
@@ -158,7 +160,7 @@ class _DialogContent extends StatelessWidget {
                     isSelected: state.selectedDataTypes.contains(
                       ExportDataType.analytics,
                     ),
-                    onTap: () => context.read<ExportCubit>().toggleDataType(
+                    onTap: () => context.read<ExportExtCubit>().toggleDataType(
                       ExportDataType.analytics,
                     ),
                   ),
@@ -271,7 +273,7 @@ class _DialogContent extends StatelessWidget {
                       ElevatedButton.icon(
                         onPressed: (isLoading)
                             ? null // Disable tap while loading
-                            : () => context.read<ExportCubit>().exportData(),
+                            : () => context.read<ExportExtCubit>().exportData(),
                         icon: isLoading
                             ? const SizedBox(
                                 width: 16,

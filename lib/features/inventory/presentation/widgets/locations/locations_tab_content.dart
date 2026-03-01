@@ -1,6 +1,8 @@
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/locations_extended_cubit.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/locations/add_location_form_dialog.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 
 class LocationsTabContent extends StatelessWidget {
@@ -8,105 +10,108 @@ class LocationsTabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocBuilder<LocationsExtCubit, LocationsExtState>(
+      builder: (context, state) {
+        if (state.status == LocationsExtStatus.loading && state.locations.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final locations = state.locations;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '4 active locations',
-                style: AirMenuTextStyle.normal.medium500().withColor(
-                  const Color(0xFF6B7280),
-                ),
-              ),
-              ElevatedButton.icon(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => const AddLocationFormDialog(),
-                  );
-                },
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Location'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: InventoryColors.primaryRed,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 12,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${locations.length} active location${locations.length == 1 ? '' : 's'}',
+                    style: AirMenuTextStyle.normal.medium500().withColor(
+                      const Color(0xFF6B7280),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => BlocProvider.value(
+                          value: context.read<LocationsExtCubit>(),
+                          child: const AddLocationFormDialog(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Location'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: InventoryColors.primaryRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
-                ),
+                ],
               ),
+              const SizedBox(height: 24),
+              if (locations.isEmpty)
+                const Center(child: Padding(padding: EdgeInsets.all(32), child: Text('No locations found')))
+              else
+                Wrap(
+                  spacing: 24,
+                  runSpacing: 24,
+                  children: locations.map((loc) => _LocationCard(
+                    name: loc.name,
+                    type: loc.type,
+                    address: loc.address,
+                    manager: loc.manager,
+                    phone: loc.phone,
+                    items: '',
+                    icon: _iconForType(loc.type),
+                    iconColor: _colorForType(loc.type),
+                    iconBg: _bgForType(loc.type),
+                    onEdit: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => BlocProvider.value(
+                          value: context.read<LocationsExtCubit>(),
+                          child: AddLocationFormDialog(existing: loc),
+                        ),
+                      );
+                    },
+                    onDelete: () => context.read<LocationsExtCubit>().removeLocation(loc.id),
+                  )).toList(),
+                ),
             ],
           ),
-          const SizedBox(height: 24),
-
-          Wrap(
-            spacing: 24,
-            runSpacing: 24,
-            children: const [
-              _LocationCard(
-                name: 'Main Kitchen',
-                type: 'Kitchen',
-                address: '123 Main Street, Mumbai',
-                manager: 'Rahul Sharma',
-                phone: '+91 98765 43210',
-                items: '5 items',
-                critical: '1 critical',
-                low: '2 low',
-                value: '₹5,300 value',
-                icon: Icons.kitchen,
-                iconColor: Color(0xFF10B981),
-                iconBg: Color(0xFFD1FAE5),
-              ),
-              _LocationCard(
-                name: 'Downtown Branch',
-                type: 'Branch',
-                address: '456 MG Road, Mumbai',
-                manager: 'Priya Patel',
-                phone: '+91 98765 43211',
-                items: '5 items',
-                low: '1 low',
-                value: '₹4,900 value',
-                icon: Icons.storefront,
-                iconColor: Color(0xFFEF4444),
-                iconBg: Color(0xFFFEE2E2),
-              ),
-              _LocationCard(
-                name: 'Central Warehouse',
-                type: 'Warehouse',
-                address: '789 Industrial Area, Mumbai',
-                manager: 'Amit Kumar',
-                phone: '+91 98765 43212',
-                items: '5 items',
-                value: '₹46,000 value',
-                icon: Icons.warehouse,
-                iconColor: Color(0xFFF59E0B),
-                iconBg: Color(0xFFFEF3C7),
-              ),
-              _LocationCard(
-                name: 'Cold Storage',
-                type: 'Storage',
-                address: '321 Warehouse Lane, Mumbai',
-                manager: 'Neha Singh',
-                phone: '+91 98765 43213',
-                items: '3 items',
-                value: '₹8,500 value',
-                icon: Icons.ac_unit,
-                iconColor: Color(0xFF3B82F6),
-                iconBg: Color(0xFFDBEAFE),
-              ),
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  IconData _iconForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'warehouse': return Icons.warehouse;
+      case 'branch': return Icons.storefront;
+      case 'storage': return Icons.ac_unit;
+      default: return Icons.kitchen;
+    }
+  }
+
+  Color _colorForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'warehouse': return const Color(0xFFF59E0B);
+      case 'branch': return const Color(0xFFEF4444);
+      case 'storage': return const Color(0xFF3B82F6);
+      default: return const Color(0xFF10B981);
+    }
+  }
+
+  Color _bgForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'warehouse': return const Color(0xFFFEF3C7);
+      case 'branch': return const Color(0xFFFEE2E2);
+      case 'storage': return const Color(0xFFDBEAFE);
+      default: return const Color(0xFFD1FAE5);
+    }
   }
 }
 
@@ -117,12 +122,11 @@ class _LocationCard extends StatelessWidget {
   final String manager;
   final String phone;
   final String items;
-  final String value;
-  final String? critical;
-  final String? low;
   final IconData icon;
   final Color iconColor;
   final Color iconBg;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const _LocationCard({
     required this.name,
@@ -131,12 +135,11 @@ class _LocationCard extends StatelessWidget {
     required this.manager,
     required this.phone,
     required this.items,
-    required this.value,
-    this.critical,
-    this.low,
     required this.icon,
     required this.iconColor,
     required this.iconBg,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -203,7 +206,7 @@ class _LocationCard extends StatelessWidget {
               Row(
                 children: [
                   IconButton(
-                    onPressed: () {},
+                    onPressed: onEdit,
                     icon: const Icon(
                       Icons.edit_outlined,
                       size: 18,
@@ -211,7 +214,7 @@ class _LocationCard extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    onPressed: () {},
+                    onPressed: onDelete,
                     icon: const Icon(
                       Icons.delete_outline,
                       size: 18,
@@ -264,79 +267,14 @@ class _LocationCard extends StatelessWidget {
           const SizedBox(height: 16),
           const Divider(color: Color(0xFFF3F4F6)),
           const SizedBox(height: 16),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Wrap(
-                spacing: 12,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.inventory_2_outlined,
-                        size: 14,
-                        color: Color(0xFF6B7280),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        items,
-                        style: AirMenuTextStyle.small.bold600().withColor(
-                          const Color(0xFF374151),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (critical != null)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.warning_amber_rounded,
-                          size: 14,
-                          color: Color(0xFFEF4444),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          critical!,
-                          style: AirMenuTextStyle.small.bold600().withColor(
-                            const Color(0xFFEF4444),
-                          ),
-                        ),
-                      ],
-                    ),
-                  if (low != null)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.trending_down,
-                          size: 14,
-                          color: Color(0xFFF59E0B),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          low!,
-                          style: AirMenuTextStyle.small.bold600().withColor(
-                            const Color(0xFFF59E0B),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-              Text(
-                value,
-                style: AirMenuTextStyle.small.medium500().withColor(
-                  const Color(0xFF6B7280),
-                ),
-              ),
-            ],
-          ),
+          if (items.isNotEmpty)
+            Row(
+              children: [
+                const Icon(Icons.inventory_2_outlined, size: 14, color: Color(0xFF6B7280)),
+                const SizedBox(width: 4),
+                Text(items, style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF374151))),
+              ],
+            ),
         ],
       ),
     );

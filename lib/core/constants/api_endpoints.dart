@@ -153,4 +153,25 @@ class ApiEndpoints {
   static String kitchenConfigurationReset(String hotelId) => "/kitchen/config/$hotelId/reset";
   static String kitchenStatus(String hotelId) => "/kitchen-load/status/$hotelId";
   static String kitchenInitialize(String hotelId) => "/kitchen/stations/$hotelId/initialize";
+
+  // Inventory endpoints
+  static const String inventoryMaterials = '/inventory/materials';
+  static String inventoryMaterial(String id) => '/inventory/materials/$id';
+  static const String inventoryTransactions = '/inventory/transactions';
+  static const String inventoryRecipes = '/inventory/recipes';
+  static String inventoryRecipe(String id) => '/inventory/recipes/$id';
+  static const String inventoryReportOverview = '/inventory/reports/overview';
+  static const String inventoryReportStockSummary = '/inventory/reports/stock-summary';
+
+  // Inventory extended endpoints
+  static const String inventoryVendors = '/inventory/vendors';
+  static String inventoryVendor(String id) => '/inventory/vendors/$id';
+  static const String inventoryLocations = '/inventory/locations';
+  static String inventoryLocation(String id) => '/inventory/locations/$id';
+  static const String inventoryTransfers = '/inventory/transfers';
+  static String inventoryTransferStatus(String id) => '/inventory/transfers/$id/status';
+  static const String inventoryPriceComparison = '/inventory/price-comparison';
+  static String inventoryPriceComparisonItem(String materialId) => '/inventory/price-comparison/$materialId';
+  static const String inventoryForecasting = '/inventory/forecasting';
+  static const String inventoryExport = '/inventory/export';
 }

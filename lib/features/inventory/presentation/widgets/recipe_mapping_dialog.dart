@@ -1,6 +1,9 @@
+import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class RecipeMappingDialog extends StatefulWidget {
   const RecipeMappingDialog({super.key});
@@ -10,27 +13,7 @@ class RecipeMappingDialog extends StatefulWidget {
 }
 
 class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
-  // Mock Data
-  final List<String> menuItems = [
-    'Butter Chicken',
-    'Paneer Tikka',
-    'Dal Makhani',
-    'Chicken Biryani',
-    'Veg Korma',
-  ];
-
-  final List<String> ingredientOptions = [
-    'Paneer',
-    'Chicken',
-    'Basmati Rice',
-    'Fresh Cream',
-    'Onions',
-    'Cooking Oil',
-    'Tomato Puree',
-    'Ginger Garlic Paste',
-  ];
-
-  final List<String> unitOptions = ['grams', 'kg', 'ml', 'L', 'pcs'];
+  final List<String> unitOptions = ['g', 'kg', 'ml', 'l', 'pcs'];
 
   // State
   String? selectedMenuItem;
@@ -39,20 +22,37 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
   @override
   void initState() {
     super.initState();
-    // Initialize with one empty ingredient row like in screenshot
     ingredients.add(RecipeIngredient());
+    // Load recipes if not already loaded
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<InventoryBloc>().add(LoadRecipes());
+    });
   }
 
   void _addIngredient() {
-    setState(() {
-      ingredients.add(RecipeIngredient());
-    });
+    setState(() => ingredients.add(RecipeIngredient()));
   }
 
   void _removeIngredient(int index) {
-    setState(() {
-      ingredients.removeAt(index);
-    });
+    setState(() => ingredients.removeAt(index));
+  }
+
+  void _saveMapping() {
+    if (selectedMenuItem == null) return;
+    final validIngredients = ingredients
+        .where((i) => i.materialId != null && i.quantity != null && i.quantity!.isNotEmpty)
+        .map((i) => {
+              'materialId': i.materialId,
+              'quantity': double.tryParse(i.quantity ?? '0') ?? 0,
+            })
+        .toList();
+    if (validIngredients.isEmpty) return;
+
+    context.read<InventoryBloc>().add(AddRecipe({
+      'menuItemId': selectedMenuItem!,
+      'ingredients': validIngredients,
+    }));
+    Navigator.pop(context);
   }
 
   @override
@@ -222,101 +222,77 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
   }
 
   Widget _buildMenuDropdown() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return PopupMenuButton<String>(
-          offset: const Offset(0, 48),
-          constraints: BoxConstraints(minWidth: constraints.maxWidth),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 4,
-          shadowColor: Colors.black.withOpacity(0.1),
-          color: Colors.white,
-          onSelected: (value) => setState(() => selectedMenuItem = value),
-          itemBuilder: (context) => menuItems.map((item) {
-            final isSelected = selectedMenuItem == item;
-            return PopupMenuItem<String>(
-              value: item,
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFFFEF2F2)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    if (isSelected)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 8),
-                        child: Icon(
-                          Icons.check,
-                          color: Color(0xFFEF4444),
-                          size: 16,
-                        ),
-                      ),
-                    Text(
-                      item,
-                      style: isSelected
-                          ? AirMenuTextStyle.normal.bold600().withColor(
-                              const Color(0xFFEF4444), // Red text for selected
-                            )
-                          : AirMenuTextStyle.normal.medium500().withColor(
-                              const Color(0xFF374151),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white), // White border generally
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.02),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  selectedMenuItem ?? 'Select Menu Item',
-                  style: AirMenuTextStyle.normal.medium500().withColor(
-                    selectedMenuItem != null
-                        ? const Color(0xFF111827)
-                        : const Color(0xFF9CA3AF),
-                  ),
-                ),
-                const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: Color(0xFF9CA3AF),
-                  size: 20,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+    return TextFormField(
+      initialValue: selectedMenuItem,
+      onChanged: (val) => setState(() => selectedMenuItem = val.trim().isEmpty ? null : val.trim()),
+      style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF111827)),
+      decoration: InputDecoration(
+        hintText: 'Enter menu item ID or name',
+        hintStyle: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444))),
+        fillColor: const Color(0xFFFAFAFA),
+        filled: true,
+      ),
     );
   }
 
   Widget _buildIngredientRow(int index, RecipeIngredient ingredient) {
-    bool isMobile = Responsive.isMobile(context);
+    final materials = context.watch<InventoryBloc>().state.items;
+    final isMobile = Responsive.isMobile(context);
+
+    final materialDropdown = DropdownButtonFormField<InventoryItem>(
+      value: materials.where((m) => m.id == ingredient.materialId).firstOrNull,
+      hint: Text('Select Ingredient', style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF))),
+      onChanged: (val) => setState(() {
+        ingredient.materialId = val?.id;
+        ingredient.materialName = val?.name;
+      }),
+      items: materials.map((m) => DropdownMenuItem(
+        value: m,
+        child: Text('${m.name} (${m.unit})', style: AirMenuTextStyle.normal.medium500(), overflow: TextOverflow.ellipsis),
+      )).toList(),
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444))),
+        fillColor: Colors.white,
+        filled: true,
+      ),
+      dropdownColor: Colors.white,
+      icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9CA3AF), size: 18),
+    );
+
+    final qtyField = TextFormField(
+      initialValue: ingredient.quantity,
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.center,
+      onChanged: (val) => ingredient.quantity = val,
+      decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
+        hintText: 'Qty',
+        hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+        fillColor: Colors.white,
+        filled: true,
+      ),
+      style: AirMenuTextStyle.normal.medium500(),
+    );
+
+    final removeBtn = IconButton(
+      onPressed: () => _removeIngredient(index),
+      icon: const Icon(Icons.close, size: 18),
+      color: const Color(0xFFEF4444),
+      splashRadius: 20,
+      constraints: const BoxConstraints(),
+      padding: EdgeInsets.zero,
+    );
 
     if (isMobile) {
       return Container(
@@ -327,233 +303,21 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFFF3F4F6)),
         ),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: _buildCustomDropdown(
-                    value: ingredient.name,
-                    hint: 'Select Ingredient',
-                    items: ingredientOptions,
-                    onChanged: (val) => setState(() => ingredient.name = val),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () => _removeIngredient(index),
-                  icon: const Icon(Icons.close, size: 18),
-                  color: const Color(0xFFEF4444),
-                  splashRadius: 20,
-                  constraints: const BoxConstraints(),
-                  padding: EdgeInsets.zero,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 48,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                    ),
-                    alignment: Alignment.center,
-                    child: TextFormField(
-                      initialValue: ingredient.quantity,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      onChanged: (val) => ingredient.quantity = val,
-                      decoration: const InputDecoration(
-                        isDense: true,
-                        border: InputBorder.none,
-                        hintText: 'Qty',
-                        hintStyle: TextStyle(
-                          color: Color(0xFF9CA3AF),
-                          fontSize: 14,
-                        ),
-                      ),
-                      style: AirMenuTextStyle.normal.medium500(),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildCustomDropdown(
-                    value: ingredient.unit,
-                    hint: 'Unit',
-                    items: unitOptions,
-                    onChanged: (val) => setState(() => ingredient.unit = val),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        child: Column(children: [
+          Row(children: [Expanded(child: materialDropdown), const SizedBox(width: 8), removeBtn]),
+          const SizedBox(height: 12),
+          qtyField,
+        ]),
       );
     }
 
-    return Row(
-      children: [
-        // Ingredient Dropdown (Expanded)
-        Expanded(
-          flex: 5,
-          child: _buildCustomDropdown(
-            value: ingredient.name,
-            hint: 'Select Ingredient',
-            items: ingredientOptions,
-            onChanged: (val) => setState(() => ingredient.name = val),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        // Quantity Input
-        Expanded(
-          flex: 2,
-          child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            alignment: Alignment.center,
-            child: TextFormField(
-              initialValue: ingredient.quantity,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              onChanged: (val) => ingredient.quantity = val,
-              decoration: const InputDecoration(
-                isDense: true,
-                border: InputBorder.none,
-                hintText: 'Qty',
-                hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-              ),
-              style: AirMenuTextStyle.normal.medium500(),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        // Unit Dropdown
-        Expanded(
-          flex: 2,
-          child: _buildCustomDropdown(
-            value: ingredient.unit,
-            hint: 'Unit',
-            items: unitOptions,
-            onChanged: (val) => setState(() => ingredient.unit = val),
-          ),
-        ),
-        const SizedBox(width: 12),
-
-        // Remove Button
-        IconButton(
-          onPressed: () => _removeIngredient(index),
-          icon: const Icon(Icons.close, size: 18),
-          color: const Color(0xFFEF4444),
-          splashRadius: 20,
-          constraints: const BoxConstraints(),
-          padding: EdgeInsets.zero,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildCustomDropdown({
-    required String? value,
-    required String hint,
-    required List<String> items,
-    required Function(String) onChanged,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return PopupMenuButton<String>(
-          offset: const Offset(0, 48),
-          constraints: BoxConstraints(minWidth: constraints.maxWidth),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          elevation: 4,
-          shadowColor: Colors.black.withOpacity(0.1),
-          color: Colors.white,
-          onSelected: onChanged,
-          itemBuilder: (context) => items.map((item) {
-            final isSelected = value == item;
-            return PopupMenuItem<String>(
-              value: item,
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFFFEF2F2)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    if (isSelected)
-                      const Padding(
-                        padding: EdgeInsets.only(right: 8.0),
-                        child: Icon(
-                          Icons.check,
-                          color: Color(0xFFEF4444),
-                          size: 14,
-                        ),
-                      ),
-                    Text(
-                      item,
-                      style: isSelected
-                          ? AirMenuTextStyle.normal.bold600().withColor(
-                              const Color(0xFFEF4444),
-                            )
-                          : AirMenuTextStyle.normal.medium500(),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }).toList(),
-          child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  value ?? hint,
-                  style: AirMenuTextStyle.normal.medium500().withColor(
-                    value != null
-                        ? const Color(0xFF111827)
-                        : const Color(0xFF9CA3AF),
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const Icon(
-                  Icons.keyboard_arrow_down,
-                  color: Color(0xFF9CA3AF),
-                  size: 18,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    return Row(children: [
+      Expanded(flex: 5, child: materialDropdown),
+      const SizedBox(width: 12),
+      Expanded(flex: 2, child: qtyField),
+      const SizedBox(width: 12),
+      removeBtn,
+    ]);
   }
 
   Widget _buildFooter() {
@@ -585,9 +349,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
                 ],
               ),
               child: ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
+                onPressed: _saveMapping,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
@@ -673,10 +435,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
               ],
             ),
             child: ElevatedButton(
-              onPressed: () {
-                // TODO: Save mapping
-                Navigator.pop(context);
-              },
+              onPressed: _saveMapping,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
@@ -704,9 +463,9 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
 }
 
 class RecipeIngredient {
-  String? name;
+  String? materialId;
+  String? materialName;
   String? quantity;
-  String? unit;
 
-  RecipeIngredient({this.name, this.quantity = '1', this.unit = 'Unit'});
+  RecipeIngredient({this.materialId, this.materialName, this.quantity = '1'});
 }

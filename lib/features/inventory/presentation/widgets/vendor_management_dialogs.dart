@@ -1,151 +1,50 @@
-import 'package:flutter/material.dart';
-import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shared_widgets.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/vendor_cubit.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
-
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shared_widgets.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 
-class Vendor {
-  final String id;
-  final String companyName;
-  final String contactPerson;
-  final String phone;
-  final String whatsapp;
-  final String email;
-  final String address;
-  final String gstNumber;
-  final String paymentTerms;
-  final List<String> supplies;
-  final String? notes;
+typedef Vendor = VendorModel;
 
-  Vendor({
-    required this.id,
-    required this.companyName,
-    required this.contactPerson,
-    required this.phone,
-    required this.whatsapp,
-    required this.email,
-    required this.address,
-    required this.gstNumber,
-    required this.paymentTerms,
-    required this.supplies,
-    this.notes,
-  });
+class VendorManagementDialog extends StatelessWidget {
+  const VendorManagementDialog({super.key});
 
-  Vendor copyWith({
-    String? id,
-    String? companyName,
-    String? contactPerson,
-    String? phone,
-    String? whatsapp,
-    String? email,
-    String? address,
-    String? gstNumber,
-    String? paymentTerms,
-    List<String>? supplies,
-    String? notes,
-  }) {
-    return Vendor(
-      id: id ?? this.id,
-      companyName: companyName ?? this.companyName,
-      contactPerson: contactPerson ?? this.contactPerson,
-      phone: phone ?? this.phone,
-      whatsapp: whatsapp ?? this.whatsapp,
-      email: email ?? this.email,
-      address: address ?? this.address,
-      gstNumber: gstNumber ?? this.gstNumber,
-      paymentTerms: paymentTerms ?? this.paymentTerms,
-      supplies: supplies ?? this.supplies,
-      notes: notes ?? this.notes,
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => VendorCubit(locator<InventoryRepository>())..loadVendors(),
+      child: const _VendorDialogContent(),
     );
   }
 }
 
-class VendorManagementDialog extends StatefulWidget {
-  const VendorManagementDialog({super.key});
+class _VendorDialogContent extends StatefulWidget {
+  const _VendorDialogContent();
 
   @override
-  State<VendorManagementDialog> createState() => _VendorManagementDialogState();
+  State<_VendorDialogContent> createState() => _VendorDialogContentState();
 }
 
-class _VendorManagementDialogState extends State<VendorManagementDialog> {
-  // Mock Data
-  List<Vendor> _vendors = [
-    Vendor(
-      id: '1',
-      companyName: 'Fresh Dairy Co.',
-      contactPerson: 'Rajesh Kumar',
-      phone: '+91 98765 43210',
-      whatsapp: '+91 98765 43210',
-      email: 'orders@freshdairy.com',
-      address: 'Plot 45, Industrial Area, Sector 18, Gurgaon',
-      gstNumber: '07AABCD1234F1Z5',
-      paymentTerms: 'Net 15',
-      supplies: ['Paneer', 'Fresh Cream', 'Butter', 'Milk'],
-    ),
-    Vendor(
-      id: '2',
-      companyName: 'Farm Fresh Meats',
-      contactPerson: 'Suresh Patel',
-      phone: '+91 98765 43211',
-      whatsapp: '+91 98765 43211',
-      email: 'supply@farmfresh.in',
-      address: '123 Meat Market, Crawford Market, Mumbai',
-      gstNumber: '27AABCD5678F1Z2',
-      paymentTerms: 'Net 7',
-      supplies: ['Chicken', 'Mutton', 'Fish', 'Prawns'],
-    ),
-    Vendor(
-      id: '3',
-      companyName: 'Grain Traders',
-      contactPerson: 'Mohan Agarwal',
-      phone: '+91 98765 43212',
-      whatsapp: '+91 98765 43212',
-      email: 'sales@graintraders.com',
-      address: 'Wholesale Grain Market, Naya Bazar, Delhi',
-      gstNumber: '07AABCD9012F1Z3',
-      paymentTerms: 'Net 30',
-      supplies: ['Basmati Rice', 'Wheat Flour', 'Lentils', 'Pulses'],
-    ),
-  ];
-
+class _VendorDialogContentState extends State<_VendorDialogContent> {
   String _searchQuery = '';
-
-  void _addVendor(Vendor vendor) {
-    setState(() {
-      _vendors.add(vendor);
-    });
-  }
-
-  void _updateVendor(Vendor updatedVendor) {
-    setState(() {
-      final index = _vendors.indexWhere((v) => v.id == updatedVendor.id);
-      if (index != -1) {
-        _vendors[index] = updatedVendor;
-      }
-    });
-  }
-
-  void _removeVendor(String id) {
-    setState(() {
-      _vendors.removeWhere((v) => v.id == id);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
-    final filteredVendors = _vendors
-        .where(
-          (v) =>
-              v.companyName.toLowerCase().contains(
-                _searchQuery.toLowerCase(),
-              ) ||
-              v.contactPerson.toLowerCase().contains(
-                _searchQuery.toLowerCase(),
-              ),
-        )
-        .toList();
+    return BlocBuilder<VendorCubit, VendorState>(
+      builder: (context, vendorState) {
+        final filteredVendors = vendorState.vendors
+            .where(
+              (v) =>
+                  v.companyName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                  v.contactPerson.toLowerCase().contains(_searchQuery.toLowerCase()),
+            )
+            .toList();
 
     final isMobile = Responsive.isMobile(context);
     final screenWidth = MediaQuery.of(context).size.width;
@@ -314,23 +213,27 @@ class _VendorManagementDialogState extends State<VendorManagementDialog> {
                           onPressed: () {
                             showDialog(
                               context: context,
-                              builder: (context) =>
-                                  AddEditVendorDialog(onSave: _addVendor),
+                              builder: (_) => BlocProvider.value(
+                                value: context.read<VendorCubit>(),
+                                child: AddEditVendorDialog(
+                                  onSave: (v) => context.read<VendorCubit>().addVendor(v.toJson()),
+                                ),
+                              ),
                             );
                           },
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Vendor'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: InventoryColors.primaryRed,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 20,
-                              vertical: 16, // Matches height for alignment
+                              vertical: 16,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          icon: const Icon(Icons.add),
-                          label: const Text('Add Vendor'),
                         ),
                       ],
                     ),
@@ -338,45 +241,54 @@ class _VendorManagementDialogState extends State<VendorManagementDialog> {
 
             // Vendor Grid
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                ), // Reduced from 24
-                child: Wrap(
-                  spacing: 20,
-                  runSpacing: 20,
-                  children: filteredVendors
-                      .map(
-                        (vendor) => VendorCard(
-                          vendor: vendor,
-                          onEdit: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => AddEditVendorDialog(
-                                vendor: vendor,
-                                onSave: _updateVendor,
+              child: vendorState.status == VendorStatus.loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : vendorState.status == VendorStatus.error
+                      ? Center(child: Text(vendorState.errorMessage))
+                      : filteredVendors.isEmpty
+                          ? const Center(child: Text('No vendors found'))
+                          : SingleChildScrollView(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: Wrap(
+                                spacing: 20,
+                                runSpacing: 20,
+                                children: filteredVendors
+                                    .map(
+                                      (vendor) => VendorCard(
+                                        vendor: vendor,
+                                        onEdit: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (_) => BlocProvider.value(
+                                              value: context.read<VendorCubit>(),
+                                              child: AddEditVendorDialog(
+                                                vendor: vendor,
+                                                onSave: (v) => context.read<VendorCubit>().updateVendor(v.id, v.toJson()),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        onDelete: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (_) => RemoveVendorDialog(
+                                              vendorName: vendor.companyName,
+                                              onConfirm: () => context.read<VendorCubit>().removeVendor(vendor.id),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    )
+                                    .toList(),
                               ),
-                            );
-                          },
-                          onDelete: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) => RemoveVendorDialog(
-                                vendorName: vendor.companyName,
-                                onConfirm: () => _removeVendor(vendor.id),
-                              ),
-                            );
-                          },
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
+                            ),
             ),
             const SizedBox(height: 24),
           ],
         ),
       ),
+    );
+      },
     );
   }
 }

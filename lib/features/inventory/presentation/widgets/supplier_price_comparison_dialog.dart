@@ -1,4 +1,6 @@
-import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/price_comparison_cubit.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/price_comparison_extended_cubit.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +12,7 @@ class SupplierPriceComparisonDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => PriceComparisonCubit(),
+      create: (_) => PriceComparisonExtCubit(locator<InventoryRepository>())..loadSummary(),
       child: const _DialogContent(),
     );
   }
@@ -204,11 +206,13 @@ class _Header extends StatelessWidget {
                       const SizedBox(height: 12),
                       Align(
                         alignment: Alignment.centerRight,
-                        child: Text(
-                          '₹530',
-                          style: AirMenuTextStyle.headingH2
-                              .black900()
-                              .withColor(const Color(0xFF059669)),
+                        child: BlocBuilder<PriceComparisonExtCubit, PriceComparisonExtState>(
+                          builder: (context, state) => Text(
+                            '₹${state.totalPotentialSavings.toStringAsFixed(0)}',
+                            style: AirMenuTextStyle.headingH2
+                                .black900()
+                                .withColor(const Color(0xFF059669)),
+                          ),
                         ),
                       ),
                     ],
@@ -250,10 +254,12 @@ class _Header extends StatelessWidget {
                           ),
                         ],
                       ),
-                      Text(
-                        '₹530',
-                        style: AirMenuTextStyle.headingH2.black900().withColor(
-                          const Color(0xFF059669),
+                      BlocBuilder<PriceComparisonExtCubit, PriceComparisonExtState>(
+                        builder: (context, state) => Text(
+                          '₹${state.totalPotentialSavings.toStringAsFixed(0)}',
+                          style: AirMenuTextStyle.headingH2.black900().withColor(
+                            const Color(0xFF059669),
+                          ),
                         ),
                       ),
                     ],
@@ -270,62 +276,39 @@ class _ItemsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final itemsList = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: const [
-        Text(
-          'Items',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF111827),
-          ),
-        ),
-        SizedBox(height: 16),
-        _ItemCard(
-          id: 'paneer',
-          name: 'Paneer',
-          category: 'Dairy',
-          currentVendor: 'Fresh Dairy Co.',
-          price: '320',
-          unit: 'kg',
-          savings: '25',
-          vendorsAvailable: 4,
-        ),
-        SizedBox(height: 12),
-        _ItemCard(
-          id: 'chicken',
-          name: 'Chicken',
-          category: 'Meat',
-          currentVendor: 'Farm Fresh Meats',
-          price: '280',
-          unit: 'kg',
-          savings: '15',
-          vendorsAvailable: 3,
-        ),
-        SizedBox(height: 12),
-        _ItemCard(
-          id: 'oil',
-          name: 'Cooking Oil',
-          category: 'Oils',
-          currentVendor: 'Oil Mills Ltd.',
-          price: '150',
-          unit: 'L',
-          savings: '8',
-          vendorsAvailable: 3,
-        ),
-        SizedBox(height: 12),
-        _ItemCard(
-          id: 'rice',
-          name: 'Basmati Rice',
-          category: 'Grains',
-          currentVendor: 'Grain Traders',
-          price: '120',
-          unit: 'kg',
-          savings: '5',
-          vendorsAvailable: 3,
-        ),
-      ],
+    final itemsList = BlocBuilder<PriceComparisonExtCubit, PriceComparisonExtState>(
+      builder: (context, state) {
+        if (state.status == PriceComparisonExtStatus.loading && state.items.isEmpty) {
+          return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Items',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF111827),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ...state.items.expand((item) => [
+              _ItemCard(
+                id: item.id,
+                name: item.name,
+                category: item.category,
+                currentVendor: item.currentVendor.isNotEmpty ? item.currentVendor : '—',
+                price: item.currentPrice.toStringAsFixed(0),
+                unit: item.unit,
+                savings: item.potentialSavings.toStringAsFixed(0),
+                vendorsAvailable: item.vendorsAvailable,
+              ),
+              const SizedBox(height: 12),
+            ]).toList(),
+          ],
+        );
+      },
     );
 
     return Column(
@@ -499,13 +482,12 @@ class _ItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PriceComparisonCubit, PriceComparisonState>(
+    return BlocBuilder<PriceComparisonExtCubit, PriceComparisonExtState>(
       builder: (context, state) {
-        final isSelected =
-            (state as PriceComparisonInitial).selectedItemId == id;
+        final isSelected = state.selectedItemId == id;
 
         return GestureDetector(
-          onTap: () => context.read<PriceComparisonCubit>().selectItem(id),
+          onTap: () => context.read<PriceComparisonExtCubit>().selectItem(id),
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
             child: AnimatedContainer(
@@ -681,136 +663,124 @@ class _DetailsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<PriceComparisonCubit, PriceComparisonState>(
+    return BlocBuilder<PriceComparisonExtCubit, PriceComparisonExtState>(
       builder: (context, state) {
-        final itemId = (state as PriceComparisonInitial).selectedItemId;
-        // Mock Item Names mapping
-        final itemNames = {
-          'paneer': 'Paneer',
-          'chicken': 'Chicken',
-          'oil': 'Cooking Oil',
-          'rice': 'Basmati Rice',
-        };
-        final itemName = itemNames[itemId] ?? 'Paneer';
+        final detail = state.selectedDetail;
+        final itemName = detail?.material.name ?? '—';
+        final unit = detail?.material.unit ?? '';
+        final vendorPrices = detail?.vendorPrices ?? [];
 
         return Container(
           color: Colors.white,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Price Comparison - $itemName',
-                  style: AirMenuTextStyle.headingH3.withColor(
-                    const Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Mock Bar Chart
-                Container(
-                  height: 200,
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  child: Stack(
+          child: state.status == PriceComparisonExtStatus.loading && detail == null
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Grid lines
-                      Column(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: List.generate(
-                          5,
-                          (_) => Container(
-                            height: 1,
-                            color: const Color(0xFFF3F4F6),
-                          ),
+                      Text(
+                        'Price Comparison - $itemName',
+                        style: AirMenuTextStyle.headingH3.withColor(
+                          const Color(0xFF111827),
                         ),
                       ),
-                      // Bars (Mock Visuals) - Customized based on ID to look dynamic
-                      _MockBarChart(itemId: itemId),
+                      const SizedBox(height: 24),
+
+                      // Real Bar Chart from vendor prices
+                      if (vendorPrices.isNotEmpty) ...([
+                        Container(
+                          height: 200,
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Stack(
+                            children: [
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: List.generate(
+                                  5,
+                                  (_) => Container(height: 1, color: const Color(0xFFF3F4F6)),
+                                ),
+                              ),
+                              Padding(
+                                padding: const EdgeInsets.only(left: 80, top: 10, bottom: 20),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: () {
+                                    final maxPrice = vendorPrices.map((v) => v.avgUnitCost).reduce((a, b) => a > b ? a : b);
+                                    return vendorPrices.map((v) => _BarRow(
+                                      label: v.vendorName,
+                                      widthPct: maxPrice > 0 ? (v.avgUnitCost / maxPrice).clamp(0.1, 1.0) : 0.5,
+                                      color: v.isBestPrice ? const Color(0xFF10B981) : const Color(0xFFDC2626),
+                                    )).toList();
+                                  }(),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            _LegendItem(color: const Color(0xFF10B981), label: 'Lowest Price'),
+                            const SizedBox(width: 16),
+                            _LegendItem(color: const Color(0xFFDC2626), label: 'Other Vendors'),
+                          ],
+                        ),
+                        const SizedBox(height: 32),
+                        Text(
+                          'Vendor Details',
+                          style: AirMenuTextStyle.headingH3.withColor(const Color(0xFF111827)),
+                        ),
+                        const SizedBox(height: 16),
+                        ...vendorPrices.asMap().entries.map((e) => Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: _VendorCard(
+                            name: e.value.vendorName,
+                            price: e.value.avgUnitCost.toStringAsFixed(0),
+                            unit: unit,
+                            rating: '—',
+                            delivery: '—',
+                            minOrder: '—',
+                            updated: '${e.value.transactionCount} txns',
+                            isBestPrice: e.value.isBestPrice,
+                            onSwitch: () {},
+                          ),
+                        )).toList(),
+                      ])
+                      else ...([
+                        const Center(child: Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Text('No vendor pricing data available', style: TextStyle(color: Color(0xFF6B7280))),
+                        )),
+                      ]),
+
+                      const SizedBox(height: 32),
+                      Text(
+                        'Price Trend (6 Months)',
+                        style: AirMenuTextStyle.headingH4.withColor(const Color(0xFF111827)),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        height: 180,
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFDF6E7).withOpacity(0.3),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                        ),
+                        child: CustomPaint(painter: _MockTrendChartPainter()),
+                      ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    _LegendItem(
-                      color: const Color(0xFF10B981),
-                      label: 'Lowest Price',
-                    ),
-                    const SizedBox(width: 16),
-                    _LegendItem(
-                      color: const Color(0xFFDC2626),
-                      label: 'Current Vendor',
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 32),
-                Text(
-                  'Vendor Details',
-                  style: AirMenuTextStyle.headingH3.withColor(
-                    const Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Best Price Vendor
-                _VendorCard(
-                  name: 'Dairy Direct',
-                  price: '295',
-                  unit: 'kg',
-                  rating: '4.2',
-                  delivery: 'Next day',
-                  minOrder: '10 kg',
-                  updated: '1 day ago',
-                  isBestPrice: true,
-                  onSwitch: () {},
-                ),
-                const SizedBox(height: 16),
-
-                // Other Vendor
-                _VendorCard(
-                  name: 'Farm Fresh',
-                  price: '310',
-                  unit: 'kg',
-                  rating: '4.0',
-                  delivery: '2-3 days',
-                  minOrder: '3 kg',
-                  updated: '3 days ago',
-                  isBestPrice: false,
-                  onSwitch: () {},
-                ),
-
-                const SizedBox(height: 32),
-                Text(
-                  'Price Trend (6 Months)',
-                  style: AirMenuTextStyle.headingH4.withColor(
-                    const Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  height: 180,
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFDF6E7).withOpacity(
-                      0.3,
-                    ), // Beige/Peach background like screenshot
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  child: CustomPaint(painter: _MockTrendChartPainter()),
-                ),
-              ],
-            ),
-          ),
         );
       },
     );

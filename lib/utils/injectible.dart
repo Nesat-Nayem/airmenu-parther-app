@@ -61,6 +61,9 @@ import 'package:airmenuai_partner_app/features/menu_audit/presentation/bloc/menu
 import 'package:airmenuai_partner_app/features/marketing/data/repositories/marketing_repository_impl.dart';
 import 'package:airmenuai_partner_app/features/marketing/domain/repositories/i_marketing_repository.dart';
 
+// Inventory Feature
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
+
 import 'package:airmenuai_partner_app/generated/l10n.dart';
 import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:airmenuai_partner_app/utils/shared_preferences/secure_storage.dart';
@@ -218,5 +221,10 @@ void initializeDependencies() {
   // Marketing Feature
   locator.registerLazySingleton<IMarketingRepository>(
     () => MarketingRepositoryImpl(),
+  );
+
+  // Inventory Feature
+  locator.registerLazySingleton<InventoryRepository>(
+    () => InventoryRepository(locator<ApiService>()),
   );
 }
