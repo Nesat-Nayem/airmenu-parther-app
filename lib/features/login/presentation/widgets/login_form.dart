@@ -50,7 +50,12 @@ class _LoginFormState extends State<LoginForm> {
         if (state is LoginSuccess) {
           await Future.delayed(const Duration(milliseconds: 100));
           if (context.mounted) {
-            context.go(AppRoutes.dashboard.path);
+            final isVendor = state.role.toLowerCase() == 'vendor';
+            if (isVendor && !state.isKycApproved) {
+              context.go(AppRoutes.myKyc.path);
+            } else {
+              context.go(AppRoutes.dashboard.path);
+            }
           }
         } else if (state is LoginError) {
           if (context.mounted) {

@@ -6,6 +6,7 @@ class ApiEndpoints {
 
   //Partner Kyc Desk
   static const String kycAll = "/kyc/all";
+  static const String kycMyKyc = "/kyc/my-kyc";
   static const String kycStats = "/kyc/stats";
   static String kycReview(String id) => "/kyc/review/$id";
   static const String kycDelete = "/kyc";

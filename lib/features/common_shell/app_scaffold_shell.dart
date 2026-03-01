@@ -5,8 +5,10 @@ import 'package:airmenuai_partner_app/core/enums/user_role.dart';
 import 'package:airmenuai_partner_app/core/services/role_service.dart';
 import 'package:airmenuai_partner_app/features/common_shell/widgets/modern_nav_menu.dart';
 import 'package:airmenuai_partner_app/features/common_shell/widgets/profile_menu.dart';
+import 'package:airmenuai_partner_app/features/my_kyc/data/vendor_kyc_repository.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
@@ -50,6 +52,18 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
     final isVendor = userRole == UserRole.vendor;
     final isAdmin = userRole == UserRole.admin;
 
+    // Check if vendor's KYC is approved
+    bool isKycApproved = true;
+    if (isVendor) {
+      try {
+        final VendorKycRepository kycRepo = locator<VendorKycRepository>();
+        final kyc = await kycRepo.getMyKyc();
+        isKycApproved = kyc.status == 'approved';
+      } catch (_) {
+        isKycApproved = false;
+      }
+    }
+
     // Check features from packageFeatures array
     bool hasFeature(String feature) {
       if (user?.packageFeatures == null) return false;
@@ -70,6 +84,7 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         item,
         isAdmin: isAdmin,
         isVendor: isVendor,
+        isKycApproved: isKycApproved,
         hasFeature: hasFeature,
         hasPermission: hasPermission,
       );
@@ -89,9 +104,14 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
     NavMenuItem item, {
     required bool isAdmin,
     required bool isVendor,
+    required bool isKycApproved,
     required bool Function(String) hasFeature,
     required bool Function(String) hasPermission,
   }) {
+    // Unapproved vendors only see My KYC
+    if (isVendor && !isKycApproved) {
+      return item == NavMenuItem.myKyc;
+    }
     // ===== ADMIN-ONLY FEATURES =====
     // Only SuperAdmin should see these:
     // Onboarding, SuperAdmin Dashboard, Restaurant Overview, Menu Audit,

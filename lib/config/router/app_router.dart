@@ -1,6 +1,9 @@
 import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item.dart';
 import 'package:airmenuai_partner_app/config/router/token_check.dart';
+import 'package:airmenuai_partner_app/core/services/role_service.dart';
+import 'package:airmenuai_partner_app/features/my_kyc/data/vendor_kyc_repository.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/features/admin_staff_management/presentation/views/admin_staff_management_page.dart';
 import 'package:airmenuai_partner_app/features/ai_predictions/presentation/views/ai_predictions_page.dart';
 import 'package:airmenuai_partner_app/features/ai_suggestions/presentation/views/ai_suggestions_page.dart';
@@ -49,7 +52,6 @@ import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/de
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/add_webhook_page.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/pages/marketing_page.dart';
 import 'package:airmenuai_partner_app/utils/keys/airmenu_keys.dart';
-import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/features/admin_orders/presentation/pages/admin_orders_page.dart';
 import 'package:airmenuai_partner_app/features/external_integrations/presentation/pages/external_integrations_page.dart';
@@ -86,11 +88,24 @@ class AppRouter {
             '🔄 Router redirect check: isAuth=$isAuth, isLoginRoute=$isLoginRoute, currentPath=$currentPath',
           );
 
-          // If user is authenticated and trying to access login, redirect to dashboard
+          // If user is authenticated and trying to access login, redirect appropriately
           if (isAuth && isLoginRoute) {
             debugPrint(
-              '✅ Authenticated user on login page, redirecting to dashboard',
+              '✅ Authenticated user on login page, checking role and KYC status',
             );
+            final userRole = await RoleService.getUserRole();
+            final isVendor = userRole?.name == 'vendor';
+            if (isVendor) {
+              try {
+                final kycRepo = locator<VendorKycRepository>();
+                final kyc = await kycRepo.getMyKyc();
+                if (kyc.status != 'approved') {
+                  return AppRoutes.myKyc.path;
+                }
+              } catch (_) {
+                return AppRoutes.myKyc.path;
+              }
+            }
             return AppRoutes.dashboard.path;
           }
 
