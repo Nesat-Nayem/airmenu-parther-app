@@ -11,6 +11,8 @@ class UserModel {
   final Map<String, dynamic>? subscription;
   final List<dynamic>? packageFeatures;
   final bool? trialActive;
+  final String? hotelId;
+  final String? hotelName;
 
   UserModel({
     required this.id,
@@ -23,6 +25,8 @@ class UserModel {
     this.subscription,
     this.packageFeatures,
     this.trialActive,
+    this.hotelId,
+    this.hotelName,
   });
 
   /// Get role as enum for easy comparison
@@ -45,6 +49,8 @@ class UserModel {
       subscription: json['subscription'],
       packageFeatures: json['packageFeatures'],
       trialActive: json['trialActive'],
+      hotelId: json['hotelId'] is Map ? json['hotelId']['_id'] : json['hotelId'],
+      hotelName: json['hotelName'],
     );
   }
 
@@ -60,6 +66,8 @@ class UserModel {
       'subscription': subscription,
       'packageFeatures': packageFeatures,
       'trialActive': trialActive,
+      'hotelId': hotelId,
+      'hotelName': hotelName,
     };
   }
 }

@@ -6,7 +6,7 @@ class TableModel extends Equatable {
   final String id;
   final String tableNumber;
   final int capacity;
-  final String zone; // Local field, not persisted in backend
+  final String zone;
   final TableStatus status;
   final String qrUrl;
   final String hotelId;
@@ -15,7 +15,7 @@ class TableModel extends Equatable {
     required this.id,
     required this.tableNumber,
     required this.capacity,
-    this.zone = 'Indoor', // Default since backend missing
+    this.zone = 'Indoor',
     this.status = TableStatus.vacant,
     required this.qrUrl,
     required this.hotelId,
@@ -28,17 +28,39 @@ class TableModel extends Equatable {
     TableStatus mappedStatus;
     final backendStatus = json['status'] as String? ?? 'available';
 
-    if (backendStatus == 'booked') {
-      mappedStatus = TableStatus.occupied;
-    } else {
-      mappedStatus = TableStatus.vacant;
+    switch (backendStatus) {
+      case 'booked':
+        mappedStatus = TableStatus.occupied;
+        break;
+      case 'reserved':
+        mappedStatus = TableStatus.reserved;
+        break;
+      case 'cleaning':
+        mappedStatus = TableStatus.cleaning;
+        break;
+      default:
+        mappedStatus = TableStatus.vacant;
+    }
+
+    // Map backend zone to display value
+    final backendZone = json['zone'] as String? ?? 'indoor';
+    String mappedZone;
+    switch (backendZone.toLowerCase()) {
+      case 'outdoor':
+        mappedZone = 'Outdoor';
+        break;
+      case 'private':
+        mappedZone = 'Private';
+        break;
+      default:
+        mappedZone = 'Indoor';
     }
 
     return TableModel(
       id: json['_id'] as String? ?? '',
       tableNumber: json['tableNumber'] as String? ?? '',
-      capacity: json['seatNumber'] as int? ?? 0,
-      zone: 'Indoor', // Hardcoded as backend doesn't support zone yet
+      capacity: json['seatNumber'] as int? ?? json['capacity'] as int? ?? 0,
+      zone: mappedZone,
       status: mappedStatus,
       qrUrl: json['qrCodeImage'] as String? ?? '',
       hotelId: json['hotelId'] is Map
@@ -52,9 +74,9 @@ class TableModel extends Equatable {
     return {
       'tableNumber': tableNumber,
       'seatNumber': capacity,
+      'capacity': capacity,
       'hotelId': hotelId,
-      // 'zone': zone, // Not supported by backend
-      // 'status': status, // Backend creates as 'available' by default
+      'zone': zone.toLowerCase(),
     };
   }
 

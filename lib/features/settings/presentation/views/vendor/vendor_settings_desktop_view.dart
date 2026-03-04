@@ -8,19 +8,125 @@ import '../../bloc/vendor_settings_state.dart';
 import '../../widgets/vendor_settings_widgets.dart';
 import '../../widgets/billing_widgets.dart';
 
-class VendorSettingsDesktopView extends StatelessWidget {
+class VendorSettingsDesktopView extends StatefulWidget {
   const VendorSettingsDesktopView({super.key});
 
   @override
+  State<VendorSettingsDesktopView> createState() =>
+      _VendorSettingsDesktopViewState();
+}
+
+class _VendorSettingsDesktopViewState
+    extends State<VendorSettingsDesktopView> {
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _categoryCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _descriptionCtrl = TextEditingController();
+  final _gstinCtrl = TextEditingController();
+  final _fssaiCtrl = TextEditingController();
+  final _cgstCtrl = TextEditingController();
+  final _sgstCtrl = TextEditingController();
+  final _serviceChargeCtrl = TextEditingController();
+
+  bool _controllersInitialized = false;
+
+  void _syncControllers(Map<String, dynamic> data) {
+    _setIfChanged(_nameCtrl, data['restaurantName'] ?? '');
+    _setIfChanged(_phoneCtrl, data['phone'] ?? '');
+    _setIfChanged(_emailCtrl, data['email'] ?? '');
+    _setIfChanged(_categoryCtrl, data['category'] ?? '');
+    _setIfChanged(_addressCtrl, data['address'] ?? '');
+    _setIfChanged(_descriptionCtrl, data['description'] ?? '');
+    _setIfChanged(_gstinCtrl, data['gstin'] ?? '');
+    _setIfChanged(_fssaiCtrl, data['fssai'] ?? '');
+    _setIfChanged(_cgstCtrl, data['cgstRate'] ?? '0');
+    _setIfChanged(_sgstCtrl, data['sgstRate'] ?? '0');
+    _setIfChanged(_serviceChargeCtrl, data['serviceCharge'] ?? '0');
+    _controllersInitialized = true;
+  }
+
+  void _setIfChanged(TextEditingController ctrl, String value) {
+    if (ctrl.text != value) ctrl.text = value;
+  }
+
+  void _dispatchFieldUpdate(BuildContext context, String key, String value) {
+    context.read<VendorSettingsBloc>().add(
+      UpdateRestaurantField(key: key, value: value),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    _categoryCtrl.dispose();
+    _addressCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _gstinCtrl.dispose();
+    _fssaiCtrl.dispose();
+    _cgstCtrl.dispose();
+    _sgstCtrl.dispose();
+    _serviceChargeCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<VendorSettingsBloc, VendorSettingsState>(
+    return BlocConsumer<VendorSettingsBloc, VendorSettingsState>(
+      listener: (context, state) {
+        if (state.successMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.successMessage!),
+              backgroundColor: const Color(0xFF10B981),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        if (state.errorMessage != null &&
+            state.status != VendorSettingsStatus.failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.errorMessage!),
+              backgroundColor: const Color(0xFFDC2626),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
       builder: (context, state) {
         if (state.status == VendorSettingsStatus.loading) {
           return const VendorSettingsShimmer();
         }
 
         if (state.status == VendorSettingsStatus.failure) {
-          return Center(child: Text('Error: ${state.errorMessage}'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('Error: ${state.errorMessage}',
+                    style: const TextStyle(color: Colors.red)),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => context
+                      .read<VendorSettingsBloc>()
+                      .add(const LoadVendorSettings()),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Sync controllers when data loads (only once or on reload)
+        if (state.status == VendorSettingsStatus.success &&
+            !_controllersInitialized) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _syncControllers(state.data),
+          );
         }
 
         return Padding(
@@ -121,15 +227,39 @@ class VendorSettingsDesktopView extends StatelessWidget {
                                 state.currentTabIndex,
                                 state.data,
                               ),
-                              if (state.currentTabIndex != 5) ...[
+                              if (state.currentTabIndex == 0 ||
+                                  state.currentTabIndex == 1) ...[
                                 const SizedBox(height: 32),
                                 ElevatedButton.icon(
-                                  onPressed: () {},
-                                  icon: const Icon(
-                                    Icons.save_outlined,
-                                    size: 18,
+                                  onPressed: state.isSaving
+                                      ? null
+                                      : () {
+                                          if (state.currentTabIndex == 0) {
+                                            context
+                                                .read<VendorSettingsBloc>()
+                                                .add(const SaveRestaurantInfo());
+                                          } else {
+                                            context
+                                                .read<VendorSettingsBloc>()
+                                                .add(const SaveTimings());
+                                          }
+                                        },
+                                  icon: state.isSaving
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Icon(
+                                          Icons.save_outlined,
+                                          size: 18,
+                                        ),
+                                  label: Text(
+                                    state.isSaving ? 'Saving...' : 'Save Changes',
                                   ),
-                                  label: const Text('Save Changes'),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AirMenuColors.primary,
                                     foregroundColor: Colors.white,
@@ -189,16 +319,19 @@ class VendorSettingsDesktopView extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: SettingsTextField(
+              child: _EditableField(
                 label: 'Restaurant Name',
-                initialValue: data['restaurantName'] ?? '',
+                controller: _nameCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'restaurantName', v),
               ),
             ),
             const SizedBox(width: 24),
             Expanded(
-              child: SettingsTextField(
+              child: _EditableField(
                 label: 'Phone',
-                initialValue: data['phone'] ?? '',
+                controller: _phoneCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'phone', v),
+                keyboardType: TextInputType.phone,
               ),
             ),
           ],
@@ -207,39 +340,85 @@ class VendorSettingsDesktopView extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: SettingsTextField(
+              child: _EditableField(
                 label: 'Email',
-                initialValue: data['email'] ?? '',
+                controller: _emailCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'email', v),
+                keyboardType: TextInputType.emailAddress,
               ),
             ),
             const SizedBox(width: 24),
             Expanded(
-              child: SettingsTextField(
-                label: 'Category',
-                initialValue: data['category'] ?? '',
+              child: _EditableField(
+                label: 'Cuisine / Category',
+                controller: _categoryCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'category', v),
               ),
             ),
           ],
         ),
         const SizedBox(height: 16),
-        SettingsTextField(
-          label: 'Address',
-          initialValue: data['address'] ?? '',
+        _EditableField(
+          label: 'Address / Location',
+          controller: _addressCtrl,
+          onChanged: (v) => _dispatchFieldUpdate(context, 'address', v),
         ),
         const SizedBox(height: 16),
+        _EditableField(
+          label: 'Description',
+          controller: _descriptionCtrl,
+          onChanged: (v) => _dispatchFieldUpdate(context, 'description', v),
+          maxLines: 3,
+        ),
+        const SizedBox(height: 24),
+        const SettingsSectionHeader(title: 'Tax & Charges'),
         Row(
           children: [
             Expanded(
-              child: SettingsTextField(
-                label: 'GSTIN',
-                initialValue: data['gstin'] ?? '',
+              child: _EditableField(
+                label: 'CGST Rate (%)',
+                controller: _cgstCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'cgstRate', v),
+                keyboardType: TextInputType.number,
               ),
             ),
             const SizedBox(width: 24),
             Expanded(
-              child: SettingsTextField(
+              child: _EditableField(
+                label: 'SGST Rate (%)',
+                controller: _sgstCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'sgstRate', v),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: _EditableField(
+                label: 'Service Charge (%)',
+                controller: _serviceChargeCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'serviceCharge', v),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+        const SettingsSectionHeader(title: 'Compliance'),
+        Row(
+          children: [
+            Expanded(
+              child: _EditableField(
+                label: 'GSTIN',
+                controller: _gstinCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'gstin', v),
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: _EditableField(
                 label: 'FSSAI License',
-                initialValue: data['fssai'] ?? '',
+                controller: _fssaiCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'fssai', v),
               ),
             ),
           ],
@@ -599,6 +778,66 @@ class VendorSettingsDesktopView extends StatelessWidget {
         const SizedBox(height: 32),
         const SettingsSectionHeader(title: 'Billing History'),
         BillingHistoryList(history: history),
+      ],
+    );
+  }
+}
+
+class _EditableField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final TextInputType keyboardType;
+  final int maxLines;
+
+  const _EditableField({
+    required this.label,
+    required this.controller,
+    required this.onChanged,
+    this.keyboardType = TextInputType.text,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AirMenuTextStyle.small.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AirMenuColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          onChanged: onChanged,
+          style: AirMenuTextStyle.normal,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AirMenuColors.primary),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
       ],
     );
   }

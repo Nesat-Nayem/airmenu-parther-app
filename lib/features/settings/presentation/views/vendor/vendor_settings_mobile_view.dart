@@ -10,15 +10,92 @@ import '../../widgets/billing_widgets.dart';
 // Actually better to duplicate the _buildContent methods or make them static mixins to avoid large imports.
 // I will duplicate specific build methods here to assume "Mobile" specific tweaks might be needed (like dense padding).
 
-class VendorSettingsMobileView extends StatelessWidget {
+class VendorSettingsMobileView extends StatefulWidget {
   const VendorSettingsMobileView({super.key});
 
   @override
+  State<VendorSettingsMobileView> createState() =>
+      _VendorSettingsMobileViewState();
+}
+
+class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _categoryCtrl = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _descriptionCtrl = TextEditingController();
+  final _gstinCtrl = TextEditingController();
+  final _fssaiCtrl = TextEditingController();
+  final _cgstCtrl = TextEditingController();
+  final _sgstCtrl = TextEditingController();
+  final _serviceChargeCtrl = TextEditingController();
+  bool _controllersInitialized = false;
+
+  void _syncControllers(Map<String, dynamic> data) {
+    void set(TextEditingController c, String v) {
+      if (c.text != v) c.text = v;
+    }
+    set(_nameCtrl, data['restaurantName'] ?? '');
+    set(_phoneCtrl, data['phone'] ?? '');
+    set(_emailCtrl, data['email'] ?? '');
+    set(_categoryCtrl, data['category'] ?? '');
+    set(_addressCtrl, data['address'] ?? '');
+    set(_descriptionCtrl, data['description'] ?? '');
+    set(_gstinCtrl, data['gstin'] ?? '');
+    set(_fssaiCtrl, data['fssai'] ?? '');
+    set(_cgstCtrl, data['cgstRate'] ?? '0');
+    set(_sgstCtrl, data['sgstRate'] ?? '0');
+    set(_serviceChargeCtrl, data['serviceCharge'] ?? '0');
+    _controllersInitialized = true;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    _categoryCtrl.dispose();
+    _addressCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _gstinCtrl.dispose();
+    _fssaiCtrl.dispose();
+    _cgstCtrl.dispose();
+    _sgstCtrl.dispose();
+    _serviceChargeCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocBuilder<VendorSettingsBloc, VendorSettingsState>(
+    return BlocConsumer<VendorSettingsBloc, VendorSettingsState>(
+      listener: (context, state) {
+        if (state.successMessage != null) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(state.successMessage!),
+            backgroundColor: const Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+        if (state.errorMessage != null &&
+            state.status != VendorSettingsStatus.failure) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(state.errorMessage!),
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      },
       builder: (context, state) {
         if (state.status == VendorSettingsStatus.loading) {
           return const VendorSettingsMobileShimmer();
+        }
+
+        if (state.status == VendorSettingsStatus.success &&
+            !_controllersInitialized) {
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _syncControllers(state.data),
+          );
         }
 
         return Scaffold(
@@ -114,21 +191,48 @@ class VendorSettingsMobileView extends StatelessWidget {
                       if (state.currentTabIndex == 5) _buildBilling(state.data),
 
                       const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AirMenuColors.primary,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      if (state.currentTabIndex == 0 ||
+                          state.currentTabIndex == 1)
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: state.isSaving
+                                ? null
+                                : () {
+                                    if (state.currentTabIndex == 0) {
+                                      context
+                                          .read<VendorSettingsBloc>()
+                                          .add(const SaveRestaurantInfo());
+                                    } else {
+                                      context
+                                          .read<VendorSettingsBloc>()
+                                          .add(const SaveTimings());
+                                    }
+                                  },
+                            icon: state.isSaving
+                                ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.save_outlined, size: 18),
+                            label: Text(
+                              state.isSaving ? 'Saving...' : 'Save Changes',
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AirMenuColors.primary,
+                              foregroundColor: Colors.white,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
-                          child: const Text('Save Changes'),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -146,30 +250,100 @@ class VendorSettingsMobileView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SettingsTextField(
+        _MobileField(
           label: 'Restaurant Name',
-          initialValue: data['restaurantName'] ?? '',
+          controller: _nameCtrl,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'restaurantName', value: v),
+          ),
         ),
         const SizedBox(height: 16),
-        SettingsTextField(label: 'Phone', initialValue: data['phone'] ?? ''),
-        const SizedBox(height: 16),
-        SettingsTextField(label: 'Email', initialValue: data['email'] ?? ''),
-        const SizedBox(height: 16),
-        SettingsTextField(
-          label: 'Category',
-          initialValue: data['category'] ?? '',
+        _MobileField(
+          label: 'Phone',
+          controller: _phoneCtrl,
+          keyboardType: TextInputType.phone,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'phone', value: v),
+          ),
         ),
         const SizedBox(height: 16),
-        SettingsTextField(
-          label: 'Address',
-          initialValue: data['address'] ?? '',
+        _MobileField(
+          label: 'Email',
+          controller: _emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'email', value: v),
+          ),
         ),
         const SizedBox(height: 16),
-        SettingsTextField(label: 'GSTIN', initialValue: data['gstin'] ?? ''),
+        _MobileField(
+          label: 'Cuisine / Category',
+          controller: _categoryCtrl,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'category', value: v),
+          ),
+        ),
         const SizedBox(height: 16),
-        SettingsTextField(
+        _MobileField(
+          label: 'Address / Location',
+          controller: _addressCtrl,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'address', value: v),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _MobileField(
+          label: 'Description',
+          controller: _descriptionCtrl,
+          maxLines: 3,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'description', value: v),
+          ),
+        ),
+        const SizedBox(height: 24),
+        const SettingsSectionHeader(title: 'Tax & Charges'),
+        _MobileField(
+          label: 'CGST Rate (%)',
+          controller: _cgstCtrl,
+          keyboardType: TextInputType.number,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'cgstRate', value: v),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _MobileField(
+          label: 'SGST Rate (%)',
+          controller: _sgstCtrl,
+          keyboardType: TextInputType.number,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'sgstRate', value: v),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _MobileField(
+          label: 'Service Charge (%)',
+          controller: _serviceChargeCtrl,
+          keyboardType: TextInputType.number,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'serviceCharge', value: v),
+          ),
+        ),
+        const SizedBox(height: 24),
+        const SettingsSectionHeader(title: 'Compliance'),
+        _MobileField(
+          label: 'GSTIN',
+          controller: _gstinCtrl,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'gstin', value: v),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _MobileField(
           label: 'FSSAI License',
-          initialValue: data['fssai'] ?? '',
+          controller: _fssaiCtrl,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'fssai', value: v),
+          ),
         ),
       ],
     );
@@ -427,6 +601,66 @@ class VendorSettingsMobileView extends StatelessWidget {
         const SizedBox(height: 24),
         const SettingsSectionHeader(title: 'History'),
         BillingHistoryList(history: history),
+      ],
+    );
+  }
+}
+
+class _MobileField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final TextInputType keyboardType;
+  final int maxLines;
+
+  const _MobileField({
+    required this.label,
+    required this.controller,
+    required this.onChanged,
+    this.keyboardType = TextInputType.text,
+    this.maxLines = 1,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AirMenuTextStyle.small.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AirMenuColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          maxLines: maxLines,
+          onChanged: onChanged,
+          style: AirMenuTextStyle.normal,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AirMenuColors.primary),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
       ],
     );
   }

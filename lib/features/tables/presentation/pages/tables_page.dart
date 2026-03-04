@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
@@ -7,6 +8,9 @@ import '../widgets/tables_stats_row.dart';
 import '../widgets/tables_toolbar.dart';
 import '../widgets/table_card.dart';
 import '../widgets/add_table_dialog.dart';
+import '../widgets/download_helper_stub.dart'
+    if (dart.library.html) '../widgets/download_helper_web.dart'
+    as download_helper;
 
 class TablesPage extends StatelessWidget {
   const TablesPage({super.key});
@@ -21,14 +25,87 @@ class TablesPage extends StatelessWidget {
   }
 }
 
-class TablesPageView extends StatelessWidget {
+// Mixin to hold download state — used in TablesPageView via StatefulWidget
+class _TablesPageViewState extends State<TablesPageView> {
+  bool _isDownloadingAll = false;
+
+  Future<void> _downloadAllQr(BuildContext context) async {
+    if (!kIsWeb) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Download All is only supported on web')),
+      );
+      return;
+    }
+    setState(() => _isDownloadingAll = true);
+    try {
+      final repo = GetIt.I<TableRepository>();
+      // For vendors, hotelId is resolved by backend auth middleware
+      // We pass the hotelId from localStorage via the repository's _getHotelId
+      final hotelId = await repo.getVendorHotelId() ?? '';
+      final urls = await repo.getDownloadAllUrls(hotelId);
+      if (urls.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No QR codes to download')),
+          );
+        }
+        return;
+      }
+      for (final item in urls) {
+        final url = item['qrCodeImage'] ?? '';
+        final tableNum = item['tableNumber'] ?? '';
+        if (url.isNotEmpty) {
+          download_helper.downloadFileFromUrl(url, 'table_${tableNum}_qrcode.png');
+        }
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Downloading ${urls.length} QR codes...')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString().replaceFirst('Exception: ', '')),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isDownloadingAll = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _TablesPageViewContent(
+      isDownloadingAll: _isDownloadingAll,
+      onDownloadAll: () => _downloadAllQr(context),
+    );
+  }
+}
+
+class TablesPageView extends StatefulWidget {
   const TablesPageView({super.key});
+
+  @override
+  State<TablesPageView> createState() => _TablesPageViewState();
+}
+
+class _TablesPageViewContent extends StatelessWidget {
+  final bool isDownloadingAll;
+  final VoidCallback onDownloadAll;
+
+  const _TablesPageViewContent({
+    required this.isDownloadingAll,
+    required this.onDownloadAll,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width >= 1024;
-    final isTablet =
-        MediaQuery.of(context).size.width >= 600 &&
+    final isTablet = MediaQuery.of(context).size.width >= 600 &&
         MediaQuery.of(context).size.width < 1024;
 
     return Scaffold(
@@ -100,7 +177,7 @@ class TablesPageView extends StatelessWidget {
                         const SizedBox(height: 24),
 
                         // Toolbar & Add Button
-                        _buildToolbarSection(context, isDesktop),
+                        _buildToolbarSection(context, isDesktop, isDownloadingAll, onDownloadAll),
                         const SizedBox(height: 24),
 
                         // Grid
@@ -146,7 +223,12 @@ class TablesPageView extends StatelessWidget {
     );
   }
 
-  Widget _buildToolbarSection(BuildContext context, bool isDesktop) {
+  Widget _buildToolbarSection(
+    BuildContext context,
+    bool isDesktop,
+    bool isDownloadingAll,
+    VoidCallback onDownloadAll,
+  ) {
     if (isDesktop) {
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -157,10 +239,13 @@ class TablesPageView extends StatelessWidget {
           ),
           Row(
             children: [
+              if (kIsWeb)
               OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.download_rounded, size: 18),
-                label: const Text('Download All QR'),
+                onPressed: isDownloadingAll ? null : onDownloadAll,
+                icon: isDownloadingAll
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.download_rounded, size: 18),
+                label: Text(isDownloadingAll ? 'Downloading...' : 'Download All QR'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -212,11 +297,15 @@ class TablesPageView extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
+              if (kIsWeb) ...
+              [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.download_rounded, size: 18),
-                  label: const Text('Download All QR'),
+                  onPressed: isDownloadingAll ? null : onDownloadAll,
+                  icon: isDownloadingAll
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.download_rounded, size: 18),
+                  label: Text(isDownloadingAll ? 'Downloading...' : 'Download All QR'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -228,6 +317,7 @@ class TablesPageView extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
+              ],
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () {

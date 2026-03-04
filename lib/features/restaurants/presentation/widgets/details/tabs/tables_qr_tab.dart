@@ -80,102 +80,120 @@ class _TablesQrTabState extends State<TablesQrTab> {
     final tableCtrl = TextEditingController(text: table?.tableNumber ?? '');
     final seatCtrl = TextEditingController(text: table != null ? '${table.capacity}' : '');
     final isEdit = table != null;
+    String selectedZone = table?.zone.toLowerCase() ?? 'indoor';
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(
-          isEdit ? 'Edit Table' : 'Add New Table',
-          style: GoogleFonts.sora(fontWeight: FontWeight.w600, fontSize: 18),
-        ),
-        content: SizedBox(
-          width: 400,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: tableCtrl,
-                decoration: InputDecoration(
-                  labelText: 'Table Number *',
-                  hintText: 'e.g. T1, Table 5',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  prefixIcon: const Icon(Icons.table_restaurant_outlined),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx2, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(
+            isEdit ? 'Edit Table' : 'Add New Table',
+            style: GoogleFonts.sora(fontWeight: FontWeight.w600, fontSize: 18),
+          ),
+          content: SizedBox(
+            width: 400,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: tableCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Table Number *',
+                    hintText: 'e.g. T1, Table 5',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: const Icon(Icons.table_restaurant_outlined),
+                  ),
                 ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: seatCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Seat Capacity *',
+                    hintText: 'e.g. 4',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: const Icon(Icons.people_outline),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: selectedZone,
+                  decoration: InputDecoration(
+                    labelText: 'Zone',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    prefixIcon: const Icon(Icons.place_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'indoor', child: Text('Indoor')),
+                    DropdownMenuItem(value: 'outdoor', child: Text('Outdoor')),
+                    DropdownMenuItem(value: 'private', child: Text('Private')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selectedZone = val);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey.shade600)),
+            ),
+            ElevatedButton(
+              onPressed: _isSaving ? null : () async {
+                final tableNum = tableCtrl.text.trim();
+                final seats = int.tryParse(seatCtrl.text.trim()) ?? 0;
+                if (tableNum.isEmpty) {
+                  _showSnackBar('Table number is required', isError: true);
+                  return;
+                }
+                if (seats < 1) {
+                  _showSnackBar('Seat capacity must be at least 1', isError: true);
+                  return;
+                }
+                setState(() => _isSaving = true);
+                setDialogState(() {});
+                try {
+                  if (isEdit) {
+                    await _repo.updateTable(
+                      id: table.id,
+                      hotelId: widget.hotelId,
+                      tableNumber: tableNum,
+                      seatNumber: seats,
+                      capacity: seats,
+                      zone: selectedZone,
+                    );
+                    _showSnackBar('Table updated successfully');
+                  } else {
+                    await _repo.addTableForHotel(
+                      hotelId: widget.hotelId,
+                      tableNumber: tableNum,
+                      seatNumber: seats,
+                      capacity: seats,
+                      zone: selectedZone,
+                    );
+                    _showSnackBar('Table created successfully');
+                  }
+                  if (mounted) Navigator.pop(ctx, true);
+                } catch (e) {
+                  _showSnackBar(e.toString().replaceFirst('Exception: ', ''), isError: true);
+                } finally {
+                  if (mounted) setState(() => _isSaving = false);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFC52031),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: seatCtrl,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'Seat Capacity *',
-                  hintText: 'e.g. 4',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  prefixIcon: const Icon(Icons.people_outline),
-                ),
-              ),
-            ],
-          ),
+              child: _isSaving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(isEdit ? 'Update' : 'Create'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.inter(color: Colors.grey.shade600)),
-          ),
-          StatefulBuilder(
-            builder: (ctx2, setDialogState) {
-              return ElevatedButton(
-                onPressed: _isSaving ? null : () async {
-                  final tableNum = tableCtrl.text.trim();
-                  final seats = int.tryParse(seatCtrl.text.trim()) ?? 0;
-                  if (tableNum.isEmpty) {
-                    _showSnackBar('Table number is required', isError: true);
-                    return;
-                  }
-                  if (seats < 1) {
-                    _showSnackBar('Seat capacity must be at least 1', isError: true);
-                    return;
-                  }
-                  setState(() => _isSaving = true);
-                  setDialogState(() {});
-                  try {
-                    if (isEdit) {
-                      await _repo.updateTable(
-                        id: table.id,
-                        hotelId: widget.hotelId,
-                        tableNumber: tableNum,
-                        seatNumber: seats,
-                        capacity: seats,
-                      );
-                      _showSnackBar('Table updated successfully');
-                    } else {
-                      await _repo.addTableForHotel(
-                        hotelId: widget.hotelId,
-                        tableNumber: tableNum,
-                        seatNumber: seats,
-                        capacity: seats,
-                      );
-                      _showSnackBar('Table created successfully');
-                    }
-                    if (mounted) Navigator.pop(ctx, true);
-                  } catch (e) {
-                    _showSnackBar(e.toString().replaceFirst('Exception: ', ''), isError: true);
-                  } finally {
-                    if (mounted) setState(() => _isSaving = false);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFC52031),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: _isSaving
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : Text(isEdit ? 'Update' : 'Create'),
-              );
-            },
-          ),
-        ],
       ),
     );
 
@@ -545,7 +563,20 @@ class _TablesQrTabState extends State<TablesQrTab> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Text('Seats: ${table.capacity}', style: AirMenuTextStyle.small.copyWith(color: const Color(0xFF6B7280))),
+                Row(
+                  children: [
+                    Text('Seats: ${table.capacity}', style: AirMenuTextStyle.small.copyWith(color: const Color(0xFF6B7280))),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(table.zone, style: AirMenuTextStyle.tiny.copyWith(color: const Color(0xFF6B7280), fontWeight: FontWeight.w500)),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 6,

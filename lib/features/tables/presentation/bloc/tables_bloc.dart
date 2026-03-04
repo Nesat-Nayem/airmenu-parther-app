@@ -34,6 +34,13 @@ class AddTable extends TablesEvent {
   List<Object?> get props => [table];
 }
 
+class UpdateTable extends TablesEvent {
+  final TableModel table;
+  const UpdateTable(this.table);
+  @override
+  List<Object?> get props => [table];
+}
+
 class DeleteTable extends TablesEvent {
   final String id;
   const DeleteTable(this.id);
@@ -102,6 +109,7 @@ class TablesBloc extends Bloc<TablesEvent, TablesState> {
     on<LoadTables>(_onLoadTables);
     on<FilterTables>(_onFilterTables);
     on<AddTable>(_onAddTable);
+    on<UpdateTable>(_onUpdateTable);
     on<DeleteTable>(_onDeleteTable);
   }
 
@@ -155,6 +163,43 @@ class TablesBloc extends Bloc<TablesEvent, TablesState> {
     try {
       final newTable = await repository.addTable(event.table);
       final updatedList = [newTable, ...state.allTables]; // Add to top
+
+      final filtered = _applyFilters(
+        updatedList,
+        state.searchQuery,
+        state.zoneFilter,
+        state.statusFilter,
+      );
+
+      emit(
+        state.copyWith(
+          allTables: updatedList,
+          filteredTables: filtered,
+          isLoading: false,
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(isLoading: false, error: e.toString()));
+    }
+  }
+
+  Future<void> _onUpdateTable(
+    UpdateTable event,
+    Emitter<TablesState> emit,
+  ) async {
+    emit(state.copyWith(isLoading: true));
+    try {
+      final updated = await repository.updateTable(
+        id: event.table.id,
+        hotelId: event.table.hotelId,
+        tableNumber: event.table.tableNumber,
+        seatNumber: event.table.capacity,
+        capacity: event.table.capacity,
+        zone: event.table.zone.toLowerCase(),
+      );
+      final updatedList = state.allTables.map((t) {
+        return t.id == updated.id ? updated : t;
+      }).toList();
 
       final filtered = _applyFilters(
         updatedList,

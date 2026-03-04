@@ -16,6 +16,9 @@ class TableRepository {
     return locator<LocalStorage>().getString(localStorageKey: 'hotelId');
   }
 
+  /// Public accessor for vendor's hotelId from localStorage
+  Future<String?> getVendorHotelId() => _getHotelId();
+
   Future<List<TableModel>> getTables() async {
     final hotelId = await _getHotelId();
     String url = '/qrcodes';
@@ -147,6 +150,7 @@ class TableRepository {
     required String tableNumber,
     required int seatNumber,
     int capacity = 2,
+    String zone = 'indoor',
   }) async {
     final response = await apiService.invoke<TableModel>(
       urlPath: '/qrcodes',
@@ -156,6 +160,7 @@ class TableRepository {
         'seatNumber': seatNumber,
         'capacity': capacity,
         'hotelId': hotelId,
+        'zone': zone,
       },
       fun: (jsonString) {
         final json = jsonDecode(jsonString);
@@ -181,6 +186,7 @@ class TableRepository {
     required String tableNumber,
     required int seatNumber,
     int capacity = 2,
+    String zone = 'indoor',
   }) async {
     final response = await apiService.invoke<TableModel>(
       urlPath: '/qrcodes/$id',
@@ -190,6 +196,7 @@ class TableRepository {
         'seatNumber': seatNumber,
         'capacity': capacity,
         'hotelId': hotelId,
+        'zone': zone,
       },
       fun: (jsonString) {
         final json = jsonDecode(jsonString);

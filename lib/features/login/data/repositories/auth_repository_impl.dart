@@ -3,6 +3,7 @@ import 'package:airmenuai_partner_app/config/environment/env_config.dart';
 import 'package:airmenuai_partner_app/core/models/user_model.dart';
 import 'package:airmenuai_partner_app/utils/services/user_service.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:airmenuai_partner_app/utils/shared_preferences/secure_storage.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/foundation.dart';
@@ -13,6 +14,7 @@ import '../../domain/repositories/auth_repository.dart';
 class AuthRepositoryImpl extends AuthRepository {
   final SecureStorage _secureStorage = locator<SecureStorage>();
   final UserService _userService = locator<UserService>();
+  final LocalStorage _localStorage = locator<LocalStorage>();
 
   @override
   Future<Either<String, bool>> login(String email, String password) async {
@@ -67,6 +69,15 @@ class AuthRepositoryImpl extends AuthRepository {
             final userData = responseData['data'] as Map<String, dynamic>;
             final user = UserModel.fromJson(userData);
             await _userService.saveUser(user);
+
+            // Store hotelId in localStorage for vendor users
+            if (user.hotelId != null && user.hotelId!.isNotEmpty) {
+              await _localStorage.setString(
+                localStorageKey: 'hotelId',
+                value: user.hotelId!,
+              );
+              debugPrint('✅ hotelId saved: ${user.hotelId}');
+            }
           } catch (e) {
             // Log error but don't fail login if user data parsing fails
             print('Error parsing user data: $e');

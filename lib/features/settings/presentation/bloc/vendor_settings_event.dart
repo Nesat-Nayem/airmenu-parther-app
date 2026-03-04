@@ -30,6 +30,24 @@ class ToggleSetting extends VendorSettingsEvent {
   List<Object?> get props => [settingId, value];
 }
 
+class UpdateRestaurantField extends VendorSettingsEvent {
+  final String key;
+  final dynamic value;
+
+  const UpdateRestaurantField({required this.key, required this.value});
+
+  @override
+  List<Object?> get props => [key, value];
+}
+
+class SaveRestaurantInfo extends VendorSettingsEvent {
+  const SaveRestaurantInfo();
+}
+
+class SaveTimings extends VendorSettingsEvent {
+  const SaveTimings();
+}
+
 class UpdateTiming extends VendorSettingsEvent {
   final String day;
   final String? startTime;

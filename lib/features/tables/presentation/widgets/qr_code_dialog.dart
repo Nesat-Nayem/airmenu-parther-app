@@ -1,7 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../data/models/table_model.dart';
+import 'download_helper_stub.dart'
+    if (dart.library.html) 'download_helper_web.dart'
+    as download_helper;
 
 /// QR Code Dialog - Displays the QR code for a table
 /// Matches reference design with title, QR code, description, and download button
@@ -122,12 +126,31 @@ class QrCodeDialog extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // TODO: Implement Download/Print
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Downloading QR Code...')),
-                  );
-                },
+                onPressed: table.qrUrl.isEmpty
+                    ? null
+                    : () {
+                        if (kIsWeb) {
+                          download_helper.downloadFileFromUrl(
+                            table.qrUrl,
+                            'table_${table.tableNumber}_qrcode.png',
+                          );
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Downloading QR for Table ${table.tableNumber}',
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Download is only supported on web',
+                              ),
+                            ),
+                          );
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFDC2626),
                   foregroundColor: Colors.white,
