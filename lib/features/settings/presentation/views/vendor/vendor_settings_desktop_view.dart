@@ -19,10 +19,12 @@ class VendorSettingsDesktopView extends StatefulWidget {
 class _VendorSettingsDesktopViewState
     extends State<VendorSettingsDesktopView> {
   final _nameCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _categoryCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
+  final _cuisineCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  final _distanceCtrl = TextEditingController();
+  final _minPriceCtrl = TextEditingController();
+  final _maxPriceCtrl = TextEditingController();
+  final _ratingCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _gstinCtrl = TextEditingController();
   final _fssaiCtrl = TextEditingController();
@@ -34,16 +36,18 @@ class _VendorSettingsDesktopViewState
 
   void _syncControllers(Map<String, dynamic> data) {
     _setIfChanged(_nameCtrl, data['restaurantName'] ?? '');
-    _setIfChanged(_phoneCtrl, data['phone'] ?? '');
-    _setIfChanged(_emailCtrl, data['email'] ?? '');
-    _setIfChanged(_categoryCtrl, data['category'] ?? '');
-    _setIfChanged(_addressCtrl, data['address'] ?? '');
+    _setIfChanged(_cuisineCtrl, data['cuisine'] ?? data['category'] ?? '');
+    _setIfChanged(_locationCtrl, data['address'] ?? '');
+    _setIfChanged(_distanceCtrl, data['distance'] ?? '');
+    _setIfChanged(_minPriceCtrl, (data['minPrice'] ?? '').toString());
+    _setIfChanged(_maxPriceCtrl, (data['maxPrice'] ?? '').toString());
+    _setIfChanged(_ratingCtrl, (data['rating'] ?? '').toString());
     _setIfChanged(_descriptionCtrl, data['description'] ?? '');
     _setIfChanged(_gstinCtrl, data['gstin'] ?? '');
     _setIfChanged(_fssaiCtrl, data['fssai'] ?? '');
-    _setIfChanged(_cgstCtrl, data['cgstRate'] ?? '0');
-    _setIfChanged(_sgstCtrl, data['sgstRate'] ?? '0');
-    _setIfChanged(_serviceChargeCtrl, data['serviceCharge'] ?? '0');
+    _setIfChanged(_cgstCtrl, (data['cgstRate'] ?? '0').toString());
+    _setIfChanged(_sgstCtrl, (data['sgstRate'] ?? '0').toString());
+    _setIfChanged(_serviceChargeCtrl, (data['serviceCharge'] ?? '0').toString());
     _controllersInitialized = true;
   }
 
@@ -60,10 +64,12 @@ class _VendorSettingsDesktopViewState
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _phoneCtrl.dispose();
-    _emailCtrl.dispose();
-    _categoryCtrl.dispose();
-    _addressCtrl.dispose();
+    _cuisineCtrl.dispose();
+    _locationCtrl.dispose();
+    _distanceCtrl.dispose();
+    _minPriceCtrl.dispose();
+    _maxPriceCtrl.dispose();
+    _ratingCtrl.dispose();
     _descriptionCtrl.dispose();
     _gstinCtrl.dispose();
     _fssaiCtrl.dispose();
@@ -328,10 +334,32 @@ class _VendorSettingsDesktopViewState
             const SizedBox(width: 24),
             Expanded(
               child: _EditableField(
-                label: 'Phone',
-                controller: _phoneCtrl,
-                onChanged: (v) => _dispatchFieldUpdate(context, 'phone', v),
-                keyboardType: TextInputType.phone,
+                label: 'Cuisine',
+                controller: _cuisineCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'cuisine', v),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              flex: 2,
+              child: _EditableField(
+                label: 'Location',
+                controller: _locationCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'address', v),
+                hint: 'Start typing to search for a location...',
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: _EditableField(
+                label: 'Distance',
+                controller: _distanceCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'distance', v),
+                hint: 'e.g., 2.5 km from city center',
               ),
             ),
           ],
@@ -341,27 +369,31 @@ class _VendorSettingsDesktopViewState
           children: [
             Expanded(
               child: _EditableField(
-                label: 'Email',
-                controller: _emailCtrl,
-                onChanged: (v) => _dispatchFieldUpdate(context, 'email', v),
-                keyboardType: TextInputType.emailAddress,
+                label: 'Min Price (₹)',
+                controller: _minPriceCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'minPrice', v),
+                keyboardType: TextInputType.number,
               ),
             ),
             const SizedBox(width: 24),
             Expanded(
               child: _EditableField(
-                label: 'Cuisine / Category',
-                controller: _categoryCtrl,
-                onChanged: (v) => _dispatchFieldUpdate(context, 'category', v),
+                label: 'Max Price (₹)',
+                controller: _maxPriceCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'maxPrice', v),
+                keyboardType: TextInputType.number,
+              ),
+            ),
+            const SizedBox(width: 24),
+            Expanded(
+              child: _EditableField(
+                label: 'Rating (0–5)',
+                controller: _ratingCtrl,
+                onChanged: (v) => _dispatchFieldUpdate(context, 'rating', v),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
             ),
           ],
-        ),
-        const SizedBox(height: 16),
-        _EditableField(
-          label: 'Address / Location',
-          controller: _addressCtrl,
-          onChanged: (v) => _dispatchFieldUpdate(context, 'address', v),
         ),
         const SizedBox(height: 16),
         _EditableField(
@@ -416,7 +448,7 @@ class _VendorSettingsDesktopViewState
             const SizedBox(width: 24),
             Expanded(
               child: _EditableField(
-                label: 'FSSAI License',
+                label: 'FSSAI License No.',
                 controller: _fssaiCtrl,
                 onChanged: (v) => _dispatchFieldUpdate(context, 'fssai', v),
               ),
@@ -789,6 +821,7 @@ class _EditableField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final TextInputType keyboardType;
   final int maxLines;
+  final String? hint;
 
   const _EditableField({
     required this.label,
@@ -796,6 +829,7 @@ class _EditableField extends StatelessWidget {
     required this.onChanged,
     this.keyboardType = TextInputType.text,
     this.maxLines = 1,
+    this.hint,
   });
 
   @override
@@ -833,6 +867,10 @@ class _EditableField extends StatelessWidget {
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: AirMenuColors.primary),
+            ),
+            hintText: hint,
+            hintStyle: AirMenuTextStyle.normal.copyWith(
+              color: Colors.grey.shade400,
             ),
             filled: true,
             fillColor: Colors.white,

@@ -259,19 +259,65 @@ class MarketingPageView extends StatelessWidget {
                   CampaignAnalyticsDialog.show(context, campaign);
                 },
                 onEditTap: () {
-                  CampaignFormDialog.show(
-                    context,
-                    campaign: campaign,
-                    onSave: (data) {
-                      context.read<MarketingBloc>().add(
-                        UpdateCampaign(
-                          campaignId: campaign.id,
-                          campaignData: data,
-                        ),
-                      );
-                    },
-                  );
+                  if (state.isAdmin) {
+                    CampaignFormDialog.show(
+                      context,
+                      campaign: campaign,
+                      onSave: (data) {
+                        context.read<MarketingBloc>().add(
+                          UpdateCampaign(
+                            campaignId: campaign.id,
+                            campaignData: data,
+                          ),
+                        );
+                      },
+                    );
+                  } else {
+                    OfferFormDialog.show(
+                      context,
+                      onSave: (data) {
+                        context.read<MarketingBloc>().add(
+                          UpdateCampaign(
+                            campaignId: campaign.id,
+                            campaignData: data,
+                          ),
+                        );
+                      },
+                    );
+                  }
                 },
+                onDeleteTap: !state.isAdmin
+                    ? () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => AlertDialog(
+                            title: const Text('Delete Offer'),
+                            content: Text(
+                              'Are you sure you want to delete "${campaign.name}"?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFDC2626),
+                                  foregroundColor: Colors.white,
+                                ),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                  context.read<MarketingBloc>().add(
+                                    DeleteCampaign(campaign.id),
+                                  );
+                                },
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                    : null,
               ),
             );
           }).toList(),
@@ -482,18 +528,49 @@ class MarketingPageView extends StatelessWidget {
                     context,
                     combo: combo,
                     onSave: (data) {
-                      // Update combo not full implemented yet in Bloc
-                      // context.read<MarketingBloc>().add(UpdateCombo(...));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Combo update coming soon!'),
-                        ),
+                      context.read<MarketingBloc>().add(
+                        UpdateCombo(comboId: combo.id, comboData: data),
                       );
                     },
                   );
                 },
                 onToggle: () {
-                  // status toggle
+                  context.read<MarketingBloc>().add(
+                    ToggleComboStatus(
+                      comboId: combo.id,
+                      currentStatus: combo.isActive,
+                    ),
+                  );
+                },
+                onDelete: () {
+                  showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text('Delete Combo'),
+                      content: Text(
+                        'Are you sure you want to delete "${combo.name}"?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            context.read<MarketingBloc>().add(
+                              DeleteCombo(combo.id),
+                            );
+                          },
+                          child: const Text('Delete'),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
             );

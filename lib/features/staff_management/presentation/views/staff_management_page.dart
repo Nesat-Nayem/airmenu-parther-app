@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import '../../domain/repositories/staff_repository_interface.dart';
 import '../bloc/staff_bloc.dart';
 import '../bloc/staff_event.dart';
@@ -38,17 +40,21 @@ class StaffManagementView extends StatefulWidget {
 
 class _StaffManagementViewState extends State<StaffManagementView> {
   final _searchController = TextEditingController();
+  String _hotelId = '';
 
-  // TODO: Replace with actual hotelId from user/vendor context
-  // This is a placeholder - needs to come from vendor's selected hotel
-  String get _hotelId => _getHotelIdFromContext();
+  @override
+  void initState() {
+    super.initState();
+    _loadHotelId();
+  }
 
-  String _getHotelIdFromContext() {
-    // In production, this would come from:
-    // 1. Vendor's user session
-    // 2. Selected hotel in dropdown
-    // For now, return placeholder to allow testing
-    return '-'; // Shows "-" to indicate missing data
+  Future<void> _loadHotelId() async {
+    final id = await locator<LocalStorage>().getString(
+      localStorageKey: 'hotelId',
+    );
+    if (mounted) {
+      setState(() => _hotelId = id ?? '');
+    }
   }
 
   @override
@@ -58,10 +64,10 @@ class _StaffManagementViewState extends State<StaffManagementView> {
   }
 
   void _showAddStaffDialog() {
-    if (_hotelId == '-') {
+    if (_hotelId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Hotel ID not available. Please select a hotel first.'),
+          content: Text('Hotel not found. Please complete KYC first.'),
           backgroundColor: Color(0xFFDC2626),
         ),
       );

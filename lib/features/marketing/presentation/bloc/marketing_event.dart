@@ -134,5 +134,47 @@ class SearchCombos extends MarketingEvent {
   List<Object?> get props => [query];
 }
 
+/// Update an existing combo
+class UpdateCombo extends MarketingEvent {
+  final String comboId;
+  final Map<String, dynamic> comboData;
+
+  const UpdateCombo({required this.comboId, required this.comboData});
+
+  @override
+  List<Object?> get props => [comboId, comboData];
+}
+
+/// Delete a combo
+class DeleteCombo extends MarketingEvent {
+  final String comboId;
+
+  const DeleteCombo(this.comboId);
+
+  @override
+  List<Object?> get props => [comboId];
+}
+
+/// Toggle combo active/inactive status
+class ToggleComboStatus extends MarketingEvent {
+  final String comboId;
+  final bool currentStatus;
+
+  const ToggleComboStatus({required this.comboId, required this.currentStatus});
+
+  @override
+  List<Object?> get props => [comboId, currentStatus];
+}
+
+/// Delete a campaign/offer (vendor)
+class DeleteCampaign extends MarketingEvent {
+  final String campaignId;
+
+  const DeleteCampaign(this.campaignId);
+
+  @override
+  List<Object?> get props => [campaignId];
+}
+
 /// Tab enum for marketing page
 enum MarketingTab { campaigns, promoCodes, combos }

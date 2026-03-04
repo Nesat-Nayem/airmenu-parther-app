@@ -478,6 +478,96 @@ class MarketingRepositoryImpl implements IMarketingRepository {
     }
   }
 
+  Future<MarketingResult<ComboModel>> updateCombo(
+    String comboId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      final response = await _apiService.invoke<ComboModel>(
+        urlPath: '/combos/$comboId',
+        type: RequestType.put,
+        params: data,
+        fun: (jsonString) {
+          final map = jsonDecode(jsonString);
+          return ComboModel.fromJson(map['data']);
+        },
+      );
+      if (response is DataSuccess) {
+        return MarketingResult.success(response.data!);
+      } else {
+        final error = (response as DataFailure).error;
+        return MarketingResult.failure(
+          MarketingError.server(error?.message ?? 'Failed to update combo'),
+        );
+      }
+    } catch (e) {
+      return MarketingResult.failure(_handleError(e));
+    }
+  }
+
+  Future<MarketingResult<bool>> deleteCombo(String comboId) async {
+    try {
+      final response = await _apiService.invoke<bool>(
+        urlPath: '/combos/$comboId',
+        type: RequestType.delete,
+        fun: (_) => true,
+      );
+      if (response is DataSuccess) {
+        return MarketingResult.success(true);
+      } else {
+        final error = (response as DataFailure).error;
+        return MarketingResult.failure(
+          MarketingError.server(error?.message ?? 'Failed to delete combo'),
+        );
+      }
+    } catch (e) {
+      return MarketingResult.failure(_handleError(e));
+    }
+  }
+
+  Future<MarketingResult<bool>> toggleComboStatus(
+    String comboId,
+    bool currentStatus,
+  ) async {
+    try {
+      final response = await _apiService.invoke<bool>(
+        urlPath: '/combos/$comboId/toggle-status',
+        type: RequestType.patch,
+        fun: (_) => true,
+      );
+      if (response is DataSuccess) {
+        return MarketingResult.success(true);
+      } else {
+        final error = (response as DataFailure).error;
+        return MarketingResult.failure(
+          MarketingError.server(error?.message ?? 'Failed to toggle combo'),
+        );
+      }
+    } catch (e) {
+      return MarketingResult.failure(_handleError(e));
+    }
+  }
+
+  Future<MarketingResult<bool>> deleteCampaign(String campaignId) async {
+    try {
+      final response = await _apiService.invoke<bool>(
+        urlPath: '/hotel-offers/$campaignId',
+        type: RequestType.delete,
+        fun: (_) => true,
+      );
+      if (response is DataSuccess) {
+        return MarketingResult.success(true);
+      } else {
+        final error = (response as DataFailure).error;
+        return MarketingResult.failure(
+          MarketingError.server(error?.message ?? 'Failed to delete offer'),
+        );
+      }
+    } catch (e) {
+      return MarketingResult.failure(_handleError(e));
+    }
+  }
+
   /// Handle different types of errors
   MarketingError _handleError(dynamic error) {
     if (error is MarketingError) {

@@ -261,13 +261,50 @@ class MarketingMobileView extends StatelessWidget {
                 context,
                 combo: combo,
                 onSave: (data) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Combo update coming soon!')),
+                  context.read<MarketingBloc>().add(
+                    UpdateCombo(comboId: combo.id, comboData: data),
                   );
                 },
               );
             },
-            onToggle: () {},
+            onToggle: () {
+              context.read<MarketingBloc>().add(
+                ToggleComboStatus(
+                  comboId: combo.id,
+                  currentStatus: combo.isActive,
+                ),
+              );
+            },
+            onDelete: () {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Delete Combo'),
+                  content: Text(
+                    'Are you sure you want to delete "${combo.name}"?',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.read<MarketingBloc>().add(
+                          DeleteCombo(combo.id),
+                        );
+                      },
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         );
       }).toList(),

@@ -8,12 +8,14 @@ class CampaignCard extends StatelessWidget {
   final CampaignModel campaign;
   final VoidCallback? onAnalyticsTap;
   final VoidCallback? onEditTap;
+  final VoidCallback? onDeleteTap;
 
   const CampaignCard({
     super.key,
     required this.campaign,
     this.onAnalyticsTap,
     this.onEditTap,
+    this.onDeleteTap,
   });
 
   @override
@@ -22,6 +24,7 @@ class CampaignCard extends StatelessWidget {
       campaign: campaign,
       onAnalyticsTap: onAnalyticsTap,
       onEditTap: onEditTap,
+      onDeleteTap: onDeleteTap,
     );
   }
 }
@@ -30,11 +33,13 @@ class _HoverableCampaignCard extends StatefulWidget {
   final CampaignModel campaign;
   final VoidCallback? onAnalyticsTap;
   final VoidCallback? onEditTap;
+  final VoidCallback? onDeleteTap;
 
   const _HoverableCampaignCard({
     required this.campaign,
     this.onAnalyticsTap,
     this.onEditTap,
+    this.onDeleteTap,
   });
 
   @override
@@ -327,6 +332,30 @@ class _HoverableCampaignCardState extends State<_HoverableCampaignCard> {
                 ),
               ),
             ),
+            if (widget.onDeleteTap != null) ...[
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: widget.onDeleteTap,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  side: const BorderSide(color: Color(0xFFDC2626)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  minimumSize: Size.zero,
+                ),
+                child: Text(
+                  'Delete',
+                  style: AirMenuTextStyle.small.copyWith(
+                    color: const Color(0xFFDC2626),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ],

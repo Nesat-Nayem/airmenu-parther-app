@@ -76,12 +76,27 @@ class VendorSettingsBloc
           };
         }
 
+        // Parse priceRange: "100 - 500" → minPrice/maxPrice
+        String minPrice = '';
+        String maxPrice = '';
+        final priceRange = hotel['priceRange']?.toString() ?? '';
+        if (priceRange.contains('-')) {
+          final parts = priceRange.split('-').map((s) => s.trim()).toList();
+          minPrice = parts[0];
+          maxPrice = parts.length > 1 ? parts[1] : '';
+        } else if (hotel['minPrice'] != null) {
+          minPrice = hotel['minPrice'].toString();
+          maxPrice = (hotel['maxPrice'] ?? '').toString();
+        }
+
         final data = {
           'restaurantName': hotel['name'] ?? '',
-          'phone': hotel['phone'] ?? '',
-          'email': hotel['email'] ?? '',
-          'category': hotel['cuisine'] ?? hotel['category'] ?? '',
+          'cuisine': hotel['cuisine'] ?? hotel['category'] ?? '',
           'address': hotel['location'] ?? hotel['address'] ?? '',
+          'distance': (hotel['distance'] ?? '').toString(),
+          'minPrice': minPrice,
+          'maxPrice': maxPrice,
+          'rating': (hotel['rating'] ?? '').toString(),
           'description': hotel['description'] ?? '',
           'gstin': hotel['gstin'] ?? '',
           'fssai': hotel['fssai'] ?? '',
@@ -173,10 +188,9 @@ class VendorSettingsBloc
       final d = state.data;
       final body = <String, dynamic>{
         'name': d['restaurantName'] ?? '',
-        'phone': d['phone'] ?? '',
-        'email': d['email'] ?? '',
-        'cuisine': d['category'] ?? '',
+        'cuisine': d['cuisine'] ?? '',
         'location': d['address'] ?? '',
+        'distance': d['distance'] ?? '',
         'description': d['description'] ?? '',
         'gstin': d['gstin'] ?? '',
         'fssai': d['fssai'] ?? '',
@@ -184,6 +198,16 @@ class VendorSettingsBloc
         'sgstRate': double.tryParse((d['sgstRate'] ?? '0').toString()) ?? 0,
         'serviceCharge': double.tryParse((d['serviceCharge'] ?? '0').toString()) ?? 0,
       };
+      // Only include price/rating if non-empty
+      if ((d['minPrice'] ?? '').toString().isNotEmpty) {
+        body['minPrice'] = int.tryParse(d['minPrice'].toString()) ?? 0;
+      }
+      if ((d['maxPrice'] ?? '').toString().isNotEmpty) {
+        body['maxPrice'] = int.tryParse(d['maxPrice'].toString()) ?? 0;
+      }
+      if ((d['rating'] ?? '').toString().isNotEmpty) {
+        body['rating'] = double.tryParse(d['rating'].toString()) ?? 0.0;
+      }
 
       final response = await _api.invoke(
         urlPath: '/hotels/$hotelId',

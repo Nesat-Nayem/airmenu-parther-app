@@ -7,6 +7,7 @@ import 'package:airmenuai_partner_app/features/marketing/domain/repositories/i_m
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_event.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_state.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/combo_model.dart';
+import 'package:airmenuai_partner_app/features/marketing/data/repositories/marketing_repository_impl.dart';
 
 /// BLoC for Marketing feature
 /// Handles all marketing data operations with proper error handling
@@ -28,6 +29,10 @@ class MarketingBloc extends Bloc<MarketingEvent, MarketingState> {
     on<UpdatePromoCode>(_onUpdatePromoCode);
     on<CreateCombo>(_onCreateCombo);
     on<SearchCombos>(_onSearchCombos);
+    on<UpdateCombo>(_onUpdateCombo);
+    on<DeleteCombo>(_onDeleteCombo);
+    on<ToggleComboStatus>(_onToggleComboStatus);
+    on<DeleteCampaign>(_onDeleteCampaign);
   }
 
   /// Load all marketing data in parallel
@@ -461,6 +466,57 @@ class MarketingBloc extends Bloc<MarketingEvent, MarketingState> {
   ) async {
     emit(state.copyWith(clearError: true));
     add(const LoadMarketingData());
+  }
+
+  Future<void> _onUpdateCombo(
+    UpdateCombo event,
+    Emitter<MarketingState> emit,
+  ) async {
+    final repo = _repository as MarketingRepositoryImpl;
+    final result = await repo.updateCombo(event.comboId, event.comboData);
+    result.when(
+      success: (_) => add(const LoadMarketingData()),
+      failure: (error) => emit(state.copyWith(error: error)),
+    );
+  }
+
+  Future<void> _onDeleteCombo(
+    DeleteCombo event,
+    Emitter<MarketingState> emit,
+  ) async {
+    final repo = _repository as MarketingRepositoryImpl;
+    final result = await repo.deleteCombo(event.comboId);
+    result.when(
+      success: (_) => add(const LoadMarketingData()),
+      failure: (error) => emit(state.copyWith(error: error)),
+    );
+  }
+
+  Future<void> _onToggleComboStatus(
+    ToggleComboStatus event,
+    Emitter<MarketingState> emit,
+  ) async {
+    final repo = _repository as MarketingRepositoryImpl;
+    final result = await repo.toggleComboStatus(
+      event.comboId,
+      event.currentStatus,
+    );
+    result.when(
+      success: (_) => add(const LoadMarketingData()),
+      failure: (error) => emit(state.copyWith(error: error)),
+    );
+  }
+
+  Future<void> _onDeleteCampaign(
+    DeleteCampaign event,
+    Emitter<MarketingState> emit,
+  ) async {
+    final repo = _repository as MarketingRepositoryImpl;
+    final result = await repo.deleteCampaign(event.campaignId);
+    result.when(
+      success: (_) => add(const LoadMarketingData()),
+      failure: (error) => emit(state.copyWith(error: error)),
+    );
   }
 
   Future<void> _onCreateCombo(

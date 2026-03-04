@@ -20,10 +20,12 @@ class VendorSettingsMobileView extends StatefulWidget {
 
 class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
   final _nameCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _emailCtrl = TextEditingController();
-  final _categoryCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
+  final _cuisineCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  final _distanceCtrl = TextEditingController();
+  final _minPriceCtrl = TextEditingController();
+  final _maxPriceCtrl = TextEditingController();
+  final _ratingCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _gstinCtrl = TextEditingController();
   final _fssaiCtrl = TextEditingController();
@@ -37,26 +39,30 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
       if (c.text != v) c.text = v;
     }
     set(_nameCtrl, data['restaurantName'] ?? '');
-    set(_phoneCtrl, data['phone'] ?? '');
-    set(_emailCtrl, data['email'] ?? '');
-    set(_categoryCtrl, data['category'] ?? '');
-    set(_addressCtrl, data['address'] ?? '');
+    set(_cuisineCtrl, data['cuisine'] ?? data['category'] ?? '');
+    set(_locationCtrl, data['address'] ?? '');
+    set(_distanceCtrl, (data['distance'] ?? '').toString());
+    set(_minPriceCtrl, (data['minPrice'] ?? '').toString());
+    set(_maxPriceCtrl, (data['maxPrice'] ?? '').toString());
+    set(_ratingCtrl, (data['rating'] ?? '').toString());
     set(_descriptionCtrl, data['description'] ?? '');
     set(_gstinCtrl, data['gstin'] ?? '');
     set(_fssaiCtrl, data['fssai'] ?? '');
-    set(_cgstCtrl, data['cgstRate'] ?? '0');
-    set(_sgstCtrl, data['sgstRate'] ?? '0');
-    set(_serviceChargeCtrl, data['serviceCharge'] ?? '0');
+    set(_cgstCtrl, (data['cgstRate'] ?? '0').toString());
+    set(_sgstCtrl, (data['sgstRate'] ?? '0').toString());
+    set(_serviceChargeCtrl, (data['serviceCharge'] ?? '0').toString());
     _controllersInitialized = true;
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
-    _phoneCtrl.dispose();
-    _emailCtrl.dispose();
-    _categoryCtrl.dispose();
-    _addressCtrl.dispose();
+    _cuisineCtrl.dispose();
+    _locationCtrl.dispose();
+    _distanceCtrl.dispose();
+    _minPriceCtrl.dispose();
+    _maxPriceCtrl.dispose();
+    _ratingCtrl.dispose();
     _descriptionCtrl.dispose();
     _gstinCtrl.dispose();
     _fssaiCtrl.dispose();
@@ -259,36 +265,61 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
         ),
         const SizedBox(height: 16),
         _MobileField(
-          label: 'Phone',
-          controller: _phoneCtrl,
-          keyboardType: TextInputType.phone,
+          label: 'Cuisine',
+          controller: _cuisineCtrl,
           onChanged: (v) => context.read<VendorSettingsBloc>().add(
-            UpdateRestaurantField(key: 'phone', value: v),
+            UpdateRestaurantField(key: 'cuisine', value: v),
           ),
         ),
         const SizedBox(height: 16),
         _MobileField(
-          label: 'Email',
-          controller: _emailCtrl,
-          keyboardType: TextInputType.emailAddress,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
-            UpdateRestaurantField(key: 'email', value: v),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _MobileField(
-          label: 'Cuisine / Category',
-          controller: _categoryCtrl,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
-            UpdateRestaurantField(key: 'category', value: v),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _MobileField(
-          label: 'Address / Location',
-          controller: _addressCtrl,
+          label: 'Location',
+          controller: _locationCtrl,
           onChanged: (v) => context.read<VendorSettingsBloc>().add(
             UpdateRestaurantField(key: 'address', value: v),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _MobileField(
+          label: 'Distance',
+          controller: _distanceCtrl,
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'distance', value: v),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _MobileField(
+                label: 'Min Price (₹)',
+                controller: _minPriceCtrl,
+                keyboardType: TextInputType.number,
+                onChanged: (v) => context.read<VendorSettingsBloc>().add(
+                  UpdateRestaurantField(key: 'minPrice', value: v),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _MobileField(
+                label: 'Max Price (₹)',
+                controller: _maxPriceCtrl,
+                keyboardType: TextInputType.number,
+                onChanged: (v) => context.read<VendorSettingsBloc>().add(
+                  UpdateRestaurantField(key: 'maxPrice', value: v),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        _MobileField(
+          label: 'Rating (0–5)',
+          controller: _ratingCtrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+            UpdateRestaurantField(key: 'rating', value: v),
           ),
         ),
         const SizedBox(height: 16),
@@ -339,7 +370,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
         ),
         const SizedBox(height: 16),
         _MobileField(
-          label: 'FSSAI License',
+          label: 'FSSAI License No.',
           controller: _fssaiCtrl,
           onChanged: (v) => context.read<VendorSettingsBloc>().add(
             UpdateRestaurantField(key: 'fssai', value: v),
