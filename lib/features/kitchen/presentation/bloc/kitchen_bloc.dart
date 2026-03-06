@@ -11,6 +11,7 @@ import 'package:airmenuai_partner_app/features/orders/domain/usecases/update_ord
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_event.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_state.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
@@ -56,26 +57,27 @@ class KitchenBloc extends Bloc<KitchenEvent, KitchenState> {
       );
     }
 
-    // 1. Ensure we have a hotelId
+    // 1. Ensure we have a hotelId - first check localStorage for vendor's hotel
     if (_selectedHotelId == null) {
-      final hotelsResult = await _getHotelsUseCase();
-      _selectedHotelId = hotelsResult.fold((failure) => null, (hotels) {
-        if (hotels.isEmpty) return null;
-
-        // Try to find a hotel with items or McD1 specifically if available
-        // Use The Beverly Hills Hotel which has more test orders
-        try {
-          // For testing: use Beverly Hills Hotel ID directly
-          // This hotel has the most orders for kitchen panel testing
-          return '685de88e54e1f8bd67d8a1c0'; // The Beverly Hills Hotel
-        } catch (_) {
+      // Try to get vendor's hotelId from localStorage first
+      final storedHotelId = await locator<LocalStorage>().getString(
+        localStorageKey: 'hotelId',
+      );
+      
+      if (storedHotelId != null && storedHotelId.isNotEmpty) {
+        _selectedHotelId = storedHotelId;
+      } else {
+        // Fallback to fetching hotels list (for admin users)
+        final hotelsResult = await _getHotelsUseCase();
+        _selectedHotelId = hotelsResult.fold((failure) => null, (hotels) {
+          if (hotels.isEmpty) return null;
           return hotels.first.id;
-        }
-      });
+        });
+      }
 
       if (_selectedHotelId == null) {
         emit(
-          const KitchenError('No hotel found. Please select a hotel first.'),
+          const KitchenError('No hotel found. Please complete KYC first.'),
         );
         return;
       }

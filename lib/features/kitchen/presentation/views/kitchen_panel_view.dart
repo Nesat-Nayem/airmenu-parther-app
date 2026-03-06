@@ -2,10 +2,13 @@ import 'package:airmenuai_partner_app/features/kitchen/data/models/kitchen_task_
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_bloc.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_event.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_state.dart';
+import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/kitchen_config_management.dart';
+import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/kitchen_station_management.dart';
 import 'package:airmenuai_partner_app/features/orders/data/models/order_model.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/kitchen_order_card.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/station_filter_tabs.dart';
-
+import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:airmenuai_partner_app/widgets/status_tile.dart';
 import 'package:airmenuai_partner_app/widgets/app_snackbar.dart';
 import 'package:flutter/material.dart';
@@ -14,7 +17,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
 /// Kitchen Panel View - Kitchen Display System (KDS)
-/// Matches Lovable mockup exactly with stats, filters, orders grid, and ready section
+/// Enhanced with tabs for Live Kitchen, Station Management, and Configuration
 class KitchenPanelView extends StatefulWidget {
   const KitchenPanelView({super.key});
 
@@ -22,58 +25,229 @@ class KitchenPanelView extends StatefulWidget {
   State<KitchenPanelView> createState() => _KitchenPanelViewState();
 }
 
-class _KitchenPanelViewState extends State<KitchenPanelView> {
+class _KitchenPanelViewState extends State<KitchenPanelView>
+    with SingleTickerProviderStateMixin {
+  static const _primaryColor = Color(0xFFC52031);
+  late TabController _tabController;
+  String? _hotelId;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _loadHotelId();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadHotelId() async {
+    final id = await locator<LocalStorage>().getString(localStorageKey: 'hotelId');
+    if (mounted) {
+      setState(() => _hotelId = id);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: () async {
-            context.read<KitchenBloc>().add(const RefreshKitchenOrders());
-            await Future.delayed(const Duration(milliseconds: 500));
-          },
-          child: BlocConsumer<KitchenBloc, KitchenState>(
-            listener: (context, state) {
-              if (state is OrderPrepStarted) {
-                AppSnackbar.success(context, 'Task started!');
-              } else if (state is OrderMarkedReady) {
-                AppSnackbar.success(context, 'Task marked as ready!');
-              } else if (state is KitchenActionFailure) {
-                AppSnackbar.error(context, state.message);
-              }
-            },
-            builder: (context, state) {
-              return Column(
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildTabBar(),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
                 children: [
-                  // Scrollable content
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Stats Row - Using common StatusTilesRow widget
-                          _buildStatsRow(context, state),
-
-                          // Station Filter Tabs
-                          _buildStationTabs(context, state),
-                          const SizedBox(height: 8),
-                          // Orders Grid
-                          _buildOrdersGrid(context, state),
-                          const SizedBox(height: 8),
-                        ],
-                      ),
-                    ),
-                  ),
-                  // Ready for Pickup Section - Sticky at bottom
-                  _buildReadyForPickupSection(context, state),
+                  _buildLiveKitchenTab(),
+                  _hotelId != null
+                      ? KitchenStationManagement(
+                          hotelId: _hotelId!,
+                          onStationsChanged: () {
+                            context.read<KitchenBloc>().add(const LoadKitchenOrders());
+                          },
+                        )
+                      : const Center(child: CircularProgressIndicator()),
+                  _hotelId != null
+                      ? KitchenConfigManagement(hotelId: _hotelId!)
+                      : const Center(child: CircularProgressIndicator()),
                 ],
-              );
-            },
-          ),
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [_primaryColor, _primaryColor.withOpacity(0.8)],
+              ),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.restaurant, color: Colors.white, size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Kitchen Management',
+                  style: GoogleFonts.sora(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF111827),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Manage orders, stations & settings',
+                  style: GoogleFonts.sora(
+                    fontSize: 12,
+                    color: const Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: () {
+              context.read<KitchenBloc>().add(const RefreshKitchenOrders());
+            },
+            icon: const Icon(Icons.refresh_rounded),
+            color: const Color(0xFF6B7280),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        indicator: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 4,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicatorPadding: const EdgeInsets.all(4),
+        labelColor: _primaryColor,
+        unselectedLabelColor: const Color(0xFF64748B),
+        labelStyle: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w500),
+        dividerColor: Colors.transparent,
+        tabs: const [
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.monitor_heart_outlined, size: 18),
+                SizedBox(width: 6),
+                Text('Live Kitchen'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.grid_view_rounded, size: 18),
+                SizedBox(width: 6),
+                Text('Stations'),
+              ],
+            ),
+          ),
+          Tab(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.settings_outlined, size: 18),
+                SizedBox(width: 6),
+                Text('Config'),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveKitchenTab() {
+    return RefreshIndicator(
+      onRefresh: () async {
+        context.read<KitchenBloc>().add(const RefreshKitchenOrders());
+        await Future.delayed(const Duration(milliseconds: 500));
+      },
+      child: BlocConsumer<KitchenBloc, KitchenState>(
+        listener: (context, state) {
+          if (state is OrderPrepStarted) {
+            AppSnackbar.success(context, 'Task started!');
+          } else if (state is OrderMarkedReady) {
+            AppSnackbar.success(context, 'Task marked as ready!');
+          } else if (state is KitchenActionFailure) {
+            AppSnackbar.error(context, state.message);
+          }
+        },
+        builder: (context, state) {
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildStatsRow(context, state),
+                      _buildStationTabs(context, state),
+                      const SizedBox(height: 8),
+                      _buildOrdersGrid(context, state),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+              _buildReadyForPickupSection(context, state),
+            ],
+          );
+        },
       ),
     );
   }
