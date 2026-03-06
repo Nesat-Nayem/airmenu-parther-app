@@ -275,6 +275,7 @@ class MarketingPageView extends StatelessWidget {
                   } else {
                     OfferFormDialog.show(
                       context,
+                      campaign: campaign,
                       onSave: (data) {
                         context.read<MarketingBloc>().add(
                           UpdateCampaign(

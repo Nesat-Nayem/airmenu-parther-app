@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../data/models/feedback_model.dart';
-import '../../data/repositories/feedback_repository.dart';
+import '../../data/repositories/api_feedback_repository.dart';
 import '../bloc/feedback_bloc.dart';
 import '../bloc/feedback_event.dart';
 import '../bloc/feedback_state.dart';
@@ -20,7 +20,7 @@ class FeedbackRatingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) =>
-          FeedbackBloc(repository: MockFeedbackRepository())
+          FeedbackBloc(repository: ApiFeedbackRepository())
             ..add(LoadFeedbacks()),
       child: const _FeedbackRatingView(),
     );

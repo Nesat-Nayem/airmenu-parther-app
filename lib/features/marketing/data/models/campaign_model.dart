@@ -219,8 +219,8 @@ class CampaignModel {
     };
   }
 
-  /// Check if campaign has valid data
-  bool get isValid => id.isNotEmpty && name.isNotEmpty;
+  /// Check if campaign has valid data (id can be empty for new campaigns)
+  bool get isValid => name.isNotEmpty;
 
   /// Format reach for display (e.g., 45.2K)
   String get formattedReach {

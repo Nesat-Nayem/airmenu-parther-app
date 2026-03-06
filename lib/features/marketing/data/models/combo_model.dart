@@ -193,11 +193,13 @@ class ComboModel extends Equatable {
 }
 
 class ComboItemModel extends Equatable {
+  final String menuItemId;
   final String name;
   final double originalPrice;
   final int quantity;
 
   const ComboItemModel({
+    this.menuItemId = '',
     required this.name,
     required this.originalPrice,
     required this.quantity,
@@ -205,16 +207,22 @@ class ComboItemModel extends Equatable {
 
   factory ComboItemModel.fromJson(Map<String, dynamic> json) {
     return ComboItemModel(
-      name: json['name'] ?? '',
+      menuItemId: json['menuItemId'] ?? '',
+      name: json['menuItemTitle'] ?? json['name'] ?? '',
       originalPrice: (json['originalPrice'] as num?)?.toDouble() ?? 0.0,
       quantity: json['quantity'] ?? 1,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {'name': name, 'originalPrice': originalPrice, 'quantity': quantity};
+    return {
+      'menuItemId': menuItemId,
+      'menuItemTitle': name,
+      'originalPrice': originalPrice,
+      'quantity': quantity,
+    };
   }
 
   @override
-  List<Object?> get props => [name, originalPrice, quantity];
+  List<Object?> get props => [menuItemId, name, originalPrice, quantity];
 }

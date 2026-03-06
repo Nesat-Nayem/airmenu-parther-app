@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:airmenuai_partner_app/features/marketing/data/models/campaign_model.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/promo_code_model.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
 /// Premium dialog for creating/editing offers with animations
 class OfferFormDialog extends StatefulWidget {
-  final PromoCodeModel? offer; // null for create, non-null for edit
+  final PromoCodeModel? offer; // null for create, non-null for edit (promo codes)
+  final CampaignModel? campaign; // For vendor offer editing
   final Function(Map<String, dynamic> data) onSave;
 
-  const OfferFormDialog({super.key, this.offer, required this.onSave});
+  const OfferFormDialog({super.key, this.offer, this.campaign, required this.onSave});
 
   static Future<void> show(
     BuildContext context, {
     PromoCodeModel? offer,
+    CampaignModel? campaign,
     required Function(Map<String, dynamic> data) onSave,
   }) {
     return showGeneralDialog(
@@ -22,7 +25,7 @@ class OfferFormDialog extends StatefulWidget {
       barrierColor: Colors.black54,
       transitionDuration: const Duration(milliseconds: 300),
       pageBuilder: (context, animation, secondaryAnimation) {
-        return OfferFormDialog(offer: offer, onSave: onSave);
+        return OfferFormDialog(offer: offer, campaign: campaign, onSave: onSave);
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         final curvedAnimation = CurvedAnimation(
@@ -55,23 +58,46 @@ class _OfferFormDialogState extends State<OfferFormDialog>
   DateTime? _expiryDate;
   bool _isLoading = false;
 
-  bool get isEditing => widget.offer != null;
+  bool get isEditing => widget.offer != null || widget.campaign != null;
 
   @override
   void initState() {
     super.initState();
-    _nameController = TextEditingController(text: widget.offer?.code ?? '');
-    _codeController = TextEditingController(text: widget.offer?.code ?? '');
-    _discountController = TextEditingController(
-      text: widget.offer?.discountValue.toStringAsFixed(0) ?? '',
-    );
-    _minOrderController = TextEditingController(
-      text: widget.offer?.minOrder.toStringAsFixed(0) ?? '',
-    );
-    _maxDiscountController = TextEditingController();
-    _usageLimitController = TextEditingController();
-    _discountType = widget.offer?.discountType ?? 'percentage';
-    _expiryDate = widget.offer?.expiresAt;
+    // Support both PromoCodeModel (offer) and CampaignModel (campaign) for editing
+    if (widget.campaign != null) {
+      // Vendor offer editing - use CampaignModel
+      final c = widget.campaign!;
+      _nameController = TextEditingController(text: c.name);
+      _codeController = TextEditingController(text: c.name);
+      _discountController = TextEditingController(
+        text: c.discountValue > 0 ? c.discountValue.toStringAsFixed(0) : '',
+      );
+      _minOrderController = TextEditingController(
+        text: c.minOrderValue > 0 ? c.minOrderValue.toStringAsFixed(0) : '',
+      );
+      _maxDiscountController = TextEditingController(
+        text: c.maxDiscount != null ? c.maxDiscount!.toStringAsFixed(0) : '',
+      );
+      _usageLimitController = TextEditingController(
+        text: c.usageLimit != null ? c.usageLimit.toString() : '',
+      );
+      _discountType = c.discountType;
+      _expiryDate = c.endDate;
+    } else {
+      // PromoCodeModel editing or new offer
+      _nameController = TextEditingController(text: widget.offer?.code ?? '');
+      _codeController = TextEditingController(text: widget.offer?.code ?? '');
+      _discountController = TextEditingController(
+        text: widget.offer?.discountValue.toStringAsFixed(0) ?? '',
+      );
+      _minOrderController = TextEditingController(
+        text: widget.offer?.minOrder.toStringAsFixed(0) ?? '',
+      );
+      _maxDiscountController = TextEditingController();
+      _usageLimitController = TextEditingController();
+      _discountType = widget.offer?.discountType ?? 'percentage';
+      _expiryDate = widget.offer?.expiresAt;
+    }
   }
 
   @override

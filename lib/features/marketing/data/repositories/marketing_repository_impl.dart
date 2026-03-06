@@ -41,9 +41,58 @@ class MarketingRepositoryImpl implements IMarketingRepository {
   @override
   Future<MarketingResult<MarketingStatsModel>> getMarketingStats() async {
     try {
-      // Stats still use mock for now (can be API-driven later)
-      final stats = await MarketingMockDataSource.getMarketingStats();
-      return MarketingResult.success(stats);
+      final isAdmin = await _isAdmin();
+
+      if (isAdmin) {
+        // Admin: Still use mock for now
+        final stats = await MarketingMockDataSource.getMarketingStats();
+        return MarketingResult.success(stats);
+      } else {
+        // Vendor: Calculate stats from actual offers and combos
+        final hotelId = await _getHotelId();
+        if (hotelId == null || hotelId.isEmpty) {
+          return MarketingResult.success(MarketingStatsModel.empty());
+        }
+
+        // Fetch offers count
+        int activeOffers = 0;
+        final offersResponse = await _apiService.invoke<Map<String, dynamic>>(
+          urlPath: '/hotel-offers/hotel/$hotelId',
+          type: RequestType.get,
+          fun: (jsonString) => jsonDecode(jsonString),
+        );
+        if (offersResponse is DataSuccess && offersResponse.data != null) {
+          final offersList = (offersResponse.data!['data'] as List?) ?? [];
+          activeOffers = offersList.where((o) => o['isActive'] == true).length;
+        }
+
+        // Fetch combos count
+        int activeCombos = 0;
+        final combosResponse = await _apiService.invoke<Map<String, dynamic>>(
+          urlPath: '/combos/hotel/$hotelId',
+          type: RequestType.get,
+          fun: (jsonString) => jsonDecode(jsonString),
+        );
+        if (combosResponse is DataSuccess && combosResponse.data != null) {
+          final combosList = (combosResponse.data!['data']?['combos'] as List?) ?? [];
+          activeCombos = combosList.where((c) => c['isActive'] == true).length;
+        }
+
+        return MarketingResult.success(MarketingStatsModel(
+          activeCampaigns: activeOffers,
+          activeCampaignsChange: 0,
+          activeCampaignsIsPositive: true,
+          usersReached: '0',
+          usersReachedChange: 0,
+          usersReachedIsPositive: true,
+          conversionRate: 0,
+          conversionRateChange: 0,
+          conversionRateIsPositive: true,
+          activeOffers: activeCombos,
+          activeOffersChange: 0,
+          activeOffersIsPositive: true,
+        ));
+      }
     } catch (e, stackTrace) {
       debugPrint('Error fetching marketing stats: $e\n$stackTrace');
       return MarketingResult.failure(_handleError(e));
@@ -181,8 +230,88 @@ class MarketingRepositoryImpl implements IMarketingRepository {
   @override
   Future<MarketingResult<MarketingSummaryModel>> getMarketingSummary() async {
     try {
-      final summary = await MarketingMockDataSource.getMarketingSummary();
-      return MarketingResult.success(summary);
+      final isAdmin = await _isAdmin();
+
+      if (isAdmin) {
+        final summary = await MarketingMockDataSource.getMarketingSummary();
+        return MarketingResult.success(summary);
+      } else {
+        // Vendor: Build summary from actual data
+        final hotelId = await _getHotelId();
+        if (hotelId == null || hotelId.isEmpty) {
+          return MarketingResult.success(MarketingSummaryModel.empty());
+        }
+
+        BestPerformingData? bestPerforming;
+        MostUsedCodeData? mostUsedCode;
+        UpcomingCampaignData? upcoming;
+
+        // Get offers for best performing and upcoming
+        final offersResponse = await _apiService.invoke<Map<String, dynamic>>(
+          urlPath: '/hotel-offers/hotel/$hotelId',
+          type: RequestType.get,
+          fun: (jsonString) => jsonDecode(jsonString),
+        );
+        if (offersResponse is DataSuccess && offersResponse.data != null) {
+          final offersList = (offersResponse.data!['data'] as List?) ?? [];
+          
+          // Find best performing (most used)
+          if (offersList.isNotEmpty) {
+            final sorted = List<Map<String, dynamic>>.from(offersList)
+              ..sort((a, b) => ((b['usedCount'] ?? 0) as int).compareTo((a['usedCount'] ?? 0) as int));
+            final best = sorted.first;
+            if ((best['usedCount'] ?? 0) > 0) {
+              bestPerforming = BestPerformingData(
+                campaignName: best['title'] ?? 'Unnamed Offer',
+                conversions: best['usedCount'] ?? 0,
+                revenue: 0,
+              );
+            }
+          }
+
+          // Find upcoming (scheduled offers)
+          final now = DateTime.now();
+          final upcomingOffers = offersList.where((o) {
+            final startDate = DateTime.tryParse(o['validDateStart'] ?? '');
+            return startDate != null && startDate.isAfter(now) && (o['isActive'] == true);
+          }).toList();
+          if (upcomingOffers.isNotEmpty) {
+            final first = upcomingOffers.first;
+            upcoming = UpcomingCampaignData(
+              campaignName: first['title'] ?? 'Unnamed Offer',
+              startDate: DateTime.tryParse(first['validDateStart'] ?? '') ?? now,
+              restaurantCount: 1,
+            );
+          }
+        }
+
+        // Get promo codes for most used
+        final promosResponse = await _apiService.invoke<Map<String, dynamic>>(
+          urlPath: '/coupons/vendor',
+          type: RequestType.get,
+          fun: (jsonString) => jsonDecode(jsonString),
+        );
+        if (promosResponse is DataSuccess && promosResponse.data != null) {
+          final promosList = (promosResponse.data!['data'] as List?) ?? [];
+          if (promosList.isNotEmpty) {
+            final sorted = List<Map<String, dynamic>>.from(promosList)
+              ..sort((a, b) => ((b['usedCount'] ?? 0) as int).compareTo((a['usedCount'] ?? 0) as int));
+            final best = sorted.first;
+            if ((best['usedCount'] ?? 0) > 0) {
+              mostUsedCode = MostUsedCodeData(
+                code: best['code'] ?? 'N/A',
+                usesThisMonth: best['usedCount'] ?? 0,
+              );
+            }
+          }
+        }
+
+        return MarketingResult.success(MarketingSummaryModel(
+          bestPerforming: bestPerforming,
+          mostUsedCode: mostUsedCode,
+          upcoming: upcoming,
+        ));
+      }
     } catch (e, stackTrace) {
       debugPrint('Error fetching marketing summary: $e\n$stackTrace');
       return MarketingResult.failure(_handleError(e));

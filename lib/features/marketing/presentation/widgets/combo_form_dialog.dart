@@ -1,6 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:airmenuai_partner_app/core/network/api_service.dart';
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
+import 'package:airmenuai_partner_app/core/network/request_type.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/combo_model.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
 /// Premium dialog for creating/editing combos with animations
@@ -49,6 +55,8 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
 
   List<_ComboItemEntry> _items = [];
   bool _isLoading = false;
+  bool _isLoadingMenu = true;
+  List<_MenuItem> _menuItems = [];
 
   bool get isEditing => widget.combo != null;
 
@@ -64,9 +72,52 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
     );
     _items =
         widget.combo?.items
-            .map((e) => _ComboItemEntry(name: e.name, quantity: e.quantity))
+            .map((e) => _ComboItemEntry(name: e.name, quantity: e.quantity, price: e.originalPrice))
             .toList() ??
         [_ComboItemEntry()];
+    _loadMenuItems();
+  }
+
+  Future<void> _loadMenuItems() async {
+    final hotelId = await locator<LocalStorage>().getString(localStorageKey: 'hotelId');
+    if (hotelId == null || hotelId.isEmpty) {
+      setState(() => _isLoadingMenu = false);
+      return;
+    }
+
+    final response = await locator<ApiService>().invoke(
+      urlPath: '/hotels/$hotelId/menu',
+      type: RequestType.get,
+      fun: (data) => jsonDecode(data),
+    );
+
+    if (response is DataSuccess && response.data != null) {
+      final categories = (response.data['data'] as List?) ?? [];
+      final items = <_MenuItem>[];
+      for (final category in categories) {
+        final categoryName = category['name'] ?? '';
+        final foodItems = (category['items'] as List?) ?? [];
+        for (final item in foodItems) {
+          // API returns 'id' or '_id' and 'title' or 'name'
+          final itemId = item['id'] ?? item['_id'] ?? '';
+          final itemName = item['title'] ?? item['name'] ?? '';
+          if (itemId.isNotEmpty && itemName.isNotEmpty) {
+            items.add(_MenuItem(
+              id: itemId,
+              name: itemName,
+              price: (item['price'] as num?)?.toDouble() ?? 0,
+              category: categoryName,
+            ));
+          }
+        }
+      }
+      setState(() {
+        _menuItems = items;
+        _isLoadingMenu = false;
+      });
+    } else {
+      setState(() => _isLoadingMenu = false);
+    }
   }
 
   @override
@@ -283,11 +334,42 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
           const SizedBox(width: 12),
           Expanded(
             flex: 3,
-            child: TextFormField(
-              controller: item.nameController,
-              decoration: _inputDecoration('Item name'),
-              validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
-            ),
+            child: _isLoadingMenu
+                ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                : _menuItems.isNotEmpty
+                    ? DropdownButtonFormField<String>(
+                        value: _menuItems.any((m) => m.id == item.selectedItemId) ? item.selectedItemId : null,
+                        decoration: _inputDecoration('Select item'),
+                        isExpanded: true,
+                        hint: const Text('Select an item'),
+                        items: _menuItems.map((menuItem) {
+                          return DropdownMenuItem<String>(
+                            value: menuItem.id,
+                            child: Text(
+                              '${menuItem.name} - ₹${menuItem.price.toStringAsFixed(0)}',
+                              style: AirMenuTextStyle.small,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            final selected = _menuItems.firstWhere((m) => m.id == value);
+                            setState(() {
+                              item.selectedItemId = value;
+                              item.nameController.text = selected.name;
+                              item.price = selected.price;
+                              _recalculateOriginalPrice();
+                            });
+                          }
+                        },
+                        validator: (v) => v == null ? 'Required' : null,
+                      )
+                    : TextFormField(
+                        controller: item.nameController,
+                        decoration: _inputDecoration('Item name'),
+                        validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                      ),
           ),
           const SizedBox(width: 12),
           SizedBox(
@@ -297,6 +379,7 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
               decoration: _inputDecoration('Qty').copyWith(prefixText: 'x'),
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (_) => _recalculateOriginalPrice(),
             ),
           ),
           const SizedBox(width: 8),
@@ -311,6 +394,15 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
         ],
       ),
     );
+  }
+
+  void _recalculateOriginalPrice() {
+    double total = 0;
+    for (final item in _items) {
+      final qty = int.tryParse(item.quantityController.text) ?? 1;
+      total += item.price * qty;
+    }
+    _originalPriceController.text = total.toStringAsFixed(0);
   }
 
   Widget _buildPricingSection() {
@@ -541,7 +633,9 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
       'items': _items
           .map(
             (e) => {
-              'name': e.nameController.text,
+              'menuItemId': e.selectedItemId ?? '',
+              'menuItemTitle': e.nameController.text,
+              'originalPrice': e.price,
               'quantity': int.tryParse(e.quantityController.text) ?? 1,
             },
           )
@@ -557,8 +651,24 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
 class _ComboItemEntry {
   final TextEditingController nameController;
   final TextEditingController quantityController;
+  double price;
+  String? selectedItemId;
 
-  _ComboItemEntry({String name = '', int quantity = 1})
+  _ComboItemEntry({String name = '', int quantity = 1, this.price = 0, this.selectedItemId})
     : nameController = TextEditingController(text: name),
       quantityController = TextEditingController(text: quantity.toString());
+}
+
+class _MenuItem {
+  final String id;
+  final String name;
+  final double price;
+  final String category;
+
+  const _MenuItem({
+    required this.id,
+    required this.name,
+    required this.price,
+    required this.category,
+  });
 }

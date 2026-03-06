@@ -82,19 +82,41 @@ class FeedbackModel {
   }
 
   factory FeedbackModel.fromJson(Map<String, dynamic> json) {
+    // Handle both frontend format and backend review format
+    final id = json['id'] ?? json['_id']?.toString() ?? '';
+    final vendorReply = json['vendorReply'] as String?;
+    final hasReplied = json['hasReplied'] as bool? ?? (vendorReply != null && vendorReply.isNotEmpty);
+    
+    // Parse date - backend uses 'date', frontend uses 'createdAt'
+    DateTime createdAt;
+    try {
+      final dateStr = json['createdAt'] ?? json['date'];
+      createdAt = dateStr != null ? DateTime.parse(dateStr.toString()) : DateTime.now();
+    } catch (_) {
+      createdAt = DateTime.now();
+    }
+
+    // Parse replyAt
+    DateTime? replyAt;
+    try {
+      if (json['replyAt'] != null) {
+        replyAt = DateTime.parse(json['replyAt'].toString());
+      }
+    } catch (_) {
+      replyAt = null;
+    }
+
     return FeedbackModel(
-      id: json['id'] as String,
-      customerId: json['customerId'] as String,
-      customerName: json['customerName'] as String,
-      orderId: json['orderId'] as String,
-      rating: json['rating'] as int,
-      comment: json['comment'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      hasReplied: json['hasReplied'] as bool? ?? false,
-      vendorReply: json['vendorReply'] as String?,
-      replyAt: json['replyAt'] != null
-          ? DateTime.parse(json['replyAt'] as String)
-          : null,
+      id: id,
+      customerId: json['customerId'] as String? ?? json['userId']?.toString() ?? '',
+      customerName: json['customerName'] as String? ?? json['name'] as String? ?? 'Anonymous',
+      orderId: json['orderId'] as String? ?? '',
+      rating: (json['rating'] as num?)?.toInt() ?? 0,
+      comment: json['comment'] as String? ?? '',
+      createdAt: createdAt,
+      hasReplied: hasReplied,
+      vendorReply: vendorReply,
+      replyAt: replyAt,
     );
   }
 
