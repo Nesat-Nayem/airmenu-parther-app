@@ -1,55 +1,124 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/reports/presentation/widgets/report_shared_components.dart';
+import 'package:airmenuai_partner_app/core/network/api_service.dart';
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
+import 'package:airmenuai_partner_app/core/network/request_type.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 
 /// Category Analysis Report Detail Page - With hover effects
-class CategoryAnalysisPage extends StatelessWidget {
+class CategoryAnalysisPage extends StatefulWidget {
   const CategoryAnalysisPage({super.key});
+
+  @override
+  State<CategoryAnalysisPage> createState() => _CategoryAnalysisPageState();
+}
+
+class _CategoryAnalysisPageState extends State<CategoryAnalysisPage> {
+  bool _isLoading = true;
+  List<_CategoryData> _categoryData = [];
+
+  static const _chartColors = [
+    AirMenuColors.primary,
+    Color(0xFFF59E0B),
+    Color(0xFF10B981),
+    Color(0xFFEF4444),
+    Color(0xFF6B7280),
+    Color(0xFF8B5CF6),
+    Color(0xFF3B82F6),
+    Color(0xFFF97316),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final hotelId = await locator<LocalStorage>().getString(localStorageKey: 'hotelId');
+      if (hotelId == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final response = await locator<ApiService>().invoke(
+        urlPath: '/hotels/$hotelId/menu',
+        type: RequestType.get,
+        fun: (data) => jsonDecode(data),
+      );
+
+      if (response is DataSuccess && response.data != null) {
+        final data = response.data;
+        if (data['success'] == true && data['data'] != null) {
+          final List<dynamic> categories = data['data'] is List ? data['data'] : [];
+          final List<_CategoryData> catData = [];
+          int totalItems = 0;
+
+          for (final cat in categories) {
+            final items = cat['items'] as List? ?? [];
+            totalItems += items.length;
+          }
+
+          int colorIdx = 0;
+          for (final cat in categories) {
+            final name = cat['name'] ?? cat['title'] ?? 'Unknown';
+            final items = cat['items'] as List? ?? [];
+            final itemCount = items.length;
+            final percentage = totalItems > 0 ? ((itemCount / totalItems) * 100).round() : 0;
+
+            catData.add(_CategoryData(
+              name: name,
+              value: itemCount,
+              percentage: percentage,
+              color: _chartColors[colorIdx % _chartColors.length],
+            ));
+            colorIdx++;
+          }
+
+          setState(() {
+            _categoryData = catData;
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+      setState(() => _isLoading = false);
+    } catch (e) {
+      debugPrint('Error loading categories: $e');
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return ReportPageLayout(
       title: 'Category Analysis',
       subtitle: 'Performance by menu category',
-      child: _buildChartSection(),
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _buildChartSection(),
     );
   }
 
   Widget _buildChartSection() {
-    final categoryData = [
-      _CategoryData(
-        name: 'Main Course',
-        value: 125000,
-        percentage: 45,
-        color: AirMenuColors.primary,
-      ),
-      _CategoryData(
-        name: 'Starters',
-        value: 68000,
-        percentage: 25,
-        color: const Color(0xFFF59E0B),
-      ),
-      _CategoryData(
-        name: 'Beverages',
-        value: 32000,
-        percentage: 15,
-        color: const Color(0xFF10B981),
-      ),
-      _CategoryData(
-        name: 'Desserts',
-        value: 28000,
-        percentage: 10,
-        color: const Color(0xFFEF4444),
-      ),
-      _CategoryData(
-        name: 'Breads',
-        value: 15000,
-        percentage: 5,
-        color: const Color(0xFF6B7280),
-      ),
-    ];
+    if (_categoryData.isEmpty) {
+      return HoverCard(
+        padding: const EdgeInsets.all(32),
+        child: Center(
+          child: Text(
+            'No menu categories found',
+            style: AirMenuTextStyle.normal.withColor(Colors.grey.shade500),
+          ),
+        ),
+      );
+    }
 
     return HoverCard(
       padding: const EdgeInsets.all(32),
@@ -64,7 +133,7 @@ class CategoryAnalysisPage extends StatelessWidget {
                   height: 280,
                   width: 280,
                   child: CustomPaint(
-                    painter: _DonutChartPainter(categories: categoryData),
+                    painter: _DonutChartPainter(categories: _categoryData),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -72,7 +141,7 @@ class CategoryAnalysisPage extends StatelessWidget {
                   spacing: 16,
                   runSpacing: 8,
                   alignment: WrapAlignment.center,
-                  children: categoryData
+                  children: _categoryData
                       .map(
                         (cat) => _LegendItem(name: cat.name, color: cat.color),
                       )
@@ -85,7 +154,7 @@ class CategoryAnalysisPage extends StatelessWidget {
           Expanded(
             flex: 1,
             child: Column(
-              children: categoryData
+              children: _categoryData
                   .map((cat) => _CategoryRow(data: cat))
                   .toList(),
             ),

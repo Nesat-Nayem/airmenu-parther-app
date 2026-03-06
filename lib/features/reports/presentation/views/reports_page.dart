@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:airmenuai_partner_app/features/reports/data/repositories/mock_reports_repository.dart';
+import 'package:airmenuai_partner_app/features/reports/data/repositories/api_reports_repository.dart';
 import 'package:airmenuai_partner_app/features/reports/presentation/bloc/reports_bloc.dart';
 import 'package:airmenuai_partner_app/features/reports/presentation/bloc/reports_event.dart';
 import 'package:airmenuai_partner_app/features/reports/presentation/bloc/reports_state.dart';
@@ -26,7 +26,7 @@ class ReportsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) =>
-          ReportsBloc(repository: MockReportsRepository())
+          ReportsBloc(repository: ApiReportsRepository())
             ..add(LoadReportsData()),
       child: const _ReportsView(),
     );

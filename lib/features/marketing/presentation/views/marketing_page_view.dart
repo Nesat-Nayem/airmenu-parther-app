@@ -499,7 +499,7 @@ class MarketingPageView extends StatelessWidget {
       );
     }
 
-    if (state.isCombosEmpty) {
+    if (state.filteredCombos.isEmpty) {
       return _buildEmptyState(
         context,
         'No combos found',

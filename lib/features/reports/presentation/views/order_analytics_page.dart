@@ -2,23 +2,94 @@ import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/reports/presentation/widgets/report_shared_components.dart';
+import 'package:airmenuai_partner_app/features/reports/data/repositories/api_reports_repository.dart';
 
 /// Order Analytics Detail Page - With hover effects
-class OrderAnalyticsPage extends StatelessWidget {
+class OrderAnalyticsPage extends StatefulWidget {
   const OrderAnalyticsPage({super.key});
+
+  @override
+  State<OrderAnalyticsPage> createState() => _OrderAnalyticsPageState();
+}
+
+class _OrderAnalyticsPageState extends State<OrderAnalyticsPage> {
+  final ApiReportsRepository _repo = ApiReportsRepository();
+  bool _isLoading = true;
+  int _totalOrders = 0;
+  int _pendingOrders = 0;
+  int _todayOrders = 0;
+  int _completedBookings = 0;
+  List<_DayOrders> _dailyData = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final stats = await _repo.fetchReportStatsRaw();
+
+      // Build daily order counts
+      final now = DateTime.now();
+      final sevenDaysAgo = now.subtract(const Duration(days: 6));
+      final ordersData = await _repo.fetchOrdersRaw(
+        page: 1,
+        limit: 1000,
+        startDate: sevenDaysAgo.toIso8601String().split('T')[0],
+        endDate: now.toIso8601String().split('T')[0],
+      );
+
+      final List<dynamic> orders = ordersData['orders'] ?? [];
+      final Map<String, int> dailyCounts = {};
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      for (int i = 0; i < 7; i++) {
+        final date = sevenDaysAgo.add(Duration(days: i));
+        final key = '${months[date.month - 1]} ${date.day}';
+        dailyCounts[key] = 0;
+      }
+      for (final order in orders) {
+        final createdAt = order['createdAt'];
+        if (createdAt != null) {
+          final date = DateTime.tryParse(createdAt.toString());
+          if (date != null) {
+            final key = '${months[date.month - 1]} ${date.day}';
+            dailyCounts[key] = (dailyCounts[key] ?? 0) + 1;
+          }
+        }
+      }
+
+      setState(() {
+        _totalOrders = (stats['totalOrders'] as num?)?.toInt() ?? 0;
+        _pendingOrders = (stats['pendingOrders'] as num?)?.toInt() ?? 0;
+        _todayOrders = (stats['todayOrders'] as num?)?.toInt() ?? 0;
+        _completedBookings = (stats['completedBookings'] as num?)?.toInt() ?? 0;
+        _dailyData = dailyCounts.entries
+            .map((e) => _DayOrders(date: e.key, orders: e.value))
+            .toList();
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return ReportPageLayout(
       title: 'Order Analytics',
       subtitle: 'Order volumes, types, and trends',
-      child: Column(
-        children: [
-          _buildStatsCards(),
-          const SizedBox(height: 24),
-          _buildBarChart(),
-        ],
-      ),
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                _buildStatsCards(),
+                const SizedBox(height: 24),
+                _buildBarChart(),
+              ],
+            ),
     );
   }
 
@@ -28,19 +99,19 @@ class OrderAnalyticsPage extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: _StatItem(label: 'Total Orders', value: '1,000'),
+            child: _StatItem(label: 'Total Orders', value: '$_totalOrders'),
           ),
           _VerticalDivider(),
           Expanded(
-            child: _StatItem(label: 'Dine-In', value: '580'),
+            child: _StatItem(label: 'Today', value: '$_todayOrders'),
           ),
           _VerticalDivider(),
           Expanded(
-            child: _StatItem(label: 'Takeaway', value: '320'),
+            child: _StatItem(label: 'Pending', value: '$_pendingOrders'),
           ),
           _VerticalDivider(),
           Expanded(
-            child: _StatItem(label: 'Delivery', value: '100'),
+            child: _StatItem(label: 'Bookings Done', value: '$_completedBookings'),
           ),
         ],
       ),
@@ -48,16 +119,25 @@ class OrderAnalyticsPage extends StatelessWidget {
   }
 
   Widget _buildBarChart() {
-    final data = [
-      {'date': 'Dec 7', 'orders': 110},
-      {'date': 'Dec 8', 'orders': 145},
-      {'date': 'Dec 9', 'orders': 132},
-      {'date': 'Dec 10', 'orders': 168},
-      {'date': 'Dec 11', 'orders': 155},
-      {'date': 'Dec 12', 'orders': 180},
-      {'date': 'Dec 13', 'orders': 175},
-    ];
-    final maxOrders = 200.0;
+    if (_dailyData.isEmpty) {
+      return HoverCard(
+        padding: const EdgeInsets.all(24),
+        child: SizedBox(
+          height: 320,
+          child: Center(
+            child: Text(
+              'No order data available',
+              style: AirMenuTextStyle.normal.withColor(Colors.grey.shade500),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final maxOrders = _dailyData
+        .map((d) => d.orders)
+        .reduce((a, b) => a > b ? a : b);
+    final chartMax = maxOrders > 0 ? (maxOrders * 1.2).ceil().toDouble() : 10.0;
 
     return HoverCard(
       padding: const EdgeInsets.all(24),
@@ -69,7 +149,7 @@ class OrderAnalyticsPage extends StatelessWidget {
             Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: [200, 150, 100, 50, 0]
+              children: [chartMax.toInt(), (chartMax * 0.75).toInt(), (chartMax * 0.5).toInt(), (chartMax * 0.25).toInt(), 0]
                   .map(
                     (v) => Text(
                       '$v',
@@ -84,14 +164,14 @@ class OrderAnalyticsPage extends StatelessWidget {
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                children: data.map((item) {
-                  final height = ((item['orders'] as int) / maxOrders) * 260;
+                children: _dailyData.map((item) {
+                  final height = (item.orders / chartMax) * 260;
                   return Expanded(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       child: _BarItem(
-                        date: item['date'] as String,
-                        orders: item['orders'] as int,
+                        date: item.date,
+                        orders: item.orders,
                         height: height,
                       ),
                     ),
@@ -104,6 +184,12 @@ class OrderAnalyticsPage extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DayOrders {
+  final String date;
+  final int orders;
+  const _DayOrders({required this.date, required this.orders});
 }
 
 class _BarItem extends StatefulWidget {

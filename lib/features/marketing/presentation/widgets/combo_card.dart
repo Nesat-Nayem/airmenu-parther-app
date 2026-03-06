@@ -86,7 +86,7 @@ class ComboCard extends StatelessWidget {
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 16),
 
             // Pricing row
             Row(

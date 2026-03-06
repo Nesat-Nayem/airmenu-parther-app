@@ -1,31 +1,97 @@
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/reports/presentation/widgets/report_shared_components.dart';
+import 'package:airmenuai_partner_app/features/reports/data/repositories/api_reports_repository.dart';
 
 /// GST Report Detail Page - With hover effects
-class GstReportPage extends StatelessWidget {
+class GstReportPage extends StatefulWidget {
   const GstReportPage({super.key});
+
+  @override
+  State<GstReportPage> createState() => _GstReportPageState();
+}
+
+class _GstReportPageState extends State<GstReportPage> {
+  final ApiReportsRepository _repo = ApiReportsRepository();
+  bool _isLoading = true;
+  double _totalCgst = 0;
+  double _totalSgst = 0;
+  double _totalServiceCharge = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      // Fetch all orders for this month
+      final now = DateTime.now();
+      final firstOfMonth = DateTime(now.year, now.month, 1);
+
+      final ordersData = await _repo.fetchOrdersRaw(
+        page: 1,
+        limit: 1000,
+        startDate: firstOfMonth.toIso8601String().split('T')[0],
+        endDate: now.toIso8601String().split('T')[0],
+      );
+
+      final List<dynamic> orders = ordersData['orders'] ?? [];
+      double cgst = 0;
+      double sgst = 0;
+      double serviceCharge = 0;
+
+      for (final order in orders) {
+        cgst += (order['cgstAmount'] as num?)?.toDouble() ?? 0;
+        sgst += (order['sgstAmount'] as num?)?.toDouble() ?? 0;
+        serviceCharge += (order['serviceCharge'] as num?)?.toDouble() ?? 0;
+      }
+
+      setState(() {
+        _totalCgst = cgst;
+        _totalSgst = sgst;
+        _totalServiceCharge = serviceCharge;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatCurrency(double amount) {
+    if (amount >= 100000) {
+      return '₹${(amount / 100000).toStringAsFixed(2)}L';
+    } else if (amount >= 1000) {
+      return '₹${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}';
+    }
+    return '₹${amount.toStringAsFixed(2)}';
+  }
 
   @override
   Widget build(BuildContext context) {
     return ReportPageLayout(
       title: 'GST Report',
       subtitle: 'Tax summaries and invoices',
-      child: Column(
-        children: [
-          _buildGstSummary(),
-          const SizedBox(height: 24),
-          _buildDownloadButtons(),
-        ],
-      ),
+      child: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                _buildGstSummary(),
+                const SizedBox(height: 24),
+                _buildDownloadButtons(),
+              ],
+            ),
     );
   }
 
   Widget _buildGstSummary() {
+    final totalGst = _totalCgst + _totalSgst;
     final gstData = [
-      {'label': 'CGST (2.5%)', 'value': '₹12,450'},
-      {'label': 'SGST (2.5%)', 'value': '₹12,450'},
-      {'label': 'IGST (5%)', 'value': '₹0'},
+      {'label': 'CGST', 'value': _formatCurrency(_totalCgst)},
+      {'label': 'SGST', 'value': _formatCurrency(_totalSgst)},
+      {'label': 'Service Charge', 'value': _formatCurrency(_totalServiceCharge)},
     ];
 
     return HoverCard(
@@ -80,7 +146,7 @@ class GstReportPage extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '₹24,900',
+                  _formatCurrency(totalGst),
                   style: AirMenuTextStyle.headingH4.bold700().withColor(
                     Colors.grey.shade900,
                   ),
