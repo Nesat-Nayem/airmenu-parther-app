@@ -167,42 +167,45 @@ class _VendorSettingsDesktopViewState
                               const ChangeSettingsTab(1),
                             ),
                           ),
-                          _SidebarItem(
-                            icon: Icons.notifications_outlined,
-                            title: 'Notifications',
-                            subtitle: 'Alert sounds and preferences',
-                            isSelected: state.currentTabIndex == 2,
-                            onTap: () => context.read<VendorSettingsBloc>().add(
-                              const ChangeSettingsTab(2),
-                            ),
-                          ),
-                          _SidebarItem(
-                            icon: Icons.print_outlined,
-                            title: 'Printers',
-                            subtitle: 'Kitchen printer configuration',
-                            isSelected: state.currentTabIndex == 3,
-                            onTap: () => context.read<VendorSettingsBloc>().add(
-                              const ChangeSettingsTab(3),
-                            ),
-                          ),
-                          _SidebarItem(
-                            icon: Icons.location_on_outlined,
-                            title: 'Delivery',
-                            subtitle: 'Radius and timing settings',
-                            isSelected: state.currentTabIndex == 4,
-                            onTap: () => context.read<VendorSettingsBloc>().add(
-                              const ChangeSettingsTab(4),
-                            ),
-                          ),
-                          _SidebarItem(
-                            icon: Icons.credit_card_outlined,
-                            title: 'Billing',
-                            subtitle: 'Subscription and payments',
-                            isSelected: state.currentTabIndex == 5,
-                            onTap: () => context.read<VendorSettingsBloc>().add(
-                              const ChangeSettingsTab(5),
-                            ),
-                          ),
+                          // _SidebarItem(
+                          //   icon: Icons.notifications_outlined,
+                          //   title: 'Notifications',
+                          //   subtitle: 'Alert sounds and preferences',
+                          //   isSelected: state.currentTabIndex == 2,
+                          //   onTap: () => context.read<VendorSettingsBloc>().add(
+                          //     const ChangeSettingsTab(2),
+                          //   ),
+                          // ),
+                          // _SidebarItem(
+                          //   icon: Icons.print_outlined,
+                          //   title: 'Printers',
+                          //   subtitle: 'Kitchen printer configuration',
+                          //   isSelected: state.currentTabIndex == 3,
+                          //   onTap: () => context.read<VendorSettingsBloc>().add(
+                          //     const ChangeSettingsTab(3),
+                          //   ),
+                          // ),
+                          // _SidebarItem(
+                          //   icon: Icons.location_on_outlined,
+                          //   title: 'Delivery',
+                          //   subtitle: 'Radius and timing settings',
+                          //   isSelected: state.currentTabIndex == 4,
+                          //   onTap: () => context.read<VendorSettingsBloc>().add(
+                          //     const ChangeSettingsTab(4),
+                          //   ),
+                          // ),
+                          // _SidebarItem(
+                          //   icon: Icons.credit_card_outlined,
+                          //   title: 'Billing',
+                          //   subtitle: 'Subscription and payments',
+                          //   isSelected: state.currentTabIndex == 5,
+                          //   onTap: () => context.read<VendorSettingsBloc>().add(
+                          //     const ChangeSettingsTab(5),
+                          //   ),
+                          // ),
+                       
+                       
+                       
                         ],
                       ),
                     ),
