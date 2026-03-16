@@ -1,5 +1,9 @@
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shared_widgets.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
@@ -15,48 +19,55 @@ class CreatePurchaseOrderDialog extends StatefulWidget {
 class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     with SingleTickerProviderStateMixin {
   // State
-  String? selectedVendor;
+  String? selectedVendorId;
+  String? selectedVendorName;
   DateTime? expectedDelivery;
   bool notifyWhatsapp = true;
   bool notifyEmail = true;
   final List<POItem> items = [];
   late AnimationController _scannerController;
+  final TextEditingController _notesController = TextEditingController();
+  bool _isSubmitting = false;
 
-  // Mock Data
-  final List<String> vendors = [
-    'Fresh Dairy Co.',
-    'Meat Suppliers Ltd.',
-    'Green Farm Veggies',
-    'Spice World',
-  ];
-  final List<String> availableItems = [
-    'Chicken',
-    'Paneer',
-    'Basmati Rice',
-    'Fresh Cream',
-    'Onions',
-    'Cooking Oil',
-    'Tomatoes',
-    'Garlic',
-    'Ginger',
-    'Butter',
-  ];
+  // Dynamic Data from API
+  List<VendorModel> _vendors = [];
+  List<InventoryItem> _materials = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Start with one item
     items.add(POItem());
 
     _scannerController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
+
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final repo = locator<InventoryRepository>();
+    final vendorsRes = await repo.getVendors();
+    final materialsRes = await repo.getMaterials();
+    if (mounted) {
+      setState(() {
+        if (vendorsRes is DataSuccess<List<VendorModel>>) {
+          _vendors = vendorsRes.data!;
+        }
+        if (materialsRes is DataSuccess<List<InventoryItem>>) {
+          _materials = materialsRes.data!;
+        }
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   void dispose() {
     _scannerController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -73,7 +84,45 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
   }
 
   double get estimatedTotal {
-    return items.fold(0, (sum, item) => sum + (item.price * item.quantity));
+    return items.fold(0, (sum, item) => sum + (item.unitCost * item.quantity));
+  }
+
+  Future<void> _submitPO() async {
+    final validItems = items.where((i) => i.materialId != null && i.quantity > 0).toList();
+    if (validItems.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add at least one item')),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    final repo = locator<InventoryRepository>();
+    bool allSuccess = true;
+
+    for (final item in validItems) {
+      final res = await repo.createTransaction({
+        'materialId': item.materialId,
+        'type': 'purchase',
+        'quantity': item.quantity,
+        'unitCost': item.unitCost,
+        'note': 'PO${selectedVendorName != null ? ' from $selectedVendorName' : ''}${_notesController.text.isNotEmpty ? ' - ${_notesController.text}' : ''}',
+      });
+      if (res is! DataSuccess) allSuccess = false;
+    }
+
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(allSuccess
+              ? 'Purchase order created with ${validItems.length} item(s)'
+              : 'Some items failed to process'),
+          backgroundColor: allSuccess ? Colors.green : Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _pickDate() async {
@@ -259,8 +308,9 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const TextField(
-                          decoration: InputDecoration(
+                        child: TextField(
+                          controller: _notesController,
+                          decoration: const InputDecoration(
                             hintText: 'Additional instructions or notes...',
                             border: InputBorder.none,
                             hintStyle: TextStyle(
@@ -286,6 +336,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
   }
 
   Widget _buildVendorSection() {
+    final vendorNames = _vendors.map((v) => v.companyName).toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -296,12 +347,31 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
           ),
         ),
         const SizedBox(height: 8),
-        _buildDropdown(
-          value: selectedVendor,
-          hint: 'Select vendor',
-          items: vendors,
-          onChanged: (val) => setState(() => selectedVendor = val),
-        ),
+        _isLoading
+            ? const SizedBox(height: 48, child: Center(child: CircularProgressIndicator(strokeWidth: 2)))
+            : vendorNames.isEmpty
+                ? Container(
+                    height: 48,
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text('No vendors found', style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF))),
+                  )
+                : _buildDropdown(
+                    value: selectedVendorName,
+                    hint: 'Select vendor',
+                    items: vendorNames,
+                    onChanged: (val) {
+                      final vendor = _vendors.firstWhere((v) => v.companyName == val);
+                      setState(() {
+                        selectedVendorId = vendor.id;
+                        selectedVendorName = val;
+                      });
+                    },
+                  ),
       ],
     );
   }
@@ -632,16 +702,15 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                   }),
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: _buildInput('kg', (val) {}, readOnly: true)),
+                Expanded(child: _buildInput(item.unit.isNotEmpty ? item.unit : 'unit', (val) {}, readOnly: true)),
                 const SizedBox(width: 8),
-                SizedBox(
-                  width: 60,
-                  child: Text(
-                    '₹${item.price.toInt()}',
-                    textAlign: TextAlign.right,
-                    style: AirMenuTextStyle.normal.bold600().withColor(
-                      const Color(0xFF111827),
-                    ),
+                Expanded(
+                  child: _buildInput(
+                    item.unitCost > 0 ? item.unitCost.toStringAsFixed(0) : '0',
+                    (val) {
+                      final c = double.tryParse(val);
+                      if (c != null) setState(() => item.unitCost = c);
+                    },
                   ),
                 ),
               ],
@@ -666,20 +735,20 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
         Expanded(
           flex: 1,
           child: _buildInput(
-            'kg',
+            item.unit.isNotEmpty ? item.unit : 'unit',
             (val) {},
             readOnly: true,
-          ), // Unit placeholder
+          ),
         ),
         const SizedBox(width: 12),
-        SizedBox(
-          width: 60,
-          child: Text(
-            '₹${item.price.toInt()}',
-            textAlign: TextAlign.right,
-            style: AirMenuTextStyle.normal.bold600().withColor(
-              const Color(0xFF111827),
-            ),
+        Expanded(
+          flex: 1,
+          child: _buildInput(
+            item.unitCost > 0 ? item.unitCost.toStringAsFixed(0) : '0',
+            (val) {
+              final c = double.tryParse(val);
+              if (c != null) setState(() => item.unitCost = c);
+            },
           ),
         ),
         const SizedBox(width: 8),
@@ -696,8 +765,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
   }
 
   Widget _buildItemDropdown(POItem item) {
-    // Reusing the same dropdown style but distinct logic for items if needed
-    // For now using the generic builder but applied to item.name
+    final materialNames = _materials.map((m) => m.name).toList();
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -708,7 +776,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
               ? Colors.transparent
               : const Color(0xFFEF4444),
           width: item.name == null ? 0 : 1,
-        ), // Highlight border if selected? Screenshot shows red border for selected item dropdown
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -721,10 +789,12 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
           shadowColor: Colors.black.withOpacity(0.1),
           color: Colors.white,
           onSelected: (val) => setState(() {
+            final mat = _materials.firstWhere((m) => m.name == val);
             item.name = val;
-            item.price = 280; // Mock price update
+            item.materialId = mat.id;
+            item.unit = mat.unit;
           }),
-          itemBuilder: (context) => availableItems.map((val) {
+          itemBuilder: (context) => materialNames.map((val) {
             final isSelected = item.name == val;
             return PopupMenuItem<String>(
               value: val,
@@ -870,12 +940,9 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                 ),
                 const SizedBox(height: 12),
                 InventoryPrimaryButton(
-                  label: 'Create & Send PO',
+                  label: _isSubmitting ? 'Submitting...' : 'Create & Send PO',
                   icon: Icons.send_rounded,
-                  onTap: () {
-                    // TODO: Create PO
-                    Navigator.pop(context);
-                  },
+                  onTap: _isSubmitting ? () {} : _submitPO,
                   width: double.infinity,
                 ),
               ],
@@ -890,12 +957,9 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                 ),
                 const SizedBox(width: 16),
                 InventoryPrimaryButton(
-                  label: 'Create & Send PO',
+                  label: _isSubmitting ? 'Submitting...' : 'Create & Send PO',
                   icon: Icons.send_rounded,
-                  onTap: () {
-                    // TODO: Create PO
-                    Navigator.pop(context);
-                  },
+                  onTap: _isSubmitting ? () {} : _submitPO,
                 ),
               ],
             ),
@@ -907,8 +971,10 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
 
 class POItem {
   String? name;
+  String? materialId;
+  String unit;
   int quantity;
-  double price;
+  double unitCost;
 
-  POItem({this.name, this.quantity = 1, this.price = 0});
+  POItem({this.name, this.materialId, this.unit = '', this.quantity = 1, this.unitCost = 0});
 }

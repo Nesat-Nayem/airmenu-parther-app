@@ -1,5 +1,9 @@
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/inventory_bloc.dart';
+import 'package:airmenuai_partner_app/features/restaurants/data/models/menu/menu_models.dart';
+import 'package:airmenuai_partner_app/features/restaurants/data/repositories/menu_repository.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
@@ -13,11 +17,12 @@ class RecipeMappingDialog extends StatefulWidget {
 }
 
 class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
-  final List<String> unitOptions = ['g', 'kg', 'ml', 'l', 'pcs'];
-
   // State
-  String? selectedMenuItem;
+  FoodItem? selectedMenuItem;
   final List<RecipeIngredient> ingredients = [];
+  List<FoodItem> _menuItems = [];
+  bool _loadingMenu = true;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -27,6 +32,23 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<InventoryBloc>().add(LoadRecipes());
     });
+    _loadMenuItems();
+  }
+
+  Future<void> _loadMenuItems() async {
+    final hotelId = await locator<LocalStorage>().getString(localStorageKey: 'hotelId');
+    if (hotelId == null || hotelId.isEmpty) {
+      if (mounted) setState(() => _loadingMenu = false);
+      return;
+    }
+    final categories = await locator<MenuRepository>().getMenuCategories(hotelId);
+    final allItems = categories.expand((cat) => cat.items).toList();
+    if (mounted) {
+      setState(() {
+        _menuItems = allItems;
+        _loadingMenu = false;
+      });
+    }
   }
 
   void _addIngredient() {
@@ -49,10 +71,25 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
     if (validIngredients.isEmpty) return;
 
     context.read<InventoryBloc>().add(AddRecipe({
-      'menuItemId': selectedMenuItem!,
+      'menuItemId': selectedMenuItem!.id,
+      'menuItemName': selectedMenuItem!.title,
       'ingredients': validIngredients,
     }));
     Navigator.pop(context);
+  }
+
+  double get _estimatedCost {
+    final materials = context.read<InventoryBloc>().state.items;
+    double total = 0;
+    for (final ing in ingredients) {
+      if (ing.materialId == null) continue;
+      final qty = double.tryParse(ing.quantity ?? '0') ?? 0;
+      final mat = materials.where((m) => m.id == ing.materialId).firstOrNull;
+      if (mat != null) {
+        total += mat.costPrice * qty;
+      }
+    }
+    return total;
   }
 
   @override
@@ -95,7 +132,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    _buildMenuDropdown(),
+                    _buildMenuItemSelector(),
                     const SizedBox(height: 24),
 
                     // Ingredients Section Header
@@ -151,7 +188,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '₹85.50',
+                                  '₹${_estimatedCost.toStringAsFixed(2)}',
                                   style: AirMenuTextStyle.headingH2
                                       .black900()
                                       .withColor(const Color(0xFF111827)),
@@ -168,7 +205,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
                                       .withColor(const Color(0xFF6B7280)),
                                 ),
                                 Text(
-                                  '₹85.50', // Mock calculation
+                                  '₹${_estimatedCost.toStringAsFixed(2)}',
                                   style: AirMenuTextStyle.headingH2
                                       .black900()
                                       .withColor(const Color(0xFF111827)),
@@ -221,21 +258,183 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
     );
   }
 
-  Widget _buildMenuDropdown() {
-    return TextFormField(
-      initialValue: selectedMenuItem,
-      onChanged: (val) => setState(() => selectedMenuItem = val.trim().isEmpty ? null : val.trim()),
-      style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF111827)),
-      decoration: InputDecoration(
-        hintText: 'Enter menu item ID or name',
-        hintStyle: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444))),
-        fillColor: const Color(0xFFFAFAFA),
-        filled: true,
+  Widget _buildMenuItemSelector() {
+    if (_loadingMenu) {
+      return Container(
+        height: 48,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAFAFA),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFF3F4F6)),
+        ),
+        child: const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+      );
+    }
+
+    final filtered = _menuItems.where((item) {
+      if (_searchQuery.isEmpty) return true;
+      return item.title.toLowerCase().contains(_searchQuery.toLowerCase());
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Search + selected display
+        InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () => _showMenuItemPicker(filtered),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFAFAFA),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selectedMenuItem != null
+                    ? const Color(0xFFEF4444)
+                    : const Color(0xFFF3F4F6),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: selectedMenuItem != null
+                      ? Row(
+                          children: [
+                            const Icon(Icons.restaurant_menu, size: 16, color: Color(0xFFEF4444)),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                selectedMenuItem!.title,
+                                style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF111827)),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              '₹${selectedMenuItem!.price.toStringAsFixed(0)}',
+                              style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFF6B7280)),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _menuItems.isEmpty
+                              ? 'No menu items found'
+                              : 'Tap to select a menu item',
+                          style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF)),
+                        ),
+                ),
+                Icon(
+                  selectedMenuItem != null ? Icons.check_circle : Icons.keyboard_arrow_down,
+                  size: 18,
+                  color: selectedMenuItem != null ? const Color(0xFFEF4444) : const Color(0xFF9CA3AF),
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (selectedMenuItem != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: TextButton.icon(
+              onPressed: () => setState(() => selectedMenuItem = null),
+              icon: const Icon(Icons.close, size: 14),
+              label: const Text('Clear selection'),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF9CA3AF),
+                textStyle: AirMenuTextStyle.small.medium500(),
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  void _showMenuItemPicker(List<FoodItem> items) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
+      builder: (ctx) {
+        String query = '';
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final filtered = _menuItems.where((item) {
+              if (query.isEmpty) return true;
+              return item.title.toLowerCase().contains(query.toLowerCase());
+            }).toList();
+
+            return DraggableScrollableSheet(
+              expand: false,
+              initialChildSize: 0.6,
+              maxChildSize: 0.9,
+              builder: (_, controller) => Column(
+                children: [
+                  // Handle
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                    child: TextField(
+                      autofocus: true,
+                      onChanged: (v) => setModalState(() => query = v),
+                      decoration: InputDecoration(
+                        hintText: 'Search menu items...',
+                        prefixIcon: const Icon(Icons.search, size: 18),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? const Center(child: Text('No items found', style: TextStyle(color: Colors.grey)))
+                        : ListView.builder(
+                            controller: controller,
+                            itemCount: filtered.length,
+                            itemBuilder: (_, i) {
+                              final item = filtered[i];
+                              final isSelected = selectedMenuItem?.id == item.id;
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: const Color(0xFFFEF2F2),
+                                  child: Text(
+                                    item.title.isNotEmpty ? item.title[0].toUpperCase() : '?',
+                                    style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                subtitle: Text('₹${item.price.toStringAsFixed(0)}',
+                                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                                trailing: isSelected
+                                    ? const Icon(Icons.check_circle, color: Color(0xFFEF4444))
+                                    : null,
+                                onTap: () {
+                                  setState(() => selectedMenuItem = item);
+                                  Navigator.pop(ctx);
+                                },
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 

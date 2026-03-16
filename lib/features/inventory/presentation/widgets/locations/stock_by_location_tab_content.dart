@@ -1,16 +1,65 @@
+import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/locations/transfer_stock_form_dialog.dart';
-import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_filters.dart';
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
 
 import 'package:airmenuai_partner_app/features/responsive.dart';
 
-class StockByLocationTabContent extends StatelessWidget {
+class StockByLocationTabContent extends StatefulWidget {
   const StockByLocationTabContent({super.key});
+
+  @override
+  State<StockByLocationTabContent> createState() => _StockByLocationTabContentState();
+}
+
+class _StockByLocationTabContentState extends State<StockByLocationTabContent> {
+  List<InventoryItem> _materials = [];
+  List<LocationModel> _locations = [];
+  bool _isLoading = true;
+  String _searchQuery = '';
+  String _selectedLocation = 'All Locations';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final repo = locator<InventoryRepository>();
+    final materialsRes = await repo.getMaterials();
+    final locationsRes = await repo.getLocations();
+    if (mounted) {
+      setState(() {
+        if (materialsRes is DataSuccess<List<InventoryItem>>) {
+          _materials = materialsRes.data!;
+        }
+        if (locationsRes is DataSuccess<List<LocationModel>>) {
+          _locations = locationsRes.data!;
+        }
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<InventoryItem> get _filteredMaterials {
+    var filtered = _materials;
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered.where((m) =>
+          m.name.toLowerCase().contains(q) ||
+          m.category.toLowerCase().contains(q)).toList();
+    }
+    return filtered;
+  }
 
   @override
   Widget build(BuildContext context) {
     bool isMobile = Responsive.isMobile(context);
+    final locationNames = ['All Locations', ..._locations.map((l) => l.name)];
 
     return Column(
       children: [
@@ -46,12 +95,18 @@ class StockByLocationTabContent extends StatelessWidget {
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: Text(
-                                'Search items...',
-                                style: AirMenuTextStyle.small
-                                    .medium500()
-                                    .withColor(const Color(0xFF9CA3AF)),
-                                overflow: TextOverflow.ellipsis,
+                              child: TextField(
+                                onChanged: (val) => setState(() => _searchQuery = val),
+                                decoration: InputDecoration(
+                                  hintText: 'Search items...',
+                                  hintStyle: AirMenuTextStyle.small
+                                      .medium500()
+                                      .withColor(const Color(0xFF9CA3AF)),
+                                  border: InputBorder.none,
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                                style: AirMenuTextStyle.small.medium500(),
                               ),
                             ),
                           ],
@@ -61,15 +116,27 @@ class StockByLocationTabContent extends StatelessWidget {
                     if (!isMobile) ...[
                       const SizedBox(width: 16),
                       // Location Filter
-                      FilterDropdown(
-                        label: 'All Locations',
-                        selectedValue: 'All Locations',
-                        options: const [
-                          'All Locations',
-                          'Main Kitchen',
-                          'Downtown Branch',
-                        ],
-                        onChanged: (value) {},
+                      PopupMenuButton<String>(
+                        onSelected: (val) => setState(() => _selectedLocation = val),
+                        itemBuilder: (context) => locationNames.map((l) =>
+                          PopupMenuItem(value: l, child: Text(l)),
+                        ).toList(),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(_selectedLocation, style: AirMenuTextStyle.small.medium500()),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.keyboard_arrow_down, size: 18, color: Color(0xFF6B7280)),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ],
@@ -117,9 +184,9 @@ class StockByLocationTabContent extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  flex: 3,
+                  flex: 2,
                   child: Text(
-                    'LOCATION',
+                    'CATEGORY',
                     style: AirMenuTextStyle.tiny.bold700().withColor(
                       const Color(0xFF6B7280),
                     ),
@@ -150,52 +217,20 @@ class StockByLocationTabContent extends StatelessWidget {
 
         // List
         Expanded(
-          child: SingleChildScrollView(
-            child: Column(
-              children: const [
-                _StockRow(
-                  item: 'Paneer',
-                  sub: 'Dairy',
-                  loc: 'Main Kitchen',
-                  stock: '2 kg',
-                  max: '5',
-                  isCritical: true,
-                ),
-                _StockRow(
-                  item: 'Chicken',
-                  sub: 'Meat',
-                  loc: 'Main Kitchen',
-                  stock: '8 kg',
-                  max: '10',
-                  isLow: true,
-                ),
-                _StockRow(
-                  item: 'Basmati Rice',
-                  sub: 'Grains',
-                  loc: 'Main Kitchen',
-                  stock: '25 kg',
-                  max: '20',
-                  isHealthy: true,
-                ),
-                _StockRow(
-                  item: 'Fresh Cream',
-                  sub: 'Dairy',
-                  loc: 'Main Kitchen',
-                  stock: '3 L',
-                  max: '5',
-                  isLow: true,
-                ),
-                _StockRow(
-                  item: 'Paneer',
-                  sub: 'Dairy',
-                  loc: 'Downtown Branch',
-                  stock: '5 kg',
-                  max: '5',
-                  isHealthy: true,
-                ),
-              ],
-            ),
-          ),
+          child: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _filteredMaterials.isEmpty
+                  ? Center(
+                      child: Text(
+                        _materials.isEmpty ? 'No inventory items found' : 'No items match your search',
+                        style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF)),
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      child: Column(
+                        children: _filteredMaterials.map((item) => _StockRow(material: item)).toList(),
+                      ),
+                    ),
         ),
       ],
     );
@@ -203,38 +238,28 @@ class StockByLocationTabContent extends StatelessWidget {
 }
 
 class _StockRow extends StatelessWidget {
-  final String item;
-  final String sub;
-  final String loc;
-  final String stock;
-  final String max;
-  final bool isCritical;
-  final bool isLow;
-  final bool isHealthy;
+  final InventoryItem material;
 
-  const _StockRow({
-    required this.item,
-    required this.sub,
-    required this.loc,
-    required this.stock,
-    required this.max,
-    this.isCritical = false,
-    this.isLow = false,
-    this.isHealthy = false,
-  });
+  const _StockRow({required this.material});
 
   @override
   Widget build(BuildContext context) {
+    final isCritical = material.status == StockStatus.critical;
+    final isLow = material.status == StockStatus.low;
+
     Color barColor = isCritical
         ? const Color(0xFFEF4444)
         : (isLow ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
-    String status = isCritical ? 'Critical' : (isLow ? 'Low' : 'Healthy');
+    String status = material.status.label;
     Color bg = isCritical
         ? const Color(0xFFFEF2F2)
         : (isLow ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5));
     Color text = isCritical
         ? const Color(0xFFDC2626)
         : (isLow ? const Color(0xFFD97706) : const Color(0xFF047857));
+
+    final stockStr = '${material.currentStock.toStringAsFixed(material.currentStock.truncateToDouble() == material.currentStock ? 0 : 1)} ${material.unit}';
+    final maxStr = material.reorderLevel > 0 ? material.reorderLevel.toStringAsFixed(0) : material.maxStock.toStringAsFixed(0);
 
     bool isMobile = Responsive.isMobile(context);
 
@@ -260,22 +285,25 @@ class _StockRow extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item,
-                      style: AirMenuTextStyle.normal.bold600().withColor(
-                        const Color(0xFF111827),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        material.name,
+                        style: AirMenuTextStyle.normal.bold600().withColor(
+                          const Color(0xFF111827),
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    Text(
-                      sub,
-                      style: AirMenuTextStyle.small.medium500().withColor(
-                        const Color(0xFF6B7280),
+                      Text(
+                        material.category.isNotEmpty ? material.category : 'Uncategorized',
+                        style: AirMenuTextStyle.small.medium500().withColor(
+                          const Color(0xFF6B7280),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -296,23 +324,6 @@ class _StockRow extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                const Icon(
-                  Icons.location_on_outlined,
-                  size: 16,
-                  color: Color(0xFF6B7280),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  loc,
-                  style: AirMenuTextStyle.small.medium500().withColor(
-                    const Color(0xFF374151),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,13 +332,13 @@ class _StockRow extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            stock,
+                            stockStr,
                             style: AirMenuTextStyle.small.bold600().withColor(
                               const Color(0xFF111827),
                             ),
                           ),
                           Text(
-                            '/ $max',
+                            '/ $maxStr',
                             style: AirMenuTextStyle.small.medium500().withColor(
                               const Color(0xFF9CA3AF),
                             ),
@@ -338,7 +349,7 @@ class _StockRow extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(3),
                         child: LinearProgressIndicator(
-                          value: 0.6, // Mock value
+                          value: material.stockPercentage,
                           backgroundColor: const Color(0xFFF3F4F6),
                           valueColor: AlwaysStoppedAnimation<Color>(barColor),
                           minHeight: 6,
@@ -364,13 +375,14 @@ class _StockRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item,
+                  material.name,
                   style: AirMenuTextStyle.normal.bold600().withColor(
                     const Color(0xFF111827),
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  sub,
+                  material.sku.isNotEmpty ? material.sku : '',
                   style: AirMenuTextStyle.small.medium500().withColor(
                     const Color(0xFF6B7280),
                   ),
@@ -379,9 +391,9 @@ class _StockRow extends StatelessWidget {
             ),
           ),
           Expanded(
-            flex: 3,
+            flex: 2,
             child: Text(
-              loc,
+              material.category.isNotEmpty ? material.category : 'Uncategorized',
               style: AirMenuTextStyle.normal.medium500().withColor(
                 const Color(0xFF374151),
               ),
@@ -396,7 +408,7 @@ class _StockRow extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      stock,
+                      stockStr,
                       style: AirMenuTextStyle.normal.bold600().withColor(
                         const Color(0xFF111827),
                       ),
@@ -404,7 +416,7 @@ class _StockRow extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(right: 32),
                       child: Text(
-                        '/ $max',
+                        '/ $maxStr',
                         style: AirMenuTextStyle.small.medium500().withColor(
                           const Color(0xFF9CA3AF),
                         ),
@@ -413,12 +425,16 @@ class _StockRow extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 8),
-                Container(
-                  height: 6,
-                  width: 120, // fixed width for bar
-                  decoration: BoxDecoration(
-                    color: barColor,
-                    borderRadius: BorderRadius.circular(3),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(3),
+                  child: SizedBox(
+                    height: 6,
+                    width: 120,
+                    child: LinearProgressIndicator(
+                      value: material.stockPercentage,
+                      backgroundColor: const Color(0xFFF3F4F6),
+                      valueColor: AlwaysStoppedAnimation<Color>(barColor),
+                    ),
                   ),
                 ),
               ],
@@ -438,6 +454,7 @@ class _StockRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.circle, size: 8, color: text),
                       const SizedBox(width: 8),

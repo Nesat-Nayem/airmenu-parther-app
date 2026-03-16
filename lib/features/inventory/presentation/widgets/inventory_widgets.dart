@@ -1,6 +1,9 @@
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/add_edit_material_dialog.dart';
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 import 'package:airmenuai_partner_app/features/reports/presentation/widgets/report_shared_components.dart';
@@ -11,6 +14,7 @@ import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 
 /// Premium Stat Card with glassmorphism and gradients
 class InventoryStatCard extends StatelessWidget {
@@ -370,7 +374,7 @@ class InventoryItemsTable extends StatelessWidget {
                   Expanded(flex: 3, child: _headerCell('VENDOR')),
                 ],
                 Expanded(
-                  flex: 2,
+                  flex: 3,
                   child: _headerCell('ACTION', textAlign: TextAlign.right),
                 ),
               ],
@@ -516,29 +520,37 @@ class InventoryItemsTable extends StatelessWidget {
                       ],
                       // Action
                       Expanded(
-                        flex: 2,
+                        flex: 3,
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _RestockActionButton(
-                                onTap: () => onRestock(item),
-                              ),
-                              const SizedBox(width: 4),
-                              IconButton(
-                                icon: const Icon(Icons.edit_outlined, size: 16),
-                                tooltip: 'Edit',
-                                color: Colors.grey.shade500,
-                                onPressed: () => _showEditDialog(context, item),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, size: 16),
-                                tooltip: 'Delete',
-                                color: Colors.red.shade300,
-                                onPressed: () => _showDeleteConfirm(context, item),
-                              ),
-                            ],
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _RestockActionButton(
+                                  onTap: () => onRestock(item),
+                                ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(Icons.edit_outlined, size: 16),
+                                  tooltip: 'Edit',
+                                  color: Colors.grey.shade500,
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () => _showEditDialog(context, item),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 16),
+                                  tooltip: 'Delete',
+                                  color: Colors.red.shade300,
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () => _showDeleteConfirm(context, item),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -873,7 +885,7 @@ class InventoryAnalyticsSection extends StatelessWidget {
 }
 
 /// Purchase Orders & Recipe Mapping (Compact Sidebar/Grid widgets)
-class InventoryDashboardSecondaryWidgets extends StatelessWidget {
+class InventoryDashboardSecondaryWidgets extends StatefulWidget {
   final VoidCallback onNewPO;
 
   const InventoryDashboardSecondaryWidgets({
@@ -882,8 +894,43 @@ class InventoryDashboardSecondaryWidgets extends StatelessWidget {
   });
 
   @override
+  State<InventoryDashboardSecondaryWidgets> createState() =>
+      _InventoryDashboardSecondaryWidgetsState();
+}
+
+class _InventoryDashboardSecondaryWidgetsState
+    extends State<InventoryDashboardSecondaryWidgets> {
+  List<InventoryTransaction> _purchaseOrders = [];
+  bool _loadingPO = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPurchaseOrders();
+  }
+
+  Future<void> _loadPurchaseOrders() async {
+    final repo = locator<InventoryRepository>();
+    final res = await repo.getTransactions(type: 'purchase');
+    if (mounted) {
+      setState(() {
+        if (res is DataSuccess<List<InventoryTransaction>>) {
+          _purchaseOrders = res.data!;
+        }
+        _loadingPO = false;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
+    final state = context.watch<InventoryBloc>().state;
+
+    // Derive recipe mapping stats from actual data
+    final totalItems = state.items.length;
+    final mappedCount = state.recipes.length;
+    final unmappedCount = (totalItems - mappedCount).clamp(0, totalItems);
 
     final purchaseOrders = Container(
       padding: const EdgeInsets.all(20),
@@ -902,16 +949,38 @@ class InventoryDashboardSecondaryWidgets extends StatelessWidget {
                 'Purchase Orders',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              _iconButton(Icons.add, 'New', onNewPO),
+              _iconButton(Icons.add, 'New', () {
+                widget.onNewPO();
+                // Reload after dialog closes
+                Future.delayed(const Duration(milliseconds: 500), _loadPurchaseOrders);
+              }),
             ],
           ),
           const SizedBox(height: 16),
-          const Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text('No purchase orders yet', style: TextStyle(color: Colors.grey)),
+          if (_loadingPO)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+            )
+          else if (_purchaseOrders.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('No purchase orders yet', style: TextStyle(color: Colors.grey)),
+              ),
+            )
+          else
+            ...(_purchaseOrders.take(5).map((tx) => _buildPORow(tx))),
+          if (_purchaseOrders.length > 5)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                '+ ${_purchaseOrders.length - 5} more',
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -936,7 +1005,10 @@ class InventoryDashboardSecondaryWidgets extends StatelessWidget {
               _iconButton(Icons.link, 'Manage', () {
                 showDialog(
                   context: context,
-                  builder: (context) => const RecipeMappingDialog(),
+                  builder: (_) => BlocProvider.value(
+                    value: context.read<InventoryBloc>(),
+                    child: const RecipeMappingDialog(),
+                  ),
                 );
               }),
             ],
@@ -944,11 +1016,9 @@ class InventoryDashboardSecondaryWidgets extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _mappingStat('89', 'Mapped', Colors.green),
+              _mappingStat('$mappedCount', 'Mapped', Colors.green),
               const SizedBox(width: 8),
-              _mappingStat('23', 'Partial', Colors.amber),
-              const SizedBox(width: 8),
-              _mappingStat('12', 'Unmapped', Colors.red),
+              _mappingStat('$unmappedCount', 'Unmapped', Colors.red),
             ],
           ),
         ],
@@ -988,6 +1058,50 @@ class InventoryDashboardSecondaryWidgets extends StatelessWidget {
             Text(label, style: AirMenuTextStyle.small.bold600()),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPORow(InventoryTransaction tx) {
+    final dateStr = DateFormat('dd MMM yyyy').format(tx.createdAt);
+    final name = tx.materialName.isNotEmpty ? tx.materialName : 'Item';
+    final total = tx.totalCost > 0 ? tx.totalCost : tx.unitCost * tx.quantity;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF2F2),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.shopping_cart_outlined, size: 16, color: Color(0xFFEF4444)),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary),
+                    overflow: TextOverflow.ellipsis),
+                Text('${tx.quantity.toStringAsFixed(0)} units · $dateStr',
+                    style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary)),
+              ],
+            ),
+          ),
+          if (total > 0)
+            Text('₹${total.toStringAsFixed(0)}',
+                style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary)),
+        ],
       ),
     );
   }

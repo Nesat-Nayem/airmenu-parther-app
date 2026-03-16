@@ -2,7 +2,10 @@ import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shared_widgets.dart';
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:intl/intl.dart';
 
 /// Premium Bulk Purchase Order Dialog with stunning UI
@@ -22,6 +25,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
   final Map<String, int> quantities = {};
   final Map<String, bool> selectedItems = {};
   DateTime? _selectedDate;
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -62,6 +66,44 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
       }
     }
     return grouped;
+  }
+
+  Future<void> _submitBulkPO() async {
+    setState(() => _isSubmitting = true);
+    final repo = locator<InventoryRepository>();
+    int successCount = 0;
+    int failCount = 0;
+
+    for (final item in widget.criticalItems) {
+      if (selectedItems[item.id] != true) continue;
+      final qty = quantities[item.id] ?? item.minStock.ceil();
+      if (qty <= 0) continue;
+
+      final res = await repo.createTransaction({
+        'materialId': item.id,
+        'type': 'purchase',
+        'quantity': qty,
+        'note': 'Bulk PO for critical item: ${item.name}',
+      });
+      if (res is DataSuccess) {
+        successCount++;
+      } else {
+        failCount++;
+      }
+    }
+
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(failCount == 0
+              ? 'Bulk PO created: $successCount item(s) restocked'
+              : '$successCount succeeded, $failCount failed'),
+          backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
+        ),
+      );
+    }
   }
 
   Future<void> _pickDate() async {
@@ -842,14 +884,12 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
                 ],
               ),
               child: ElevatedButton.icon(
-                onPressed: selectedCount > 0
-                    ? () {
-                        Navigator.pop(context);
-                      }
+                onPressed: selectedCount > 0 && !_isSubmitting
+                    ? _submitBulkPO
                     : null,
                 icon: const Icon(Icons.send_rounded, size: 18),
                 label: Text(
-                  'Create 1 PO & Send',
+                  _isSubmitting ? 'Submitting...' : 'Create & Send PO',
                   style: AirMenuTextStyle.normal.bold600().copyWith(
                     letterSpacing: 0.5,
                     height: 1.2,
@@ -887,15 +927,9 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
           ),
           const SizedBox(width: 16),
           InventoryPrimaryButton(
-            label: 'Create 1 PO & Send',
+            label: _isSubmitting ? 'Submitting...' : 'Create & Send PO',
             icon: Icons.send_rounded,
-            onTap: selectedCount > 0
-                ? () {
-                    Navigator.pop(context);
-                  }
-                : () {}, // Handled by button state or opacity if needed, but PrimaryButton doesn't support disabled styling explicitly yet visually, logic prevents action though.
-            // Actually, best to make PrimaryButton support disabled state or just pass opacity externally?
-            // PrimaryButton uses isLoading only. Let's just assume enabled for now or wrap in Opacity.
+            onTap: selectedCount > 0 && !_isSubmitting ? _submitBulkPO : () {},
           ),
         ],
       ),

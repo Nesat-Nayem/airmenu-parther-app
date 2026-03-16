@@ -27,7 +27,9 @@ class InventoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => InventoryBloc(locator<InventoryRepository>())..add(LoadInventory()),
+      create: (_) => InventoryBloc(locator<InventoryRepository>())
+        ..add(LoadInventory())
+        ..add(LoadRecipes()),
       child: const InventoryPageView(),
     );
   }
