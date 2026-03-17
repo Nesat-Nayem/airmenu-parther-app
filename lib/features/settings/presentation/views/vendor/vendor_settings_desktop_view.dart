@@ -660,26 +660,26 @@ class _VendorSettingsDesktopViewState
           ),
         ),
         const SizedBox(height: 24),
-        const SettingsSectionHeader(title: 'Compliance'),
-        Row(
-          children: [
-            Expanded(
-              child: _EditableField(
-                label: 'GSTIN',
-                controller: _gstinCtrl,
-                onChanged: (v) => _dispatchFieldUpdate(context, 'gstin', v),
-              ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: _EditableField(
-                label: 'FSSAI License No.',
-                controller: _fssaiCtrl,
-                onChanged: (v) => _dispatchFieldUpdate(context, 'fssai', v),
-              ),
-            ),
-          ],
-        ),
+        // const SettingsSectionHeader(title: 'Compliance'),
+        // Row(
+        //   children: [
+        //     Expanded(
+        //       child: _EditableField(
+        //         label: 'GSTIN',
+        //         controller: _gstinCtrl,
+        //         onChanged: (v) => _dispatchFieldUpdate(context, 'gstin', v),
+        //       ),
+        //     ),
+        //     const SizedBox(width: 24),
+        //     Expanded(
+        //       child: _EditableField(
+        //         label: 'FSSAI License No.',
+        //         controller: _fssaiCtrl,
+        //         onChanged: (v) => _dispatchFieldUpdate(context, 'fssai', v),
+        //       ),
+        //     ),
+        //   ],
+        // ),
       ],
     );
   }

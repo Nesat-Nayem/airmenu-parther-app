@@ -565,22 +565,22 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
           ),
         ),
         const SizedBox(height: 24),
-        const SettingsSectionHeader(title: 'Compliance'),
-        _MobileField(
-          label: 'GSTIN',
-          controller: _gstinCtrl,
-          onChanged: (v) => bloc.add(
-            UpdateRestaurantField(key: 'gstin', value: v),
-          ),
-        ),
-        const SizedBox(height: 16),
-        _MobileField(
-          label: 'FSSAI License No.',
-          controller: _fssaiCtrl,
-          onChanged: (v) => bloc.add(
-            UpdateRestaurantField(key: 'fssai', value: v),
-          ),
-        ),
+        // const SettingsSectionHeader(title: 'Compliance'),
+        // _MobileField(
+        //   label: 'GSTIN',
+        //   controller: _gstinCtrl,
+        //   onChanged: (v) => bloc.add(
+        //     UpdateRestaurantField(key: 'gstin', value: v),
+        //   ),
+        // ),
+        // const SizedBox(height: 16),
+        // _MobileField(
+        //   label: 'FSSAI License No.',
+        //   controller: _fssaiCtrl,
+        //   onChanged: (v) => bloc.add(
+        //     UpdateRestaurantField(key: 'fssai', value: v),
+        //   ),
+        // ),
       ],
     );
   }
