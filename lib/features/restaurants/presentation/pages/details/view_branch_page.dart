@@ -211,7 +211,7 @@ class _ViewBranchPageState extends State<ViewBranchPage> {
   Widget _buildTabs() {
     final tabs = [
       {'icon': Icons.dashboard_outlined, 'label': 'Overview'},
-      {'icon': Icons.restaurant_menu, 'label': 'Menu & Issues'},
+      {'icon': Icons.restaurant_menu, 'label': 'Menu'},
       {'icon': Icons.qr_code_2, 'label': 'Tables & QR'},
       {'icon': Icons.inventory_2_outlined, 'label': 'Inventory Health'},
       {'icon': Icons.receipt_long_outlined, 'label': 'Billing'},

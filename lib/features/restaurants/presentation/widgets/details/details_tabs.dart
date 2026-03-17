@@ -11,7 +11,7 @@ class DetailsTabs extends StatelessWidget {
 
   static const _tabs = [
     {'icon': Icons.storefront_outlined, 'label': 'Overview'},
-    {'icon': Icons.restaurant_menu_outlined, 'label': 'Menu & Issues'},
+    {'icon': Icons.restaurant_menu_outlined, 'label': 'Menu'},
     {'icon': Icons.qr_code_2_outlined, 'label': 'Tables & QR'},
     {'icon': Icons.inventory_2_outlined, 'label': 'Inventory Health'},
     // {'icon': Icons.receipt_long_outlined, 'label': 'Billing'},
