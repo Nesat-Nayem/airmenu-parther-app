@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import '../../bloc/vendor_settings_bloc.dart';
@@ -33,6 +36,25 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
   final _sgstCtrl = TextEditingController();
   final _serviceChargeCtrl = TextEditingController();
   bool _controllersInitialized = false;
+  Timer? _locationDebounce;
+  final _imagePicker = ImagePicker();
+
+  // Price options matching Next.js: 100, 200, 300, ..., 5000
+  static final _priceOptions = List.generate(50, (i) => (i + 1) * 100);
+
+  Future<void> _pickAndUploadImage() async {
+    final XFile? image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (image != null && mounted) {
+      context.read<VendorSettingsBloc>().add(
+        UploadMainImage(filePath: image.path),
+      );
+    }
+  }
 
   void _syncControllers(Map<String, dynamic> data) {
     void set(TextEditingController c, String v) {
@@ -69,6 +91,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
     _cgstCtrl.dispose();
     _sgstCtrl.dispose();
     _serviceChargeCtrl.dispose();
+    _locationDebounce?.cancel();
     super.dispose();
   }
 
@@ -82,6 +105,11 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
             backgroundColor: const Color(0xFF10B981),
             behavior: SnackBarBehavior.floating,
           ));
+          // Re-sync controllers with updated data from server response
+          _controllersInitialized = false;
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _syncControllers(state.data),
+          );
         }
         if (state.errorMessage != null &&
             state.status != VendorSettingsStatus.failure) {
@@ -94,6 +122,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
       },
       builder: (context, state) {
         if (state.status == VendorSettingsStatus.loading) {
+          _controllersInitialized = false;
           return const VendorSettingsMobileShimmer();
         }
 
@@ -253,13 +282,19 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
   // --- Mobile Specific Content Builders ---
 
   Widget _buildRestaurantInfo(Map<String, dynamic> data) {
+    final bloc = context.read<VendorSettingsBloc>();
+    final state = bloc.state;
+    final suggestions = state.locationSuggestions;
+    final isSearching = state.isSearchingLocation;
+    final isUploading = state.isUploadingImage;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _MobileField(
           label: 'Restaurant Name',
           controller: _nameCtrl,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'restaurantName', value: v),
           ),
         ),
@@ -267,46 +302,145 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
         _MobileField(
           label: 'Cuisine',
           controller: _cuisineCtrl,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'cuisine', value: v),
           ),
         ),
         const SizedBox(height: 16),
-        _MobileField(
-          label: 'Location',
-          controller: _locationCtrl,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
-            UpdateRestaurantField(key: 'address', value: v),
-          ),
+
+        // Location with autocomplete (matching Next.js LocationInput)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Location',
+              style: AirMenuTextStyle.small.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AirMenuColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _locationCtrl,
+              onChanged: (v) {
+                bloc.add(UpdateRestaurantField(key: 'address', value: v));
+                _locationDebounce?.cancel();
+                _locationDebounce = Timer(const Duration(milliseconds: 300), () {
+                  bloc.add(SearchLocation(query: v));
+                });
+              },
+              style: AirMenuTextStyle.normal,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AirMenuColors.primary),
+                ),
+                hintText: 'Start typing to search for a location...',
+                hintStyle: AirMenuTextStyle.normal.copyWith(color: Colors.grey.shade400),
+                filled: true,
+                fillColor: Colors.white,
+                suffixIcon: isSearching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                      )
+                    : null,
+              ),
+            ),
+            if (suggestions.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                constraints: const BoxConstraints(maxHeight: 200),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.08),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: suggestions.length,
+                  itemBuilder: (ctx, idx) {
+                    final place = suggestions[idx];
+                    final mainText = place['structured_formatting']?['main_text'] ?? place['description'] ?? '';
+                    final secondaryText = place['structured_formatting']?['secondary_text'] ?? '';
+                    return InkWell(
+                      onTap: () {
+                        final desc = (place['description'] ?? '').toString();
+                        _locationCtrl.text = desc;
+                        bloc.add(SelectLocationSuggestion(description: desc));
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 16, color: Colors.grey.shade500),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(mainText.toString(), style: AirMenuTextStyle.normal.copyWith(fontWeight: FontWeight.w500, fontSize: 13)),
+                                  if (secondaryText.toString().isNotEmpty)
+                                    Text(secondaryText.toString(), style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade600, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 16),
         _MobileField(
           label: 'Distance',
           controller: _distanceCtrl,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'distance', value: v),
           ),
         ),
         const SizedBox(height: 16),
+
+        // Price Range — dropdown selects matching Next.js
         Row(
           children: [
             Expanded(
-              child: _MobileField(
-                label: 'Min Price (₹)',
-                controller: _minPriceCtrl,
-                keyboardType: TextInputType.number,
-                onChanged: (v) => context.read<VendorSettingsBloc>().add(
+              child: _MobilePriceDropdown(
+                label: 'Min Price',
+                value: data['minPrice']?.toString() ?? '',
+                options: _priceOptions,
+                onChanged: (v) => bloc.add(
                   UpdateRestaurantField(key: 'minPrice', value: v),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _MobileField(
-                label: 'Max Price (₹)',
-                controller: _maxPriceCtrl,
-                keyboardType: TextInputType.number,
-                onChanged: (v) => context.read<VendorSettingsBloc>().add(
+              child: _MobilePriceDropdown(
+                label: 'Max Price',
+                value: data['maxPrice']?.toString() ?? '',
+                options: _priceOptions,
+                onChanged: (v) => bloc.add(
                   UpdateRestaurantField(key: 'maxPrice', value: v),
                 ),
               ),
@@ -318,7 +452,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
           label: 'Rating (0–5)',
           controller: _ratingCtrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'rating', value: v),
           ),
         ),
@@ -326,9 +460,80 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
         _MobileField(
           label: 'Description',
           controller: _descriptionCtrl,
-          maxLines: 3,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          maxLines: 4,
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'description', value: v),
+          ),
+        ),
+        const SizedBox(height: 24),
+
+        // Main Image — display current + upload button
+        Text(
+          'Main Image',
+          style: AirMenuTextStyle.small.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AirMenuColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if ((data['mainImage'] ?? '').toString().isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: CachedNetworkImage(
+              imageUrl: data['mainImage'].toString(),
+              height: 160,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                height: 160,
+                color: Colors.grey.shade100,
+                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              errorWidget: (context, url, error) => Container(
+                height: 160,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Center(
+                  child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            height: 160,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.image_outlined, size: 40, color: Colors.grey.shade400),
+                const SizedBox(height: 8),
+                Text('No image uploaded', style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+        const SizedBox(height: 10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: isUploading ? null : _pickAndUploadImage,
+            icon: isUploading
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.cloud_upload_outlined, size: 18),
+            label: Text(isUploading ? 'Uploading...' : 'Change Image'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AirMenuColors.primary,
+              side: const BorderSide(color: AirMenuColors.primary),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
           ),
         ),
         const SizedBox(height: 24),
@@ -337,7 +542,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
           label: 'CGST Rate (%)',
           controller: _cgstCtrl,
           keyboardType: TextInputType.number,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'cgstRate', value: v),
           ),
         ),
@@ -346,7 +551,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
           label: 'SGST Rate (%)',
           controller: _sgstCtrl,
           keyboardType: TextInputType.number,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'sgstRate', value: v),
           ),
         ),
@@ -355,7 +560,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
           label: 'Service Charge (%)',
           controller: _serviceChargeCtrl,
           keyboardType: TextInputType.number,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'serviceCharge', value: v),
           ),
         ),
@@ -364,7 +569,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
         _MobileField(
           label: 'GSTIN',
           controller: _gstinCtrl,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'gstin', value: v),
           ),
         ),
@@ -372,7 +577,7 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
         _MobileField(
           label: 'FSSAI License No.',
           controller: _fssaiCtrl,
-          onChanged: (v) => context.read<VendorSettingsBloc>().add(
+          onChanged: (v) => bloc.add(
             UpdateRestaurantField(key: 'fssai', value: v),
           ),
         ),
@@ -731,6 +936,66 @@ class _MobileTab extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MobilePriceDropdown extends StatelessWidget {
+  final String label;
+  final String value;
+  final List<int> options;
+  final ValueChanged<String> onChanged;
+
+  const _MobilePriceDropdown({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final intVal = int.tryParse(value);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AirMenuTextStyle.small.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AirMenuColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(
+          value: (intVal != null && options.contains(intVal)) ? intVal : null,
+          onChanged: (v) => onChanged(v?.toString() ?? ''),
+          isExpanded: true,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AirMenuColors.primary),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+          hint: Text('Select', style: AirMenuTextStyle.normal.copyWith(color: Colors.grey.shade400)),
+          items: options.map((p) => DropdownMenuItem<int>(
+            value: p,
+            child: Text('₹$p', style: AirMenuTextStyle.normal),
+          )).toList(),
+        ),
+      ],
     );
   }
 }

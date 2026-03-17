@@ -64,3 +64,31 @@ class UpdateTiming extends VendorSettingsEvent {
   @override
   List<Object?> get props => [day, startTime, endTime, isEnabled];
 }
+
+class UploadMainImage extends VendorSettingsEvent {
+  final String filePath;
+  const UploadMainImage({required this.filePath});
+
+  @override
+  List<Object?> get props => [filePath];
+}
+
+class SearchLocation extends VendorSettingsEvent {
+  final String query;
+  const SearchLocation({required this.query});
+
+  @override
+  List<Object?> get props => [query];
+}
+
+class ClearLocationSuggestions extends VendorSettingsEvent {
+  const ClearLocationSuggestions();
+}
+
+class SelectLocationSuggestion extends VendorSettingsEvent {
+  final String description;
+  const SelectLocationSuggestion({required this.description});
+
+  @override
+  List<Object?> get props => [description];
+}

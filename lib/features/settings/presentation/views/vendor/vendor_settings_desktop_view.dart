@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import '../../bloc/vendor_settings_bloc.dart';
@@ -33,6 +36,8 @@ class _VendorSettingsDesktopViewState
   final _serviceChargeCtrl = TextEditingController();
 
   bool _controllersInitialized = false;
+  Timer? _locationDebounce;
+  final _imagePicker = ImagePicker();
 
   void _syncControllers(Map<String, dynamic> data) {
     _setIfChanged(_nameCtrl, data['restaurantName'] ?? '');
@@ -76,6 +81,7 @@ class _VendorSettingsDesktopViewState
     _cgstCtrl.dispose();
     _sgstCtrl.dispose();
     _serviceChargeCtrl.dispose();
+    _locationDebounce?.cancel();
     super.dispose();
   }
 
@@ -91,6 +97,11 @@ class _VendorSettingsDesktopViewState
               behavior: SnackBarBehavior.floating,
             ),
           );
+          // Re-sync controllers with updated data from server response
+          _controllersInitialized = false;
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => _syncControllers(state.data),
+          );
         }
         if (state.errorMessage != null &&
             state.status != VendorSettingsStatus.failure) {
@@ -105,6 +116,7 @@ class _VendorSettingsDesktopViewState
       },
       builder: (context, state) {
         if (state.status == VendorSettingsStatus.loading) {
+          _controllersInitialized = false;
           return const VendorSettingsShimmer();
         }
 
@@ -320,7 +332,30 @@ class _VendorSettingsDesktopViewState
     }
   }
 
+  // Price options matching Next.js: 100, 200, 300, ..., 5000
+  static final _priceOptions = List.generate(50, (i) => (i + 1) * 100);
+
+  Future<void> _pickAndUploadImage() async {
+    final XFile? image = await _imagePicker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (image != null && mounted) {
+      context.read<VendorSettingsBloc>().add(
+        UploadMainImage(filePath: image.path),
+      );
+    }
+  }
+
   Widget _buildRestaurantInfo(Map<String, dynamic> data) {
+    final bloc = context.read<VendorSettingsBloc>();
+    final state = bloc.state;
+    final suggestions = state.locationSuggestions;
+    final isSearching = state.isSearchingLocation;
+    final isUploading = state.isUploadingImage;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -345,15 +380,115 @@ class _VendorSettingsDesktopViewState
           ],
         ),
         const SizedBox(height: 16),
+
+        // Location with autocomplete (matching Next.js LocationInput)
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               flex: 2,
-              child: _EditableField(
-                label: 'Location',
-                controller: _locationCtrl,
-                onChanged: (v) => _dispatchFieldUpdate(context, 'address', v),
-                hint: 'Start typing to search for a location...',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Location',
+                    style: AirMenuTextStyle.small.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: AirMenuColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _locationCtrl,
+                    onChanged: (v) {
+                      _dispatchFieldUpdate(context, 'address', v);
+                      _locationDebounce?.cancel();
+                      _locationDebounce = Timer(const Duration(milliseconds: 300), () {
+                        bloc.add(SearchLocation(query: v));
+                      });
+                    },
+                    style: AirMenuTextStyle.normal,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: AirMenuColors.primary),
+                      ),
+                      hintText: 'Start typing to search for a location...',
+                      hintStyle: AirMenuTextStyle.normal.copyWith(color: Colors.grey.shade400),
+                      filled: true,
+                      fillColor: Colors.white,
+                      suffixIcon: isSearching
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                            )
+                          : null,
+                    ),
+                  ),
+                  // Suggestions dropdown
+                  if (suggestions.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      constraints: const BoxConstraints(maxHeight: 240),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        padding: EdgeInsets.zero,
+                        itemCount: suggestions.length,
+                        itemBuilder: (ctx, idx) {
+                          final place = suggestions[idx];
+                          final mainText = place['structured_formatting']?['main_text'] ?? place['description'] ?? '';
+                          final secondaryText = place['structured_formatting']?['secondary_text'] ?? '';
+                          return InkWell(
+                            onTap: () {
+                              final desc = (place['description'] ?? '').toString();
+                              _locationCtrl.text = desc;
+                              bloc.add(SelectLocationSuggestion(description: desc));
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.location_on_outlined, size: 18, color: Colors.grey.shade500),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(mainText.toString(), style: AirMenuTextStyle.normal.copyWith(fontWeight: FontWeight.w500)),
+                                        if (secondaryText.toString().isNotEmpty)
+                                          Text(secondaryText.toString(), style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade600)),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
               ),
             ),
             const SizedBox(width: 24),
@@ -368,23 +503,25 @@ class _VendorSettingsDesktopViewState
           ],
         ),
         const SizedBox(height: 16),
+
+        // Price Range — dropdown selects matching Next.js (100 to 5000 step 100)
         Row(
           children: [
             Expanded(
-              child: _EditableField(
-                label: 'Min Price (₹)',
-                controller: _minPriceCtrl,
+              child: _PriceDropdown(
+                label: 'Min Price',
+                value: data['minPrice']?.toString() ?? '',
+                options: _priceOptions,
                 onChanged: (v) => _dispatchFieldUpdate(context, 'minPrice', v),
-                keyboardType: TextInputType.number,
               ),
             ),
             const SizedBox(width: 24),
             Expanded(
-              child: _EditableField(
-                label: 'Max Price (₹)',
-                controller: _maxPriceCtrl,
+              child: _PriceDropdown(
+                label: 'Max Price',
+                value: data['maxPrice']?.toString() ?? '',
+                options: _priceOptions,
                 onChanged: (v) => _dispatchFieldUpdate(context, 'maxPrice', v),
-                keyboardType: TextInputType.number,
               ),
             ),
             const SizedBox(width: 24),
@@ -403,7 +540,85 @@ class _VendorSettingsDesktopViewState
           label: 'Description',
           controller: _descriptionCtrl,
           onChanged: (v) => _dispatchFieldUpdate(context, 'description', v),
-          maxLines: 3,
+          maxLines: 4,
+        ),
+        const SizedBox(height: 24),
+
+        // Main Image — display current + upload button (matching Next.js)
+        Text(
+          'Main Image',
+          style: AirMenuTextStyle.small.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AirMenuColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if ((data['mainImage'] ?? '').toString().isNotEmpty)
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: CachedNetworkImage(
+              imageUrl: data['mainImage'].toString(),
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              placeholder: (context, url) => Container(
+                height: 180,
+                color: Colors.grey.shade100,
+                child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              errorWidget: (context, url, error) => Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Center(
+                  child: Icon(Icons.image_not_supported, color: Colors.grey, size: 40),
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            height: 180,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.image_outlined, size: 48, color: Colors.grey.shade400),
+                const SizedBox(height: 8),
+                Text('No image uploaded', style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade500)),
+              ],
+            ),
+          ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: isUploading ? null : _pickAndUploadImage,
+            icon: isUploading
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.cloud_upload_outlined, size: 18),
+            label: Text(isUploading ? 'Uploading...' : 'Change Image'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AirMenuColors.primary,
+              side: const BorderSide(color: AirMenuColors.primary),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            'Leave empty to keep the current image',
+            style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade500, fontSize: 11),
+          ),
         ),
         const SizedBox(height: 24),
         const SettingsSectionHeader(title: 'Tax & Charges'),
@@ -436,6 +651,13 @@ class _VendorSettingsDesktopViewState
               ),
             ),
           ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            'Central and State GST rates (0-100%). Service charge as a percentage of subtotal.',
+            style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade500, fontSize: 11),
+          ),
         ),
         const SizedBox(height: 24),
         const SettingsSectionHeader(title: 'Compliance'),
@@ -972,6 +1194,67 @@ class _SidebarItem extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PriceDropdown extends StatelessWidget {
+  final String label;
+  final String value;
+  final List<int> options;
+  final ValueChanged<String> onChanged;
+
+  const _PriceDropdown({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Match the current value to an option
+    final intVal = int.tryParse(value);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AirMenuTextStyle.small.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AirMenuColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<int>(
+          value: (intVal != null && options.contains(intVal)) ? intVal : null,
+          onChanged: (v) => onChanged(v?.toString() ?? ''),
+          isExpanded: true,
+          decoration: InputDecoration(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey.shade200),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AirMenuColors.primary),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+          hint: Text('Select', style: AirMenuTextStyle.normal.copyWith(color: Colors.grey.shade400)),
+          items: options.map((p) => DropdownMenuItem<int>(
+            value: p,
+            child: Text('₹$p', style: AirMenuTextStyle.normal),
+          )).toList(),
+        ),
+      ],
     );
   }
 }
