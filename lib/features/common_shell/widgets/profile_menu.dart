@@ -79,30 +79,32 @@ class _ProfileMenuState extends State<ProfileMenu> {
             ),
             if (!isMobile) ...[
               const SizedBox(width: 8),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    userName,
-                    style: AirMenuTextStyle.small.bold700().copyWith(
-                      fontSize: 12,
-                      height: 1.2,
+              Flexible(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      userName,
+                      style: AirMenuTextStyle.small.bold700().copyWith(
+                        fontSize: 12,
+                        height: 1.2,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  Text(
-                    userEmail,
-                    style: AirMenuTextStyle.caption.copyWith(
-                      fontSize: 10,
-                      height: 1.2,
+                    Text(
+                      userEmail,
+                      style: AirMenuTextStyle.caption.copyWith(
+                        fontSize: 10,
+                        height: 1.2,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
                     ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
+                  ],
+                ),
               ),
               const Icon(
                 Icons.keyboard_arrow_down,
