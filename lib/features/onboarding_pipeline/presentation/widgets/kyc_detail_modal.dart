@@ -162,20 +162,23 @@ class _KycDetailModalState extends State<KycDetailModal> {
                   // Location Details Section
                   _buildSectionTitle('Location'),
                   const SizedBox(height: 12),
+                  if (widget.kyc.addressLine1.isNotEmpty)
+                    _buildDetailRow(Icons.location_on_outlined, 'Address Line 1', widget.kyc.addressLine1),
+                  if (widget.kyc.addressLine2.isNotEmpty)
+                    _buildDetailRow(Icons.location_on_outlined, 'Address Line 2', widget.kyc.addressLine2),
                   _buildDetailRow(Icons.location_city, 'City', widget.kyc.city),
-                  _buildDetailRow(
-                    Icons.location_on_outlined,
-                    'Locality',
-                    widget.kyc.locality,
-                  ),
-                  _buildDetailRow(Icons.store, 'Shop No', widget.kyc.shopNo),
-                  _buildDetailRow(Icons.layers, 'Floor', widget.kyc.floor),
+                  if (widget.kyc.state.isNotEmpty)
+                    _buildDetailRow(Icons.map_outlined, 'State', widget.kyc.state),
+                  if (widget.kyc.pinCode.isNotEmpty)
+                    _buildDetailRow(Icons.pin_drop_outlined, 'PIN Code', widget.kyc.pinCode),
+                  if (widget.kyc.locality.isNotEmpty)
+                    _buildDetailRow(Icons.location_on_outlined, 'Locality', widget.kyc.locality),
+                  if (widget.kyc.shopNo.isNotEmpty)
+                    _buildDetailRow(Icons.store, 'Shop No', widget.kyc.shopNo),
+                  if (widget.kyc.floor.isNotEmpty)
+                    _buildDetailRow(Icons.layers, 'Floor', widget.kyc.floor),
                   if (widget.kyc.landmark.isNotEmpty)
-                    _buildDetailRow(
-                      Icons.place_outlined,
-                      'Landmark',
-                      widget.kyc.landmark,
-                    ),
+                    _buildDetailRow(Icons.place_outlined, 'Landmark', widget.kyc.landmark),
 
                   const SizedBox(height: 24),
 
@@ -223,30 +226,41 @@ class _KycDetailModalState extends State<KycDetailModal> {
                     const SizedBox(height: 24),
                   ],
 
-                  // Document Details Section
-                  _buildSectionTitle('Documents'),
+                  // Owner Details
+                  if (widget.kyc.aadhaarNumber != null && widget.kyc.aadhaarNumber!.isNotEmpty) ...[                    _buildSectionTitle('Owner Details'),
+                    const SizedBox(height: 12),
+                    _buildDetailRow(Icons.badge_outlined, 'Aadhaar Number', widget.kyc.aadhaarNumber!),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // Compliance Details Section
+                  _buildSectionTitle('Compliance'),
                   const SizedBox(height: 12),
-                  _buildDetailRow(
-                    Icons.article_outlined,
-                    'PAN Number',
-                    widget.kyc.panNumber ?? 'N/A',
-                  ),
                   _buildDetailRow(
                     Icons.receipt_long,
                     'GST Number',
-                    widget.kyc.gstNumber ?? 'N/A',
+                    widget.kyc.gstNotApplicable ? 'Not Applicable' : (widget.kyc.gstNumber ?? 'N/A'),
                   ),
                   _buildDetailRow(
                     Icons.verified_outlined,
                     'FSSAI Number',
                     widget.kyc.fssaiNumber ?? 'N/A',
                   ),
-                  if (widget.kyc.fssaiExpiry != null && widget.kyc.fssaiExpiry!.isNotEmpty)
-                    _buildDetailRow(
-                      Icons.calendar_today,
-                      'FSSAI Expiry',
-                      widget.kyc.fssaiExpiry!,
-                    ),
+                  if (widget.kyc.panNumber != null && widget.kyc.panNumber!.isNotEmpty)
+                    _buildDetailRow(Icons.article_outlined, 'PAN Number', widget.kyc.panNumber!),
+
+                  // Bank Details Section
+                  if (widget.kyc.accountHolderName != null && widget.kyc.accountHolderName!.isNotEmpty) ...[                    const SizedBox(height: 24),
+                    _buildSectionTitle('Bank Details'),
+                    const SizedBox(height: 12),
+                    _buildDetailRow(Icons.person_outline, 'Account Holder', widget.kyc.accountHolderName!),
+                    if (widget.kyc.bankAccountNumber != null)
+                      _buildDetailRow(Icons.account_balance, 'Account Number', widget.kyc.bankAccountNumber!),
+                    if (widget.kyc.ifscCode != null)
+                      _buildDetailRow(Icons.code, 'IFSC Code', widget.kyc.ifscCode!),
+                    if (widget.kyc.bankName != null)
+                      _buildDetailRow(Icons.account_balance_outlined, 'Bank Name', widget.kyc.bankName!),
+                  ],
 
                   const SizedBox(height: 24),
 

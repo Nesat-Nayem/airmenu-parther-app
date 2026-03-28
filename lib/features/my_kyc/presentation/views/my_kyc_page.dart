@@ -30,10 +30,9 @@ class _MyKycViewState extends State<_MyKycView> {
   int _currentStep = 0;
 
   static const List<String> _stepLabels = [
-    'Restaurant Info',
-    'Documents',
-    'Partner Contract',
-    'Review',
+    'Restaurant Details',
+    'Agreement',
+    'Summary',
   ];
 
   @override
@@ -385,14 +384,12 @@ class _MyKycViewState extends State<_MyKycView> {
         return _buildStep2(kyc);
       case 2:
         return _buildStep3(kyc);
-      case 3:
-        return _buildStep4(kyc);
       default:
         return const SizedBox.shrink();
     }
   }
 
-  // Step 1 – Restaurant Info
+  // Step 1 – Restaurant Details (all info in one step)
   Widget _buildStep1(KycSubmission kyc) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -404,76 +401,109 @@ class _MyKycViewState extends State<_MyKycView> {
           _InfoField('Full Name', kyc.fullName),
           _InfoField('Email', kyc.email),
           _InfoField('Phone', kyc.phone),
-          _InfoField('Locality', kyc.locality),
-          _InfoField('City', kyc.city),
-          if (kyc.shopNo.isNotEmpty) _InfoField('Shop No.', kyc.shopNo),
-          if (kyc.floor.isNotEmpty) _InfoField('Floor', kyc.floor),
-          if (kyc.landmark.isNotEmpty) _InfoField('Landmark', kyc.landmark),
-        ]),
-      ],
-    );
-  }
-
-  // Step 2 – Documents
-  Widget _buildStep2(KycSubmission kyc) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionTitle('PAN Details', Icons.credit_card_rounded),
-        const SizedBox(height: 16),
-        _infoGrid([
-          _InfoField('PAN Number', kyc.panNumber ?? '—'),
-          _InfoField('Name as per PAN', kyc.panFullName ?? '—'),
-          _InfoField('Business Address', kyc.panAddress ?? '—'),
         ]),
         const SizedBox(height: 20),
-        _sectionTitle('GST Details', Icons.receipt_long_rounded),
+        _sectionTitle('Address', Icons.location_on_rounded),
+        const SizedBox(height: 16),
+        _infoGrid([
+          if (kyc.addressLine1.isNotEmpty) _InfoField('Address Line 1', kyc.addressLine1),
+          if (kyc.addressLine2.isNotEmpty) _InfoField('Address Line 2', kyc.addressLine2),
+          _InfoField('City', kyc.city),
+          if (kyc.state.isNotEmpty) _InfoField('State', kyc.state),
+          if (kyc.pinCode.isNotEmpty) _InfoField('PIN Code', kyc.pinCode),
+          if (kyc.locality.isNotEmpty) _InfoField('Locality', kyc.locality),
+        ]),
+        if (kyc.aadhaarNumber != null && kyc.aadhaarNumber!.isNotEmpty) ...[          const SizedBox(height: 20),
+          _sectionTitle('Owner Details', Icons.badge_rounded),
+          const SizedBox(height: 16),
+          _infoGrid([
+            _InfoField('Aadhaar Number', kyc.aadhaarNumber!),
+          ]),
+        ],
+        const SizedBox(height: 20),
+        _sectionTitle('Compliance', Icons.verified_rounded),
         const SizedBox(height: 16),
         _infoGrid([
           _InfoField(
-            'GST Registration',
-            kyc.gstRegistered == 'yes' ? 'Registered' : 'Not Registered',
+            'GST',
+            kyc.gstNotApplicable ? 'Not Applicable' : (kyc.gstRegistered == 'yes' ? (kyc.gstNumber ?? '—') : 'Not Registered'),
           ),
-          if (kyc.gstRegistered == 'yes')
-            _InfoField('GST Number', kyc.gstNumber ?? '—'),
-        ]),
-        const SizedBox(height: 20),
-        _sectionTitle('FSSAI Details', Icons.food_bank_rounded),
-        const SizedBox(height: 16),
-        _infoGrid([
           _InfoField('FSSAI Number', kyc.fssaiNumber ?? '—'),
-          _InfoField('FSSAI Expiry', kyc.fssaiExpiry ?? '—'),
         ]),
+        if (kyc.accountHolderName != null && kyc.accountHolderName!.isNotEmpty) ...[          const SizedBox(height: 20),
+          _sectionTitle('Bank Details', Icons.account_balance_rounded),
+          const SizedBox(height: 16),
+          _infoGrid([
+            _InfoField('Account Holder', kyc.accountHolderName!),
+            if (kyc.bankAccountNumber != null) _InfoField('Account Number', kyc.bankAccountNumber!),
+            if (kyc.ifscCode != null) _InfoField('IFSC Code', kyc.ifscCode!),
+            if (kyc.bankName != null) _InfoField('Bank Name', kyc.bankName!),
+          ]),
+        ],
       ],
     );
   }
 
-  // Step 3 – Contract
-  Widget _buildStep3(KycSubmission kyc) {
+  // Step 2 – Agreement
+  Widget _buildStep2(KycSubmission kyc) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionTitle('Partner Terms & Agreement', Icons.description_rounded),
         const SizedBox(height: 16),
-        Container(
-          height: 220,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Colors.grey.shade200),
+        // Show Adobe agreement status
+        if (kyc.agreementId != null && kyc.agreementId!.isNotEmpty) ...[          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: kyc.vendorSigned ? Colors.green.shade50 : Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: kyc.vendorSigned ? Colors.green.shade200 : Colors.amber.shade200,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  kyc.vendorSigned ? Icons.check_circle : Icons.pending,
+                  color: kyc.vendorSigned ? Colors.green.shade600 : Colors.amber.shade700,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    kyc.vendorSigned
+                        ? 'Agreement signed successfully'
+                        : 'Agreement pending signature',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: kyc.vendorSigned ? Colors.green.shade700 : Colors.amber.shade800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          padding: const EdgeInsets.all(16),
-          child: SingleChildScrollView(
-            child: Text(
-              _contractText,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey.shade700,
-                height: 1.7,
+        ] else ...[          Container(
+            height: 220,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            padding: const EdgeInsets.all(16),
+            child: SingleChildScrollView(
+              child: Text(
+                _contractText,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                  height: 1.7,
+                ),
               ),
             ),
           ),
-        ),
+        ],
         if (kyc.signatureUrl != null && kyc.signatureUrl!.isNotEmpty) ...[
           const SizedBox(height: 20),
           _sectionTitle('Digital Signature', Icons.draw_rounded),
@@ -515,8 +545,8 @@ class _MyKycViewState extends State<_MyKycView> {
     );
   }
 
-  // Step 4 – Review / Summary
-  Widget _buildStep4(KycSubmission kyc) {
+  // Step 3 – Summary
+  Widget _buildStep3(KycSubmission kyc) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -547,16 +577,16 @@ class _MyKycViewState extends State<_MyKycView> {
         ),
         const SizedBox(height: 16),
         _summaryCard(
-          'Document Information',
+          'Compliance & Bank',
           Icons.folder_rounded,
           [
-            _InfoField('PAN Number', kyc.panNumber ?? '—'),
-            _InfoField('PAN Name', kyc.panFullName ?? '—'),
-            _InfoField('GST Registered', kyc.gstRegistered == 'yes' ? 'Yes' : 'No'),
-            if (kyc.gstRegistered == 'yes')
-              _InfoField('GST Number', kyc.gstNumber ?? '—'),
+            if (kyc.aadhaarNumber != null && kyc.aadhaarNumber!.isNotEmpty)
+              _InfoField('Aadhaar', kyc.aadhaarNumber!),
+            _InfoField('GST', kyc.gstNotApplicable ? 'N/A' : (kyc.gstNumber ?? '—')),
             if (kyc.fssaiNumber != null && kyc.fssaiNumber!.isNotEmpty)
-              _InfoField('FSSAI Number', kyc.fssaiNumber!),
+              _InfoField('FSSAI', kyc.fssaiNumber!),
+            if (kyc.accountHolderName != null && kyc.accountHolderName!.isNotEmpty)
+              _InfoField('Bank', '${kyc.bankName ?? ''} - ${kyc.accountHolderName!}'),
           ],
         ),
         const SizedBox(height: 16),

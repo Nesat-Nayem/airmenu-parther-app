@@ -19,6 +19,15 @@ class KycSubmission extends Equatable {
   final String floor;
   final String landmark;
 
+  // Address (new fields)
+  final String addressLine1;
+  final String addressLine2;
+  final String state;
+  final String pinCode;
+
+  // Owner Details
+  final String? aadhaarNumber;
+
   // Package Details
   final String packageName;
   final String packageDisplayPrice;
@@ -33,7 +42,18 @@ class KycSubmission extends Equatable {
 
   // Verification Status
   final String gstRegistered; // 'yes' or 'no'
+  final bool gstNotApplicable;
   final bool documentsVerified;
+
+  // Bank Details
+  final String? accountHolderName;
+  final String? bankAccountNumber;
+  final String? ifscCode;
+  final String? bankName;
+
+  // Promo/Referral
+  final String? referralCode;
+  final String? couponCode;
 
   // Digital Signature
   final String? signatureUrl;
@@ -66,6 +86,11 @@ class KycSubmission extends Equatable {
     this.shopNo = '',
     this.floor = '',
     this.landmark = '',
+    this.addressLine1 = '',
+    this.addressLine2 = '',
+    this.state = '',
+    this.pinCode = '',
+    this.aadhaarNumber,
     this.packageName = '',
     this.packageDisplayPrice = '',
     this.gstNumber,
@@ -75,7 +100,14 @@ class KycSubmission extends Equatable {
     this.fssaiNumber,
     this.fssaiExpiry,
     this.gstRegistered = 'no',
+    this.gstNotApplicable = false,
     this.documentsVerified = false,
+    this.accountHolderName,
+    this.bankAccountNumber,
+    this.ifscCode,
+    this.bankName,
+    this.referralCode,
+    this.couponCode,
     this.signatureUrl,
     this.agreementId,
     this.agreementStatus,
@@ -138,6 +170,11 @@ class KycSubmission extends Equatable {
       shopNo: json['shopNo']?.toString() ?? '',
       floor: json['floor']?.toString() ?? '',
       landmark: json['landmark']?.toString() ?? '',
+      addressLine1: json['addressLine1']?.toString() ?? '',
+      addressLine2: json['addressLine2']?.toString() ?? '',
+      state: json['state']?.toString() ?? '',
+      pinCode: json['pinCode']?.toString() ?? '',
+      aadhaarNumber: json['aadhaarNumber']?.toString(),
 
       // Package
       packageName: packageObj['name']?.toString() ?? '',
@@ -153,7 +190,18 @@ class KycSubmission extends Equatable {
 
       // Verification
       gstRegistered: json['gstRegistered']?.toString() ?? 'no',
+      gstNotApplicable: json['gstNotApplicable'] == true,
       documentsVerified: json['documentsVerified'] == true,
+
+      // Bank Details
+      accountHolderName: json['accountHolderName']?.toString(),
+      bankAccountNumber: json['bankAccountNumber']?.toString(),
+      ifscCode: json['ifscCode']?.toString(),
+      bankName: json['bankName']?.toString(),
+
+      // Promo/Referral
+      referralCode: json['referralCode']?.toString(),
+      couponCode: json['couponCode']?.toString(),
 
       // Digital Signature
       signatureUrl:
@@ -217,6 +265,11 @@ class KycSubmission extends Equatable {
     shopNo,
     floor,
     landmark,
+    addressLine1,
+    addressLine2,
+    state,
+    pinCode,
+    aadhaarNumber,
     packageName,
     packageDisplayPrice,
     gstNumber,
@@ -226,7 +279,14 @@ class KycSubmission extends Equatable {
     fssaiNumber,
     fssaiExpiry,
     gstRegistered,
+    gstNotApplicable,
     documentsVerified,
+    accountHolderName,
+    bankAccountNumber,
+    ifscCode,
+    bankName,
+    referralCode,
+    couponCode,
     signatureUrl,
     agreementId,
     agreementStatus,
