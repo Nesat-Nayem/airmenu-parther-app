@@ -4,6 +4,7 @@ import 'package:airmenuai_partner_app/features/onboarding_pipeline/data/models/k
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_bloc.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_state.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/admin_adobe_signing_section.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/document_verification_section.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -191,13 +192,13 @@ class _KycDetailModalState extends State<KycDetailModal> {
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            AirMenuColors.primary.withOpacity(0.1),
-                            AirMenuColors.primary.withOpacity(0.05),
+                            AirMenuColors.primary.withValues(alpha: 0.1),
+                            AirMenuColors.primary.withValues(alpha: 0.05),
                           ],
                         ),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AirMenuColors.primary.withOpacity(0.2),
+                          color: AirMenuColors.primary.withValues(alpha: 0.2),
                         ),
                       ),
                       child: Row(
@@ -299,8 +300,20 @@ class _KycDetailModalState extends State<KycDetailModal> {
                   // Verification Status
                   _buildSectionTitle('Verification Status'),
                   const SizedBox(height: 12),
-                  _buildStatusRow('Documents Verified', widget.kyc.documentsVerified),
-                  _buildStatusRow('GST Registered', widget.kyc.gstRegistered == 'yes'),
+                  DocumentVerificationSection(
+                    kyc: widget.kyc,
+                    onVerified: () {
+                      // Notify parent to reload the KYC list/detail
+                      // The BLoC listener above handles Adobe sync;
+                      // for doc verification we just show updated status locally.
+                    },
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Signing Status
+                  _buildSectionTitle('Signing Status'),
+                  const SizedBox(height: 12),
                   _buildStatusRow('Vendor Signed', _vendorSigned),
                   _buildStatusRow('Admin Signed', _adminSigned),
 
@@ -349,7 +362,7 @@ class _KycDetailModalState extends State<KycDetailModal> {
                 color: Colors.white,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     offset: const Offset(0, -4),
                     blurRadius: 12,
                   ),
@@ -414,8 +427,8 @@ class _KycDetailModalState extends State<KycDetailModal> {
             Container(
               padding: const EdgeInsets.all(16),
               color: widget.kyc.status == 'approved'
-                  ? AirMenuColors.success.withOpacity(0.1)
-                  : AirMenuColors.error.withOpacity(0.1),
+                  ? AirMenuColors.success.withValues(alpha: 0.1)
+                  : AirMenuColors.error.withValues(alpha: 0.1),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -539,7 +552,7 @@ class _KycDetailModalState extends State<KycDetailModal> {
             height: 20,
             decoration: BoxDecoration(
               color: isVerified
-                  ? AirMenuColors.success.withOpacity(0.1)
+                  ? AirMenuColors.success.withValues(alpha: 0.1)
                   : Colors.grey.shade100,
               shape: BoxShape.circle,
             ),

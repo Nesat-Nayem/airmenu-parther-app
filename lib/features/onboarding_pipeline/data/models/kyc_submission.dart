@@ -45,6 +45,15 @@ class KycSubmission extends Equatable {
   final bool gstNotApplicable;
   final bool documentsVerified;
 
+  // Per-document verification results
+  final String? aadhaarVerificationStatus; // 'verified', 'failed', 'pending'
+  final String? aadhaarVerifiedName;
+  final String? bankVerificationStatus;
+  final String? bankVerifiedName;
+  final String? gstVerificationStatus;
+  final String? gstVerifiedBusinessName;
+  final String? gstVerifiedStatus; // 'active' / 'inactive'
+
   // Bank Details
   final String? accountHolderName;
   final String? bankAccountNumber;
@@ -102,6 +111,13 @@ class KycSubmission extends Equatable {
     this.gstRegistered = 'no',
     this.gstNotApplicable = false,
     this.documentsVerified = false,
+    this.aadhaarVerificationStatus,
+    this.aadhaarVerifiedName,
+    this.bankVerificationStatus,
+    this.bankVerifiedName,
+    this.gstVerificationStatus,
+    this.gstVerifiedBusinessName,
+    this.gstVerifiedStatus,
     this.accountHolderName,
     this.bankAccountNumber,
     this.ifscCode,
@@ -193,6 +209,29 @@ class KycSubmission extends Equatable {
       gstNotApplicable: json['gstNotApplicable'] == true,
       documentsVerified: json['documentsVerified'] == true,
 
+      // Per-document verification results
+      aadhaarVerificationStatus: (json['aadhaarVerification'] is Map)
+          ? (json['aadhaarVerification'] as Map)['status']?.toString()
+          : null,
+      aadhaarVerifiedName: (json['aadhaarVerification'] is Map && json['aadhaarVerification']['details'] is Map)
+          ? (json['aadhaarVerification']['details'] as Map)['name']?.toString()
+          : null,
+      bankVerificationStatus: (json['bankVerification'] is Map)
+          ? (json['bankVerification'] as Map)['status']?.toString()
+          : null,
+      bankVerifiedName: (json['bankVerification'] is Map && json['bankVerification']['details'] is Map)
+          ? (json['bankVerification']['details'] as Map)['name']?.toString()
+          : null,
+      gstVerificationStatus: (json['gstVerification'] is Map)
+          ? (json['gstVerification'] as Map)['status']?.toString()
+          : null,
+      gstVerifiedBusinessName: (json['gstVerification'] is Map && json['gstVerification']['details'] is Map)
+          ? (json['gstVerification']['details'] as Map)['businessName']?.toString()
+          : null,
+      gstVerifiedStatus: (json['gstVerification'] is Map && json['gstVerification']['details'] is Map)
+          ? (json['gstVerification']['details'] as Map)['gstStatus']?.toString()
+          : null,
+
       // Bank Details
       accountHolderName: json['accountHolderName']?.toString(),
       bankAccountNumber: json['bankAccountNumber']?.toString(),
@@ -281,6 +320,13 @@ class KycSubmission extends Equatable {
     gstRegistered,
     gstNotApplicable,
     documentsVerified,
+    aadhaarVerificationStatus,
+    aadhaarVerifiedName,
+    bankVerificationStatus,
+    bankVerifiedName,
+    gstVerificationStatus,
+    gstVerifiedBusinessName,
+    gstVerifiedStatus,
     accountHolderName,
     bankAccountNumber,
     ifscCode,

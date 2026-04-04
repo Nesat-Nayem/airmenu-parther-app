@@ -176,4 +176,11 @@ class ApiEndpoints {
 
   // App Settings
   static const String appSettings = '/app-settings';
+
+  // KYC Admin Document Verification
+  static String kycAdminVerifyAadhaar(String id) => '/kyc/$id/verify-aadhaar';
+  static String kycAdminVerifyAadhaarOtp(String id) => '/kyc/$id/verify-aadhaar-otp';
+  static String kycAdminVerifyBank(String id) => '/kyc/$id/verify-bank';
+  static String kycAdminVerifyGst(String id) => '/kyc/$id/verify-gst';
+  static String kycAdminUpdateDocument(String id) => '/kyc/$id/document';
 }
