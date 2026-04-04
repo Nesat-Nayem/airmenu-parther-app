@@ -400,16 +400,18 @@ class MarketingPageView extends StatelessWidget {
       },
       onDeleteTap: state.isAdmin
           ? (promo) {
+              final bloc = context.read<MarketingBloc>();
               showDialog(
                 context: context,
-                builder: (_) => AlertDialog(
+                useRootNavigator: true,
+                builder: (dialogContext) => AlertDialog(
                   title: const Text('Delete Coupon'),
                   content: Text(
                     'Delete "${promo.code}"? This will remove it from all restaurants.',
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.of(dialogContext).pop(),
                       child: const Text('Cancel'),
                     ),
                     ElevatedButton(
@@ -418,8 +420,8 @@ class MarketingPageView extends StatelessWidget {
                         foregroundColor: Colors.white,
                       ),
                       onPressed: () {
-                        Navigator.pop(context);
-                        context.read<MarketingBloc>().add(DeletePromoCode(promo.id));
+                        Navigator.of(dialogContext).pop();
+                        bloc.add(DeletePromoCode(promo.id));
                       },
                       child: const Text('Delete'),
                     ),
