@@ -176,5 +176,15 @@ class DeleteCampaign extends MarketingEvent {
   List<Object?> get props => [campaignId];
 }
 
+/// Delete a promo code (admin: DELETE /coupons/admin/:id, vendor: DELETE /coupons/:id)
+class DeletePromoCode extends MarketingEvent {
+  final String promoId;
+
+  const DeletePromoCode(this.promoId);
+
+  @override
+  List<Object?> get props => [promoId];
+}
+
 /// Tab enum for marketing page
 enum MarketingTab { campaigns, promoCodes, combos }

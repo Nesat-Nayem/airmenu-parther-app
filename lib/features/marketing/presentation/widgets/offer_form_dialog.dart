@@ -339,6 +339,7 @@ class _OfferFormDialogState extends State<OfferFormDialog>
       ),
     );
   }
+  
 
   Widget _buildDiscountValueField() {
     return _buildField(

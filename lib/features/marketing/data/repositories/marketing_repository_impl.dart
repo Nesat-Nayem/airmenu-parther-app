@@ -471,7 +471,14 @@ class MarketingRepositoryImpl implements IMarketingRepository {
       final response = await _apiService.invoke<PromoCodeModel>(
         urlPath: urlPath,
         type: RequestType.post,
-        params: promoCode.toJson(),
+        params: isAdmin
+            ? promoCode.toAdminJson(
+                maxDiscountAmount: promoCode.maxDiscountAmount,
+                usagePerUser: promoCode.usagePerUser,
+                validFrom: promoCode.validFrom,
+                validUntil: promoCode.expiresAt,
+              )
+            : promoCode.toJson(),
         fun: (jsonString) {
           final map = jsonDecode(jsonString);
           return PromoCodeModel.fromJson(map['data']);
@@ -511,7 +518,14 @@ class MarketingRepositoryImpl implements IMarketingRepository {
       final response = await _apiService.invoke<PromoCodeModel>(
         urlPath: urlPath,
         type: RequestType.put,
-        params: promoCode.toJson(),
+        params: isAdmin
+            ? promoCode.toAdminJson(
+                maxDiscountAmount: promoCode.maxDiscountAmount,
+                usagePerUser: promoCode.usagePerUser,
+                validFrom: promoCode.validFrom,
+                validUntil: promoCode.expiresAt,
+              )
+            : promoCode.toJson(),
         fun: (jsonString) {
           final map = jsonDecode(jsonString);
           return PromoCodeModel.fromJson(map['data']);
@@ -670,6 +684,28 @@ class MarketingRepositoryImpl implements IMarketingRepository {
         final error = (response as DataFailure).error;
         return MarketingResult.failure(
           MarketingError.server(error?.message ?? 'Failed to toggle combo'),
+        );
+      }
+    } catch (e) {
+      return MarketingResult.failure(_handleError(e));
+    }
+  }
+
+  Future<MarketingResult<bool>> deletePromoCode(String promoId) async {
+    try {
+      final isAdmin = await _isAdmin();
+      final urlPath = isAdmin ? '/coupons/admin/$promoId' : '/coupons/$promoId';
+      final response = await _apiService.invoke<bool>(
+        urlPath: urlPath,
+        type: RequestType.delete,
+        fun: (_) => true,
+      );
+      if (response is DataSuccess) {
+        return MarketingResult.success(true);
+      } else {
+        final error = (response as DataFailure).error;
+        return MarketingResult.failure(
+          MarketingError.server(error?.message ?? 'Failed to delete coupon'),
         );
       }
     } catch (e) {

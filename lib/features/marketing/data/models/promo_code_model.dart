@@ -6,8 +6,10 @@ class PromoCodeModel {
   final String discountType; // 'flat', 'percentage'
   final double discountValue;
   final double minOrder;
+  final double maxDiscountAmount;
   final int uses;
   final int usageLimit;
+  final int usagePerUser;
   final String status; // 'active', 'paused'
   final bool isGlobal;
   final String? vendorId;
@@ -22,8 +24,10 @@ class PromoCodeModel {
     required this.discountType,
     required this.discountValue,
     required this.minOrder,
+    this.maxDiscountAmount = 0,
     required this.uses,
     this.usageLimit = 0,
+    this.usagePerUser = 1,
     required this.status,
     this.isGlobal = false,
     this.vendorId,
@@ -49,8 +53,10 @@ class PromoCodeModel {
           (json['minOrderAmount'] as num?)?.toDouble() ??
           (json['minOrder'] as num?)?.toDouble() ??
           0.0,
+      maxDiscountAmount: (json['maxDiscountAmount'] as num?)?.toDouble() ?? 0.0,
       uses: (json['totalUses'] as int?) ?? (json['uses'] as int?) ?? 0,
       usageLimit: (json['usageLimit'] as int?) ?? 0,
+      usagePerUser: (json['usagePerUser'] as int?) ?? 1,
       status: _parseStatus(json['isActive']),
       isGlobal: (json['isGlobal'] as bool?) ?? false,
       vendorId: json['vendorId'] as String?,
@@ -99,8 +105,8 @@ class PromoCodeModel {
     );
   }
 
-  /// Check if promo code has valid data
-  bool get isValid => id.isNotEmpty && code.isNotEmpty;
+  /// Check if promo code has valid data (id can be empty for new records)
+  bool get isValid => code.isNotEmpty;
 
   /// Check if promo code is active
   bool get isActive => status.toLowerCase() == 'active';
@@ -127,17 +133,38 @@ class PromoCodeModel {
     return uses.toString();
   }
 
-  /// Convert to JSON for API request
+  /// Convert to JSON for vendor coupon API request
   Map<String, dynamic> toJson() {
     return {
       'couponCode': code,
       'discountPercentage': discountValue,
       'minOrderAmount': minOrder,
-      'usageLimit': usageLimit,
+      'usageLimit': usageLimit > 0 ? usageLimit : 1,
       'isActive': isActive,
       'isGlobal': isGlobal,
       if (validFrom != null) 'validFrom': validFrom!.toIso8601String(),
       if (expiresAt != null) 'validUntil': expiresAt!.toIso8601String(),
+    };
+  }
+
+  /// Convert to JSON for admin global coupon API request
+  Map<String, dynamic> toAdminJson({
+    double? maxDiscountAmount,
+    int? usagePerUser,
+    DateTime? validFrom,
+    DateTime? validUntil,
+  }) {
+    return {
+      'couponCode': code,
+      'discountPercentage': discountValue,
+      'maxDiscountAmount': maxDiscountAmount ?? 0,
+      'minOrderAmount': minOrder,
+      'usageLimit': usageLimit > 0 ? usageLimit : 1,
+      'usagePerUser': usagePerUser ?? 1,
+      'isActive': isActive,
+      'isGlobal': true,
+      'validFrom': (validFrom ?? this.validFrom ?? DateTime.now()).toIso8601String(),
+      'validUntil': (validUntil ?? expiresAt ?? DateTime.now().add(const Duration(days: 30))).toIso8601String(),
     };
   }
 
@@ -147,8 +174,10 @@ class PromoCodeModel {
     String? discountType,
     double? discountValue,
     double? minOrder,
+    double? maxDiscountAmount,
     int? uses,
     int? usageLimit,
+    int? usagePerUser,
     String? status,
     bool? isGlobal,
     String? vendorId,
@@ -163,8 +192,10 @@ class PromoCodeModel {
       discountType: discountType ?? this.discountType,
       discountValue: discountValue ?? this.discountValue,
       minOrder: minOrder ?? this.minOrder,
+      maxDiscountAmount: maxDiscountAmount ?? this.maxDiscountAmount,
       uses: uses ?? this.uses,
       usageLimit: usageLimit ?? this.usageLimit,
+      usagePerUser: usagePerUser ?? this.usagePerUser,
       status: status ?? this.status,
       isGlobal: isGlobal ?? this.isGlobal,
       vendorId: vendorId ?? this.vendorId,

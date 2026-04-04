@@ -7,14 +7,18 @@ class PromoCodeTable extends StatelessWidget {
   final List<PromoCodeModel> promoCodes;
   final Function(PromoCodeModel)? onEditTap;
   final Function(PromoCodeModel)? onStatusToggle;
+  final Function(PromoCodeModel)? onDeleteTap;
   final String? actionInProgressId;
+  final bool isAdmin;
 
   const PromoCodeTable({
     super.key,
     required this.promoCodes,
     this.onEditTap,
     this.onStatusToggle,
+    this.onDeleteTap,
     this.actionInProgressId,
+    this.isAdmin = false,
   });
 
   @override
@@ -47,7 +51,9 @@ class PromoCodeTable extends StatelessWidget {
                   promoCode: promoCodes[index],
                   onEditTap: () => onEditTap?.call(promoCodes[index]),
                   onStatusToggle: () => onStatusToggle?.call(promoCodes[index]),
+                  onDeleteTap: onDeleteTap != null ? () => onDeleteTap!.call(promoCodes[index]) : null,
                   isLoading: actionInProgressId == promoCodes[index].id,
+                  showDelete: isAdmin,
                 );
               },
             ),
@@ -131,13 +137,17 @@ class _PromoCodeRow extends StatefulWidget {
   final PromoCodeModel promoCode;
   final VoidCallback? onEditTap;
   final VoidCallback? onStatusToggle;
+  final VoidCallback? onDeleteTap;
   final bool isLoading;
+  final bool showDelete;
 
   const _PromoCodeRow({
     required this.promoCode,
     this.onEditTap,
     this.onStatusToggle,
+    this.onDeleteTap,
     this.isLoading = false,
+    this.showDelete = false,
   });
 
   @override
@@ -243,7 +253,22 @@ class _PromoCodeRowState extends State<_PromoCodeRow> {
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
+                  if (widget.showDelete) ...[
+                    IconButton(
+                      onPressed: widget.onDeleteTap,
+                      icon: const Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: Color(0xFFDC2626),
+                      ),
+                      tooltip: 'Delete',
+                      splashRadius: 20,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   _buildActionButton(),
                 ],
               ),

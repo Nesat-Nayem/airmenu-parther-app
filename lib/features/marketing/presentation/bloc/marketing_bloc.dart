@@ -33,8 +33,8 @@ class MarketingBloc extends Bloc<MarketingEvent, MarketingState> {
     on<DeleteCombo>(_onDeleteCombo);
     on<ToggleComboStatus>(_onToggleComboStatus);
     on<DeleteCampaign>(_onDeleteCampaign);
+    on<DeletePromoCode>(_onDeletePromoCode);
   }
-
   /// Load all marketing data in parallel
   Future<void> _onLoadMarketingData(
     LoadMarketingData event,
@@ -386,17 +386,21 @@ class MarketingBloc extends Bloc<MarketingEvent, MarketingState> {
     CreatePromoCode event,
     Emitter<MarketingState> emit,
   ) async {
+    final data = event.promoData;
     final promo = PromoCodeModel(
       id: '',
-      code: event.promoData['code'],
-      discountValue: event.promoData['discountValue'],
-      discountType: event.promoData['discountType'],
-      minOrder: event.promoData['minOrder'],
+      code: data['code'] ?? '',
+      discountValue: (data['discountValue'] as num?)?.toDouble() ?? 0,
+      discountType: data['discountType'] ?? 'percentage',
+      minOrder: (data['minOrder'] as num?)?.toDouble() ?? 0,
+      maxDiscountAmount: (data['maxDiscountAmount'] as num?)?.toDouble() ?? 0,
+      usageLimit: (data['usageLimit'] as int?) ?? 1,
+      usagePerUser: (data['usagePerUser'] as int?) ?? 1,
       status: 'active',
       uses: 0,
-      expiresAt: event.promoData['expiresAt'] != null
-          ? DateTime.parse(event.promoData['expiresAt'])
-          : null,
+      isGlobal: data['isGlobal'] == true,
+      validFrom: data['validFrom'] != null ? DateTime.tryParse(data['validFrom']) : null,
+      expiresAt: data['validUntil'] != null ? DateTime.tryParse(data['validUntil']) : null,
     );
 
     final result = await _repository.createPromoCode(promo);
@@ -410,17 +414,18 @@ class MarketingBloc extends Bloc<MarketingEvent, MarketingState> {
     UpdatePromoCode event,
     Emitter<MarketingState> emit,
   ) async {
-    // Fetch old promo to copy properties not in form if needed, but for now simplistic approach
-    // In real app, we'd probably fetch or find in list.
+    final data = event.promoData;
     final oldPromo = state.promoCodes.firstWhere((p) => p.id == event.promoId);
     final promo = oldPromo.copyWith(
-      code: event.promoData['code'],
-      discountValue: event.promoData['discountValue'],
-      discountType: event.promoData['discountType'],
-      minOrder: event.promoData['minOrder'],
-      expiresAt: event.promoData['expiresAt'] != null
-          ? DateTime.parse(event.promoData['expiresAt'])
-          : null,
+      code: data['code'],
+      discountValue: (data['discountValue'] as num?)?.toDouble(),
+      discountType: data['discountType'],
+      minOrder: (data['minOrder'] as num?)?.toDouble(),
+      maxDiscountAmount: (data['maxDiscountAmount'] as num?)?.toDouble(),
+      usageLimit: data['usageLimit'] as int?,
+      usagePerUser: data['usagePerUser'] as int?,
+      validFrom: data['validFrom'] != null ? DateTime.tryParse(data['validFrom']) : null,
+      expiresAt: data['validUntil'] != null ? DateTime.tryParse(data['validUntil']) : null,
     );
 
     final result = await _repository.updatePromoCode(promo);
@@ -516,6 +521,26 @@ class MarketingBloc extends Bloc<MarketingEvent, MarketingState> {
     result.when(
       success: (_) => add(const LoadMarketingData()),
       failure: (error) => emit(state.copyWith(error: error)),
+    );
+  }
+
+  Future<void> _onDeletePromoCode(
+    DeletePromoCode event,
+    Emitter<MarketingState> emit,
+  ) async {
+    emit(state.copyWith(actionInProgressId: event.promoId));
+    final repo = _repository as MarketingRepositoryImpl;
+    final result = await repo.deletePromoCode(event.promoId);
+    result.when(
+      success: (_) {
+        final updated = state.promoCodes.where((p) => p.id != event.promoId).toList();
+        emit(state.copyWith(
+          promoCodes: updated,
+          filteredPromoCodes: updated,
+          clearActionInProgress: true,
+        ));
+      },
+      failure: (error) => emit(state.copyWith(error: error, clearActionInProgress: true)),
     );
   }
 

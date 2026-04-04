@@ -3,8 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/promo_code_model.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_bloc.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_event.dart';
-import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_state.dart';
-import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/campaign_card.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/bloc/marketing_state.dart';import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/campaign_card.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/marketing_stat_card.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/marketing_summary_tiles.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/marketing_tab_bar.dart';
@@ -14,6 +13,7 @@ import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/ca
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/offer_form_dialog.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/combo_form_dialog.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/combo_card.dart';
+import 'package:airmenuai_partner_app/features/marketing/presentation/widgets/admin_promo_code_form_dialog.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
 /// Main view for Marketing page
@@ -173,7 +173,8 @@ class MarketingPageView extends StatelessWidget {
               },
             );
           } else {
-            OfferFormDialog.show(
+            // Admin: New Global Coupon
+            AdminPromoCodeFormDialog.show(
               context,
               onSave: (data) {
                 context.read<MarketingBloc>().add(CreatePromoCode(data));
@@ -373,17 +374,60 @@ class MarketingPageView extends StatelessWidget {
     return PromoCodeTable(
       promoCodes: state.filteredPromoCodes,
       actionInProgressId: state.actionInProgressId,
+      isAdmin: state.isAdmin,
       onEditTap: (promo) {
-        OfferFormDialog.show(
-          context,
-          offer: promo,
-          onSave: (data) {
-            context.read<MarketingBloc>().add(
-              UpdatePromoCode(promoId: promo.id, promoData: data),
-            );
-          },
-        );
+        if (state.isAdmin) {
+          AdminPromoCodeFormDialog.show(
+            context,
+            promo: promo,
+            onSave: (data) {
+              context.read<MarketingBloc>().add(
+                UpdatePromoCode(promoId: promo.id, promoData: data),
+              );
+            },
+          );
+        } else {
+          OfferFormDialog.show(
+            context,
+            offer: promo,
+            onSave: (data) {
+              context.read<MarketingBloc>().add(
+                UpdatePromoCode(promoId: promo.id, promoData: data),
+              );
+            },
+          );
+        }
       },
+      onDeleteTap: state.isAdmin
+          ? (promo) {
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: const Text('Delete Coupon'),
+                  content: Text(
+                    'Delete "${promo.code}"? This will remove it from all restaurants.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        foregroundColor: Colors.white,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context);
+                        context.read<MarketingBloc>().add(DeletePromoCode(promo.id));
+                      },
+                      child: const Text('Delete'),
+                    ),
+                  ],
+                ),
+              );
+            }
+          : null,
       onStatusToggle: (PromoCodeModel promo) {
         context.read<MarketingBloc>().add(
           TogglePromoCodeStatus(promoId: promo.id, currentStatus: promo.status),
