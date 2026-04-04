@@ -142,7 +142,11 @@ class ApiService implements DataService {
         case RequestType.delete:
           var uri = Uri.parse(url);
           final response = await http
-              .delete(uri, body: jsonEncode(params), headers: headers)
+              .delete(
+                uri,
+                body: params != null ? jsonEncode(params) : null,
+                headers: headers,
+              )
               .timeout(durationTimeout);
           Log.info("apiResponse ${type.name} $url ${response.statusCode}");
 
