@@ -164,8 +164,7 @@ class ApiEndpoints {
   static const String inventoryReportStockSummary = '/inventory/reports/stock-summary';
 
   // Inventory extended endpoints
-  static const String inventoryVendors = '/inventory/vendors';
-  static String inventoryVendor(String id) => '/inventory/vendors/$id';
+  static const String inventoryVendors = '/inventory/vendors';  static String inventoryVendor(String id) => '/inventory/vendors/$id';
   static const String inventoryLocations = '/inventory/locations';
   static String inventoryLocation(String id) => '/inventory/locations/$id';
   static const String inventoryTransfers = '/inventory/transfers';
@@ -174,4 +173,7 @@ class ApiEndpoints {
   static String inventoryPriceComparisonItem(String materialId) => '/inventory/price-comparison/$materialId';
   static const String inventoryForecasting = '/inventory/forecasting';
   static const String inventoryExport = '/inventory/export';
+
+  // App Settings
+  static const String appSettings = '/app-settings';
 }

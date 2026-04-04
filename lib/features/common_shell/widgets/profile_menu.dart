@@ -162,8 +162,11 @@ class _ProfileMenuState extends State<ProfileMenu> {
         ),
       ],
       onSelected: (value) async {
-        // Handle menu selection
-        if (value == 'logout') {
+        if (value == 'profile') {
+          context.go(AppRoutes.myAccount.path);
+        } else if (value == 'settings') {
+          context.go(AppRoutes.settings.path);
+        } else if (value == 'logout') {
           // Show confirmation dialog
           // Show premium logout confirmation dialog
           final confirmed = await showDialog<bool>(

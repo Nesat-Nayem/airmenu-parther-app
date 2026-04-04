@@ -7,6 +7,7 @@ import 'feature_flags_list_view.dart';
 import '../../bloc/user_settings_bloc.dart';
 import '../../bloc/user_settings_state.dart';
 import '../../bloc/user_settings_event.dart';
+import 'platform_settings_view.dart';
 
 class UserSettingsDesktopView extends StatelessWidget {
   const UserSettingsDesktopView({super.key});
@@ -33,6 +34,8 @@ class UserSettingsDesktopView extends StatelessWidget {
         return const RolesGridView();
       case 2:
         return const FeatureFlagsListView();
+      case 3:
+        return const PlatformSettingsView();
       default:
         return const SizedBox.shrink();
     }

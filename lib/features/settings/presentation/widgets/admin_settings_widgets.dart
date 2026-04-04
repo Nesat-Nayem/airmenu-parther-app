@@ -97,6 +97,7 @@ class UserSettingsTabBar extends StatelessWidget {
           _buildTab('Users', 0),
           _buildTab('Roles', 1),
           _buildTab('Feature Flags', 2),
+          _buildTab('Platform Settings', 3),
         ],
       ),
     );
