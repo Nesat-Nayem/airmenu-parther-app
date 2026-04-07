@@ -293,16 +293,16 @@ class MenuTabModals {
                                         ),
                                       ),
                                       const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            _buildLabel('Offer'),
-                                            const SizedBox(height: 6),
-                                            _buildTextField(offerController, 'e.g., 20% Off', Icons.local_offer),
-                                          ],
-                                        ),
-                                      ),
+                                      // Expanded(
+                                      //   child: Column(
+                                      //     crossAxisAlignment: CrossAxisAlignment.start,
+                                      //     children: [
+                                      //       _buildLabel('Offer'),
+                                      //       const SizedBox(height: 6),
+                                      //       _buildTextField(offerController, 'e.g., 20% Off', Icons.local_offer),
+                                      //     ],
+                                      //   ),
+                                      // ),
                                     ],
                                   ),
                                 ],
