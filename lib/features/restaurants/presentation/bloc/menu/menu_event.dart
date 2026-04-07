@@ -226,14 +226,18 @@ class ExtractMenuFromImage extends MenuEvent {
 class ImportExtractedMenu extends MenuEvent {
   final String hotelId;
   final List<ExtractedCategory> categories;
+  /// Map of category index → set of selected item indices.
+  /// null means import all items in all categories.
+  final Map<int, Set<int>>? selectedItems;
 
   const ImportExtractedMenu({
     required this.hotelId,
     required this.categories,
+    this.selectedItems,
   });
 
   @override
-  List<Object?> get props => [hotelId, categories];
+  List<Object?> get props => [hotelId, categories, selectedItems];
 }
 
 class ClearExtractedMenu extends MenuEvent {

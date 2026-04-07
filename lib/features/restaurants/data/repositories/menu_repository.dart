@@ -323,14 +323,21 @@ class MenuRepository {
   Future<ImportMenuResponse?> importExtractedMenu({
     required String hotelId,
     required List<ExtractedCategory> categories,
+    Map<int, Set<int>>? selectedItems,
   }) async {
     try {
+      // Convert selectedItems Map<int, Set<int>> → Map<String, List<int>> for JSON
+      final Map<String, List<int>>? selectedItemsJson = selectedItems != null
+          ? selectedItems.map((k, v) => MapEntry(k.toString(), v.toList()))
+          : null;
+
       final response = await _apiService.invoke(
         urlPath: ApiEndpoints.importExtractedMenu,
         type: RequestType.post,
         params: {
           'hotelId': hotelId,
           'categories': categories.map((e) => e.toJson()).toList(),
+          if (selectedItemsJson != null) 'selectedItems': selectedItemsJson,
         },
         fun: (data) => jsonDecode(data),
       );

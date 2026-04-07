@@ -409,6 +409,7 @@ class MenuBloc extends Bloc<MenuEvent, MenuState> {
         final result = await _repository.importExtractedMenu(
           hotelId: event.hotelId,
           categories: event.categories,
+          selectedItems: event.selectedItems,
         );
 
         if (result != null) {
