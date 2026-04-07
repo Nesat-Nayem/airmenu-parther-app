@@ -25,8 +25,10 @@ class AdminDashboardLoaded extends AdminDashboardState {
   final String dateRange;
   final String? startDate;
   final String? endDate;
-  final String? selectedCategory;
+  final String? selectedCategory; // 'all', 'restaurant', 'qsr'
   final String searchQuery;
+  final String? selectedRestaurant; // name of selected restaurant filter
+  final List<Map<String, dynamic>> searchSuggestions;
   final bool isRefreshing;
 
   const AdminDashboardLoaded({
@@ -37,10 +39,11 @@ class AdminDashboardLoaded extends AdminDashboardState {
     this.endDate,
     this.selectedCategory,
     this.searchQuery = '',
+    this.selectedRestaurant,
+    this.searchSuggestions = const [],
     this.isRefreshing = false,
   });
 
-  // Copy with method for updating state
   AdminDashboardLoaded copyWith({
     DashboardDataModel? data,
     String? currentView,
@@ -49,6 +52,9 @@ class AdminDashboardLoaded extends AdminDashboardState {
     String? endDate,
     String? selectedCategory,
     String? searchQuery,
+    String? selectedRestaurant,
+    bool clearRestaurant = false,
+    List<Map<String, dynamic>>? searchSuggestions,
     bool? isRefreshing,
   }) {
     return AdminDashboardLoaded(
@@ -59,20 +65,17 @@ class AdminDashboardLoaded extends AdminDashboardState {
       endDate: endDate ?? this.endDate,
       selectedCategory: selectedCategory ?? this.selectedCategory,
       searchQuery: searchQuery ?? this.searchQuery,
+      selectedRestaurant: clearRestaurant ? null : (selectedRestaurant ?? this.selectedRestaurant),
+      searchSuggestions: searchSuggestions ?? this.searchSuggestions,
       isRefreshing: isRefreshing ?? this.isRefreshing,
     );
   }
 
   @override
   List<Object?> get props => [
-    data,
-    currentView,
-    dateRange,
-    startDate,
-    endDate,
-    selectedCategory,
-    searchQuery,
-    isRefreshing,
+    data, currentView, dateRange, startDate, endDate,
+    selectedCategory, searchQuery, selectedRestaurant,
+    searchSuggestions, isRefreshing,
   ];
 }
 

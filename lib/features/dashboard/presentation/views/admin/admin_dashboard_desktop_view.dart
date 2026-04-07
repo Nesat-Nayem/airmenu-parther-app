@@ -110,9 +110,20 @@ class _AdminDashboardDesktopContent extends StatelessWidget {
                           SizedBox(
                             width: 300,
                             child: DashboardSearchField(
+                              suggestions: state is AdminDashboardLoaded
+                                  ? state.searchSuggestions
+                                  : [],
+                              selectedRestaurant: state is AdminDashboardLoaded
+                                  ? state.selectedRestaurant
+                                  : null,
                               onSearchChanged: (query) {
                                 context.read<AdminDashboardBloc>().add(
                                   SearchDashboard(query),
+                                );
+                              },
+                              onRestaurantSelected: (name) {
+                                context.read<AdminDashboardBloc>().add(
+                                  SelectRestaurantFilter(name),
                                 );
                               },
                             ),
@@ -123,11 +134,8 @@ class _AdminDashboardDesktopContent extends StatelessWidget {
                                 ? state.dateRange
                                 : 'today',
                             onRangeChanged: (range) {
-                              String dateRange = range;
-                              if (range == '30 day') dateRange = '30days';
-                              if (range == '90 days') dateRange = '90days';
                               context.read<AdminDashboardBloc>().add(
-                                FilterByDateRange(dateRange: dateRange),
+                                FilterByDateRange(dateRange: range),
                               );
                             },
                           ),

@@ -17,12 +17,10 @@ class DashboardDateFilter extends StatelessWidget {
     switch (selectedRange) {
       case 'today':
         return 'Today';
+      case '7days':
+        return 'Weekly';
       case '30days':
-        return '30 day';
-      case '90days':
-        return '90 days';
-      case 'custom':
-        return 'Custom';
+        return 'Monthly';
       default:
         return 'Today';
     }
@@ -39,7 +37,7 @@ class DashboardDateFilter extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: AirMenuColors.primary.withOpacity(0.3),
+              color: AirMenuColors.primary.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -58,19 +56,14 @@ class DashboardDateFilter extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.keyboard_arrow_down,
-              size: 16,
-              color: Colors.white,
-            ),
+            const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.white),
           ],
         ),
       ),
       itemBuilder: (context) => [
         _buildMenuItem('Today', 'today'),
-        _buildMenuItem('30 day', '30days'),
-        _buildMenuItem('90 days', '90days'),
-        _buildMenuItem('Custom', 'custom'),
+        _buildMenuItem('Weekly', '7days'),
+        _buildMenuItem('Monthly', '30days'),
       ],
     );
   }

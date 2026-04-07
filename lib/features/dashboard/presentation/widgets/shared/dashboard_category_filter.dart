@@ -17,12 +17,10 @@ class DashboardCategoryFilter extends StatelessWidget {
     switch (selectedCategory) {
       case 'all':
         return 'All';
-      case 'fine-dine':
-        return 'Fine-Dine';
-      case 'casual':
-        return 'Casual';
-      case 'hotel':
-        return 'Hotel';
+      case 'restaurant':
+        return 'Restaurant';
+      case 'qsr':
+        return 'QSR';
       default:
         return 'All';
     }
@@ -39,7 +37,7 @@ class DashboardCategoryFilter extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           boxShadow: [
             BoxShadow(
-              color: AirMenuColors.primary.withOpacity(0.3),
+              color: AirMenuColors.primary.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -58,19 +56,14 @@ class DashboardCategoryFilter extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.keyboard_arrow_down,
-              size: 16,
-              color: Colors.white,
-            ),
+            const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.white),
           ],
         ),
       ),
       itemBuilder: (context) => [
         _buildMenuItem('All', 'all'),
-        _buildMenuItem('Fine-Dine', 'fine-dine'),
-        _buildMenuItem('Casual', 'casual'),
-        _buildMenuItem('Hotel', 'hotel'),
+        _buildMenuItem('Restaurant', 'restaurant'),
+        _buildMenuItem('QSR', 'qsr'),
       ],
     );
   }

@@ -115,6 +115,17 @@ class _AdminDashboardMobileContent extends StatelessWidget {
                         SearchDashboard(query),
                       );
                     },
+                    onRestaurantSelected: (name) {
+                      context.read<AdminDashboardBloc>().add(
+                        SelectRestaurantFilter(name),
+                      );
+                    },
+                    suggestions: state is AdminDashboardLoaded
+                        ? state.searchSuggestions
+                        : [],
+                    selectedRestaurant: state is AdminDashboardLoaded
+                        ? state.selectedRestaurant
+                        : null,
                   ),
                   const SizedBox(height: 12),
 

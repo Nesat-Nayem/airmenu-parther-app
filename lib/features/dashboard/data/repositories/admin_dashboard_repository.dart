@@ -16,12 +16,15 @@ class AdminDashboardRepository {
     String dateRange = 'today',
     String? startDate,
     String? endDate,
+    String? restaurantType,
+    String? search,
   }) async {
     try {
-      // Build query parameters
       final queryParams = <String, String>{'dateRange': dateRange};
       if (startDate != null) queryParams['startDate'] = startDate;
       if (endDate != null) queryParams['endDate'] = endDate;
+      if (restaurantType != null && restaurantType != 'all') queryParams['restaurantType'] = restaurantType;
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
       final response = await _apiService.invoke(
         urlPath: ApiEndpoints.adminDashboard + _buildQueryString(queryParams),
@@ -75,16 +78,22 @@ class AdminDashboardRepository {
     }
   }
 
-  /// Get top restaurants with sorting
+  /// Get top restaurants with sorting and filters
   Future<List<TopRestaurantModel>> getTopRestaurants({
     String sortBy = 'orders',
     int limit = 10,
+    String? restaurantType,
+    String? search,
+    String dateRange = 'today',
   }) async {
     try {
       final queryParams = <String, String>{
         'sortBy': sortBy,
         'limit': limit.toString(),
+        'dateRange': dateRange,
       };
+      if (restaurantType != null && restaurantType != 'all') queryParams['restaurantType'] = restaurantType;
+      if (search != null && search.isNotEmpty) queryParams['search'] = search;
 
       final response = await _apiService.invoke(
         urlPath:
@@ -260,6 +269,32 @@ class AdminDashboardRepository {
       }
     } catch (e) {
       throw Exception('Error fetching activities: $e');
+    }
+  }
+
+  /// Search restaurants for autocomplete
+  Future<List<Map<String, dynamic>>> searchRestaurants({
+    required String query,
+    String? restaurantType,
+  }) async {
+    try {
+      final queryParams = <String, String>{'q': query, 'limit': '8'};
+      if (restaurantType != null && restaurantType != 'all') queryParams['restaurantType'] = restaurantType;
+
+      final response = await _apiService.invoke(
+        urlPath: ApiEndpoints.adminRestaurantSearch + _buildQueryString(queryParams),
+        type: RequestType.get,
+        fun: (responseBody) => responseBody,
+      );
+
+      if (response is DataSuccess<String>) {
+        final json = jsonDecode(response.data!);
+        final data = json['data'] as List? ?? [];
+        return data.cast<Map<String, dynamic>>();
+      }
+      return [];
+    } catch (_) {
+      return [];
     }
   }
 

@@ -44,9 +44,9 @@ class FilterByDateRange extends AdminDashboardEvent {
   List<Object?> get props => [dateRange, startDate, endDate];
 }
 
-/// Filter by category (for future use)
+/// Filter by category (restaurant/qsr/all)
 class FilterByCategory extends AdminDashboardEvent {
-  final String category;
+  final String category; // 'all', 'restaurant', 'qsr'
 
   const FilterByCategory(this.category);
 
@@ -54,7 +54,7 @@ class FilterByCategory extends AdminDashboardEvent {
   List<Object?> get props => [category];
 }
 
-/// Search dashboard
+/// Search dashboard — triggers restaurant autocomplete + data reload
 class SearchDashboard extends AdminDashboardEvent {
   final String query;
 
@@ -62,6 +62,16 @@ class SearchDashboard extends AdminDashboardEvent {
 
   @override
   List<Object?> get props => [query];
+}
+
+/// Select a specific restaurant from autocomplete
+class SelectRestaurantFilter extends AdminDashboardEvent {
+  final String? restaurantName; // null = clear filter
+
+  const SelectRestaurantFilter(this.restaurantName);
+
+  @override
+  List<Object?> get props => [restaurantName];
 }
 
 /// Update chart view period

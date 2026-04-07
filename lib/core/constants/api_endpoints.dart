@@ -65,6 +65,7 @@ class ApiEndpoints {
   // Admin Dashboard endpoints
   static const String adminDashboard = "/dashboard/admin";
   static const String adminTopRestaurants = "/dashboard/admin/top-restaurants";
+  static const String adminRestaurantSearch = "/dashboard/admin/restaurants/search";
   // Vendor Dashboard endpoints
   static const String vendorDashboardStats = "/orders/dashboard-stats";
   // Note: orderStats is already defined as "/orders/order-stats"
