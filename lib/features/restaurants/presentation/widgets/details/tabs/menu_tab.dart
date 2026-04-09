@@ -158,7 +158,7 @@ class _MenuTabState extends State<MenuTab> {
           const SizedBox(width: 10),
           _buildGradientButton('AI Import Menu', Icons.auto_awesome, () => MenuTabModals.showAIImportModal(context, widget.hotelId, state)),
           const SizedBox(width: 10),
-          _buildHeaderButton('Add Category', Icons.add, _greenColor, Colors.white, state.isAddingCategory ? null : () => MenuTabModals.showAddCategoryModal(context, widget.hotelId), isLoading: state.isAddingCategory),
+          _buildHeaderButton('Add Category', Icons.add, _primaryColor, Colors.white, state.isAddingCategory ? null : () => MenuTabModals.showAddCategoryModal(context, widget.hotelId), isLoading: state.isAddingCategory),
         ],
       ),
     );

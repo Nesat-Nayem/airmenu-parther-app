@@ -113,7 +113,7 @@ class MenuTabModals {
                   children: [
                     Expanded(child: _buildOutlineButton('Cancel', () => Navigator.pop(dialogContext))),
                     const SizedBox(width: 12),
-                    Expanded(child: _buildPrimaryButton('Update Category', Colors.blue, () {
+                    Expanded(child: _buildPrimaryButton('Update Category', _primaryColor, () {
                       if (nameController.text.trim().isNotEmpty) {
                         menuBloc.add(UpdateMenuCategoryWithBytes(hotelId: hotelId, categoryName: category.name, newName: nameController.text.trim(), imageBytes: imageBytes));
                         Navigator.pop(dialogContext);
@@ -168,7 +168,7 @@ class MenuTabModals {
                 children: [
                   Expanded(child: _buildOutlineButton('Cancel', () => Navigator.pop(dialogContext))),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildPrimaryButton('Delete', Colors.red, () {
+                  Expanded(child: _buildPrimaryButton('Delete', _primaryColor, () {
                     menuBloc.add(DeleteMenuCategory(hotelId: hotelId, categoryName: category.name));
                     Navigator.pop(dialogContext);
                   })),
@@ -368,7 +368,7 @@ class MenuTabModals {
                   children: [
                     Expanded(child: _buildOutlineButton('Cancel', () => Navigator.pop(dialogContext))),
                     const SizedBox(width: 12),
-                    Expanded(flex: 2, child: _buildPrimaryButton(isEditing ? 'Update Item' : 'Add Item', _greenColor, () {
+                    Expanded(flex: 2, child: _buildPrimaryButton(isEditing ? 'Update Item' : 'Add Item', _primaryColor, () {
                       final title = titleController.text.trim();
                       final description = descriptionController.text.trim();
                       final price = double.tryParse(priceController.text) ?? 0;
@@ -429,7 +429,7 @@ class MenuTabModals {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: Colors.red[50], shape: BoxShape.circle),
-                child: Icon(Icons.delete_forever, color: Colors.red[600], size: 32),
+                child: Icon(Icons.delete_forever, color: _primaryColor, size: 32),
               ),
               const SizedBox(height: 16),
               const Text('Delete Food Item', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
@@ -440,7 +440,7 @@ class MenuTabModals {
                 children: [
                   Expanded(child: _buildOutlineButton('Cancel', () => Navigator.pop(dialogContext))),
                   const SizedBox(width: 12),
-                  Expanded(child: _buildPrimaryButton('Delete', Colors.red, () {
+                  Expanded(child: _buildPrimaryButton('Delete', _primaryColor, () {
                     menuBloc.add(DeleteFoodItem(hotelId: hotelId, foodId: item.id));
                     Navigator.pop(dialogContext);
                   })),
