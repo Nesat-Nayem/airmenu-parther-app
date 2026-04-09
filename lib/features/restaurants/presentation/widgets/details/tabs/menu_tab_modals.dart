@@ -293,18 +293,11 @@ class MenuTabModals {
                                         ),
                                       ),
                                       const SizedBox(width: 12),
-                                      // Expanded(
-                                      //   child: Column(
-                                      //     crossAxisAlignment: CrossAxisAlignment.start,
-                                      //     children: [
-                                      //       _buildLabel('Offer'),
-                                      //       const SizedBox(height: 6),
-                                      //       _buildTextField(offerController, 'e.g., 20% Off', Icons.local_offer),
-                                      //     ],
-                                      //   ),
-                                      // ),
+                           
                                     ],
                                   ),
+
+                                  
                                 ],
                               ),
                             ),
@@ -328,6 +321,14 @@ class MenuTabModals {
                           ],
                         ),
                         
+
+                           const SizedBox(height: 24),
+                        _buildSectionHeader('Price Options', Icons.price_change_outlined),
+                        const SizedBox(height: 12),
+                        _buildOptionsEditor(options, (newOptions) => setDialogState(() => options = newOptions)),
+                        
+
+
                         const SizedBox(height: 24),
                         _buildSectionHeader('Item Type & Attributes', Icons.label_outline),
                         const SizedBox(height: 12),
@@ -340,11 +341,7 @@ class MenuTabModals {
                           ],
                         ),
                         
-                        const SizedBox(height: 24),
-                        _buildSectionHeader('Price Options', Icons.price_change_outlined),
-                        const SizedBox(height: 12),
-                        _buildOptionsEditor(options, (newOptions) => setDialogState(() => options = newOptions)),
-                        
+
                         const SizedBox(height: 24),
                         _buildSectionHeader('Kitchen Settings', Icons.kitchen),
                         const SizedBox(height: 12),
@@ -900,10 +897,10 @@ class MenuTabModals {
                         sel ? newList.add(opt) : newList.remove(opt);
                         onChanged(newList);
                       },
-                      selectedColor: _greenColor,
+                      selectedColor: _primaryColor,
                       checkmarkColor: Colors.white,
                       backgroundColor: Colors.white,
-                      side: BorderSide(color: isSelected ? _greenColor : Colors.grey[300]!),
+                      side: BorderSide(color: isSelected ? _primaryColor : Colors.grey[300]!),
                     );
                   }).toList(),
                 ),
@@ -927,7 +924,7 @@ class MenuTabModals {
               Expanded(child: _buildTextField(priceController, 'Price', Icons.currency_rupee, isNumber: true)),
               const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.add_circle, color: _greenColor),
+                icon: const Icon(Icons.add_circle, color: _primaryColor),
                 onPressed: () {
                   if (labelController.text.trim().isNotEmpty && priceController.text.isNotEmpty) {
                     final newOptions = List<FoodItemOption>.from(options)
