@@ -432,8 +432,7 @@ class MenuTabModals {
                 child: Icon(Icons.delete_forever, color: _primaryColor, size: 32),
               ),
               const SizedBox(height: 16),
-              const Text('Delete Food Item', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
+      
               Text('Are you sure you want to delete "${item.title}"?', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[600])),
               const SizedBox(height: 24),
               Row(
