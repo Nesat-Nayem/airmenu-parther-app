@@ -253,7 +253,7 @@ class _MenuPageViewState extends State<_MenuPageView> {
         const SizedBox(width: 10),
         _buildGradientButton('AI Import Menu', Icons.auto_awesome, () => MenuTabModals.showAIImportModal(context, hotelId, state)),
         const SizedBox(width: 10),
-        _buildHeaderButton('Add Category', Icons.add, _greenColor, Colors.white, state.isAddingCategory ? null : () => MenuTabModals.showAddCategoryModal(context, hotelId), isLoading: state.isAddingCategory),
+        _buildHeaderButton('Add Category', Icons.add, _primaryColor, Colors.white, state.isAddingCategory ? null : () => MenuTabModals.showAddCategoryModal(context, hotelId), isLoading: state.isAddingCategory),
       ],
     );
   }
@@ -343,7 +343,7 @@ class _MenuPageViewState extends State<_MenuPageView> {
               onPressed: () => MenuTabModals.showAddCategoryModal(context, hotelId),
               icon: const Icon(Icons.add),
               label: const Text('Add Category'),
-              style: ElevatedButton.styleFrom(backgroundColor: _greenColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+              style: ElevatedButton.styleFrom(backgroundColor: _primaryColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
             ),
           ],
         ),
