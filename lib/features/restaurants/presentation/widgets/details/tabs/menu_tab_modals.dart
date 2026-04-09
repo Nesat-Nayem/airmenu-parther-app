@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/menu/menu_models.dart';
@@ -288,7 +289,7 @@ class MenuTabModals {
                                           children: [
                                             _buildLabel('Price (₹) *'),
                                             const SizedBox(height: 6),
-                                            _buildTextField(priceController, '0.00', Icons.currency_rupee, isNumber: true),
+                                            _buildTextField(priceController, 'e.g. 123', Icons.currency_rupee, isNumber: true),
                                           ],
                                         ),
                                       ),
@@ -726,10 +727,11 @@ class MenuTabModals {
     );
   }
 
-  static Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool isNumber = false}) {
+  static Widget _buildTextField(TextEditingController controller, String hint, IconData icon, {bool isNumber = false, List<TextInputFormatter>? inputFormatters}) {
     return TextField(
       controller: controller,
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      inputFormatters: inputFormatters ?? (isNumber ? [FilteringTextInputFormatter.digitsOnly] : null),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(color: Colors.grey[400]),
@@ -919,7 +921,7 @@ class MenuTabModals {
         children: [
           Row(
             children: [
-              Expanded(flex: 2, child: _buildTextField(labelController, 'Option name (e.g., Half)', Icons.label_outline)),
+              Expanded(flex: 2, child: _buildTextField(labelController, 'Option name (e.g., Half)', Icons.label_outline, inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]'))])),
               const SizedBox(width: 8),
               Expanded(child: _buildTextField(priceController, 'Price', Icons.currency_rupee, isNumber: true)),
               const SizedBox(width: 8),
