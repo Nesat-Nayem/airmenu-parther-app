@@ -6,6 +6,7 @@ import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/in
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
@@ -675,7 +676,24 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                               const SizedBox(height: 8),
                               _buildTextField(
                                 _phoneController,
-                                '+91 98765 43211',
+                                '98765 43210',
+                                keyboardType: TextInputType.phone,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(10),
+                                ],
+                                validator: (val) {
+                                  if (val == null || val.isEmpty) {
+                                    return 'Phone number is required';
+                                  }
+                                  if (val.length != 10) {
+                                    return 'Enter a valid 10-digit phone number';
+                                  }
+                                  if (!RegExp(r'^[6-9]\d{9}$').hasMatch(val)) {
+                                    return 'Enter a valid Indian phone number';
+                                  }
+                                  return null;
+                                },
                               ),
                             ],
                           ),
@@ -693,7 +711,24 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                               const SizedBox(height: 8),
                               _buildTextField(
                                 _whatsappController,
-                                '+919876543211',
+                                '98765 43210',
+                                keyboardType: TextInputType.phone,
+                                inputFormatters: [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(10),
+                                ],
+                                validator: (val) {
+                                  if (val == null || val.isEmpty) {
+                                    return null;
+                                  }
+                                  if (val.length != 10) {
+                                    return 'Enter a valid 10-digit number';
+                                  }
+                                  if (!RegExp(r'^[6-9]\d{9}$').hasMatch(val)) {
+                                    return 'Enter a valid Indian phone number';
+                                  }
+                                  return null;
+                                },
                               ),
                             ],
                           ),
@@ -865,6 +900,9 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
     String hint, {
     int maxLines = 1,
     Function(String)? onSubmitted,
+    String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
+    TextInputType? keyboardType,
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -877,16 +915,17 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
         controller: controller,
         maxLines: maxLines,
         onFieldSubmitted: onSubmitted,
-        validator: (val) {
-          // Basic validation: checks if empty for some fields
-          // In real app, pass explicit validation logic
-          if (controller == _companyController ||
-              controller == _personController ||
-              controller == _phoneController) {
-            if (val == null || val.isEmpty) return 'Required';
-          }
-          return null;
-        },
+        inputFormatters: inputFormatters,
+        keyboardType: keyboardType,
+        validator: validator ??
+            (val) {
+              if (controller == _companyController ||
+                  controller == _personController ||
+                  controller == _phoneController) {
+                if (val == null || val.isEmpty) return 'Required';
+              }
+              return null;
+            },
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: AirMenuTextStyle.normal.withColor(const Color(0xFF9CA3AF)),
