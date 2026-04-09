@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../data/models/staff_model.dart';
@@ -113,8 +114,20 @@ class _AddStaffDialogState extends State<AddStaffDialog> {
                       child: _buildTextField(
                         label: 'Phone',
                         controller: _phoneController,
-                        hint: '+91 98765 43210',
+                        hint: '98765 43210',
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        validator: (val) {
+                          if (val == null || val.isEmpty) return null;
+                          if (val.length != 10) return 'Enter 10-digit number';
+                          if (!RegExp(r'^[6-9]\d{9}$').hasMatch(val)) {
+                            return 'Invalid Indian phone number';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                   ],
@@ -288,6 +301,7 @@ class _AddStaffDialogState extends State<AddStaffDialog> {
     TextInputType? keyboardType,
     bool obscureText = false,
     String? Function(String?)? validator,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,6 +320,7 @@ class _AddStaffDialogState extends State<AddStaffDialog> {
           keyboardType: keyboardType,
           obscureText: obscureText,
           validator: validator,
+          inputFormatters: inputFormatters,
           style: GoogleFonts.sora(fontSize: 14),
           decoration: InputDecoration(
             hintText: hint,

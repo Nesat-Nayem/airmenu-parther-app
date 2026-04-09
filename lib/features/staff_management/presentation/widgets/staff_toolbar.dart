@@ -70,7 +70,7 @@ class StaffToolbar extends StatelessWidget {
           child: ElevatedButton.icon(
             onPressed: onAddStaff,
             icon: const Icon(Icons.add, size: 20),
-            label: Text('Add Staff', style: AirMenuTextStyle.normal.bold600()),
+            label: Text('Add Staff', style: AirMenuTextStyle.normal.bold600().withColor(Colors.white)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
@@ -132,7 +132,7 @@ class StaffToolbar extends StatelessWidget {
         ElevatedButton.icon(
           onPressed: onAddStaff,
           icon: const Icon(Icons.add, size: 20),
-          label: Text('Add Staff', style: AirMenuTextStyle.normal.bold600()),
+          label: Text('Add Staff', style: AirMenuTextStyle.normal.bold600().withColor(Colors.white)),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFDC2626),
             foregroundColor: Colors.white,

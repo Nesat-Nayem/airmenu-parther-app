@@ -79,7 +79,7 @@ class _LoginFormState extends State<LoginForm> {
               children: [
                 // Main Title
                 Text(
-                  'Sign in to book your table',
+                  'Sign In AirmenuAI Panel',
                   style: AirMenuTextStyle.headingH1.copyWith(
                     fontSize: isMobile ? 28 : 32,
                     fontWeight: FontWeight.w700,
