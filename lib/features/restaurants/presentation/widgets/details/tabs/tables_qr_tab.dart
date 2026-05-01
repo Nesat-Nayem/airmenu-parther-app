@@ -118,7 +118,7 @@ class _TablesQrTabState extends State<TablesQrTab> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: selectedZone,
+                  initialValue: selectedZone,
                   decoration: InputDecoration(
                     labelText: 'Zone',
                     border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),

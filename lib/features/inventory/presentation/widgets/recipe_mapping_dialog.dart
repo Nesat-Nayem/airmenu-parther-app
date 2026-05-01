@@ -22,7 +22,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
   final List<RecipeIngredient> ingredients = [];
   List<FoodItem> _menuItems = [];
   bool _loadingMenu = true;
-  String _searchQuery = '';
+  final String _searchQuery = '';
 
   @override
   void initState() {
@@ -443,7 +443,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
     final isMobile = Responsive.isMobile(context);
 
     final materialDropdown = DropdownButtonFormField<InventoryItem>(
-      value: materials.where((m) => m.id == ingredient.materialId).firstOrNull,
+      initialValue: materials.where((m) => m.id == ingredient.materialId).firstOrNull,
       hint: Text('Select Ingredient', style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF))),
       onChanged: (val) => setState(() {
         ingredient.materialId = val?.id;

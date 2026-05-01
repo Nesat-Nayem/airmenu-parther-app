@@ -2,9 +2,12 @@ import 'package:airmenuai_partner_app/features/kitchen/data/models/kitchen_task_
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_bloc.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_event.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_state.dart';
+import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/kitchen_active_orders_section.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/kitchen_config_management.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/kitchen_station_management.dart';
 import 'package:airmenuai_partner_app/features/orders/data/models/order_model.dart';
+import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_bloc.dart';
+import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_event.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/kitchen_order_card.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/widgets/station_filter_tabs.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
@@ -137,6 +140,7 @@ class _KitchenPanelViewState extends State<KitchenPanelView>
           IconButton(
             onPressed: () {
               context.read<KitchenBloc>().add(const RefreshKitchenOrders());
+              context.read<OrdersBloc>().add(const RefreshOrders());
             },
             icon: const Icon(Icons.refresh_rounded),
             color: const Color(0xFF6B7280),
@@ -236,6 +240,7 @@ class _KitchenPanelViewState extends State<KitchenPanelView>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildStatsRow(context, state),
+                      const KitchenActiveOrdersSection(),
                       _buildStationTabs(context, state),
                       const SizedBox(height: 8),
                       _buildOrdersGrid(context, state),

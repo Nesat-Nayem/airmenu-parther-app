@@ -98,7 +98,7 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
               _buildLabel('Ingredient'),
               const SizedBox(height: 8),
               DropdownButtonFormField<InventoryItem>(
-                value: selectedIngredient,
+                initialValue: selectedIngredient,
                 hint: Text('Select ingredient', style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF))),
                 onChanged: (val) => setState(() => selectedIngredient = val),
                 items: materials.map((m) => DropdownMenuItem(

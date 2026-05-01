@@ -13,6 +13,7 @@ import 'package:airmenuai_partner_app/features/platform_activity/domain/usecases
 import 'package:airmenuai_partner_app/features/platform_activity/presentation/bloc/platform_activity_bloc.dart';
 
 import 'package:airmenuai_partner_app/features/tables/data/repositories/table_repository.dart';
+import 'package:airmenuai_partner_app/features/tables/data/repositories/zone_repository.dart';
 import 'package:airmenuai_partner_app/features/tables/presentation/bloc/tables_bloc.dart';
 
 import 'package:airmenuai_partner_app/features/staff_management/data/repositories/staff_repository.dart';
@@ -176,8 +177,14 @@ void initializeDependencies() {
   locator.registerLazySingleton(
     () => TableRepository(apiService: locator<ApiService>()),
   );
+  locator.registerLazySingleton(
+    () => ZoneRepository(apiService: locator<ApiService>()),
+  );
   locator.registerFactory<TablesBloc>(
-    () => TablesBloc(repository: locator<TableRepository>()),
+    () => TablesBloc(
+      repository: locator<TableRepository>(),
+      zoneRepository: locator<ZoneRepository>(),
+    ),
   );
 
   // Staff Management Feature

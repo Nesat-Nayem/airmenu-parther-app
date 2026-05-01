@@ -5,10 +5,17 @@ import 'package:airmenuai_partner_app/core/network/data_error.dart';
 import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/core/network/request_type.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 
 class InventoryRepository {
   final ApiService _api;
   InventoryRepository(this._api);
+
+  Future<String?> _getHotelId() async {
+    final id = await locator<LocalStorage>().getString(localStorageKey: 'hotelId');
+    return (id == null || id.isEmpty) ? null : id;
+  }
 
   static String _buildQuery(Map<String, String> p) =>
       p.isEmpty ? '' : '?${p.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
@@ -128,7 +135,28 @@ class InventoryRepository {
         fun: (data) => jsonDecode(data),
       );
       if (res is DataSuccess) return const DataSuccess(true);
-      return _fail('Failed to create transaction');
+      return DataFailure<bool>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to create transaction', statusCode: 0),
+      );
+    } catch (e) {
+      return _fail(e.toString());
+    }
+  }
+
+  Future<DataState<InventoryTransaction>> updateTransaction(String id, Map<String, dynamic> params) async {
+    try {
+      final res = await _api.invoke(
+        urlPath: ApiEndpoints.inventoryTransaction(id),
+        type: RequestType.put,
+        params: params,
+        fun: (data) => jsonDecode(data),
+      );
+      if (res is DataSuccess) {
+        return DataSuccess(InventoryTransaction.fromJson(res.data['data'] as Map<String, dynamic>));
+      }
+      return DataFailure<InventoryTransaction>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to update transaction', statusCode: 0),
+      );
     } catch (e) {
       return _fail(e.toString());
     }
@@ -256,8 +284,10 @@ class InventoryRepository {
 
   Future<DataState<List<VendorModel>>> getVendors() async {
     try {
+      final hotelId = await _getHotelId();
+      final q = hotelId != null ? _buildQuery({'hotelId': hotelId}) : '';
       final res = await _api.invoke(
-        urlPath: ApiEndpoints.inventoryVendors,
+        urlPath: '${ApiEndpoints.inventoryVendors}$q',
         type: RequestType.get,
         fun: (data) => jsonDecode(data),
       );
@@ -267,7 +297,9 @@ class InventoryRepository {
             .toList();
         return DataSuccess(list);
       }
-      return _fail('Failed to fetch vendors');
+      return DataFailure<List<VendorModel>>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to fetch vendors', statusCode: 0),
+      );
     } catch (e) {
       return _fail(e.toString());
     }
@@ -275,16 +307,20 @@ class InventoryRepository {
 
   Future<DataState<VendorModel>> createVendor(Map<String, dynamic> params) async {
     try {
+      final hotelId = await _getHotelId();
+      final body = {...params, if (hotelId != null && !params.containsKey('hotelId')) 'hotelId': hotelId};
       final res = await _api.invoke(
         urlPath: ApiEndpoints.inventoryVendors,
         type: RequestType.post,
-        params: params,
+        params: body,
         fun: (data) => jsonDecode(data),
       );
       if (res is DataSuccess) {
         return DataSuccess(VendorModel.fromJson(res.data['data'] as Map<String, dynamic>));
       }
-      return _fail('Failed to create vendor');
+      return DataFailure<VendorModel>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to create vendor', statusCode: 0),
+      );
     } catch (e) {
       return _fail(e.toString());
     }
@@ -292,16 +328,20 @@ class InventoryRepository {
 
   Future<DataState<VendorModel>> updateVendor(String id, Map<String, dynamic> params) async {
     try {
+      final hotelId = await _getHotelId();
+      final body = {...params, if (hotelId != null && !params.containsKey('hotelId')) 'hotelId': hotelId};
       final res = await _api.invoke(
         urlPath: ApiEndpoints.inventoryVendor(id),
         type: RequestType.put,
-        params: params,
+        params: body,
         fun: (data) => jsonDecode(data),
       );
       if (res is DataSuccess) {
         return DataSuccess(VendorModel.fromJson(res.data['data'] as Map<String, dynamic>));
       }
-      return _fail('Failed to update vendor');
+      return DataFailure<VendorModel>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to update vendor', statusCode: 0),
+      );
     } catch (e) {
       return _fail(e.toString());
     }
@@ -309,13 +349,17 @@ class InventoryRepository {
 
   Future<DataState<bool>> deleteVendor(String id) async {
     try {
+      final hotelId = await _getHotelId();
+      final q = hotelId != null ? _buildQuery({'hotelId': hotelId}) : '';
       final res = await _api.invoke(
-        urlPath: ApiEndpoints.inventoryVendor(id),
+        urlPath: '${ApiEndpoints.inventoryVendor(id)}$q',
         type: RequestType.delete,
         fun: (data) => jsonDecode(data),
       );
       if (res is DataSuccess) return const DataSuccess(true);
-      return _fail('Failed to delete vendor');
+      return DataFailure<bool>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to delete vendor', statusCode: 0),
+      );
     } catch (e) {
       return _fail(e.toString());
     }

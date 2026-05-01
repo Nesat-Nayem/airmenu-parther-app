@@ -109,12 +109,13 @@ class KycRepositoryImpl implements IKycRepository {
   Future<KycSubmission> reviewKyc(
     String id,
     String status, {
-    String? comments,
+    Map<String, String>? comments,
   }) async {
     try {
-      final body = {
+      final body = <String, dynamic>{
         'status': status,
-        if (comments != null) 'adminComments': comments,
+        // Backend expects adminComments as an object/record (Map<String,String>).
+        if (comments != null && comments.isNotEmpty) 'adminComments': comments,
       };
 
       final response = await _apiService.invoke<KycSubmission>(

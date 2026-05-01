@@ -630,26 +630,26 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
                     timePickerTheme: TimePickerThemeData(
                       backgroundColor: Colors.white,
                       dialHandColor: AirMenuColors.primary,
-                      hourMinuteColor: MaterialStateColor.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
+                      hourMinuteColor: WidgetStateColor.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
                             ? AirMenuColors.primary.withOpacity(0.1)
                             : Colors.grey.shade100,
                       ),
-                      hourMinuteTextColor: MaterialStateColor.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
+                      hourMinuteTextColor: WidgetStateColor.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
                             ? AirMenuColors.primary
                             : AirMenuColors.textPrimary,
                       ),
                       dayPeriodBorderSide: const BorderSide(
                         color: AirMenuColors.primary,
                       ),
-                      dayPeriodColor: MaterialStateColor.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
+                      dayPeriodColor: WidgetStateColor.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
                             ? AirMenuColors.primary.withOpacity(0.1)
                             : Colors.transparent,
                       ),
-                      dayPeriodTextColor: MaterialStateColor.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
+                      dayPeriodTextColor: WidgetStateColor.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
                             ? AirMenuColors.primary
                             : AirMenuColors.textSecondary,
                       ),
@@ -687,26 +687,26 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
                     timePickerTheme: TimePickerThemeData(
                       backgroundColor: Colors.white,
                       dialHandColor: AirMenuColors.primary,
-                      hourMinuteColor: MaterialStateColor.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
+                      hourMinuteColor: WidgetStateColor.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
                             ? AirMenuColors.primary.withOpacity(0.1)
                             : Colors.grey.shade100,
                       ),
-                      hourMinuteTextColor: MaterialStateColor.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
+                      hourMinuteTextColor: WidgetStateColor.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
                             ? AirMenuColors.primary
                             : AirMenuColors.textPrimary,
                       ),
                       dayPeriodBorderSide: const BorderSide(
                         color: AirMenuColors.primary,
                       ),
-                      dayPeriodColor: MaterialStateColor.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
+                      dayPeriodColor: WidgetStateColor.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
                             ? AirMenuColors.primary.withOpacity(0.1)
                             : Colors.transparent,
                       ),
-                      dayPeriodTextColor: MaterialStateColor.resolveWith(
-                        (states) => states.contains(MaterialState.selected)
+                      dayPeriodTextColor: WidgetStateColor.resolveWith(
+                        (states) => states.contains(WidgetState.selected)
                             ? AirMenuColors.primary
                             : AirMenuColors.textSecondary,
                       ),
@@ -969,7 +969,7 @@ class _MobilePriceDropdown extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<int>(
-          value: (intVal != null && options.contains(intVal)) ? intVal : null,
+          initialValue: (intVal != null && options.contains(intVal)) ? intVal : null,
           onChanged: (v) => onChanged(v?.toString() ?? ''),
           isExpanded: true,
           decoration: InputDecoration(

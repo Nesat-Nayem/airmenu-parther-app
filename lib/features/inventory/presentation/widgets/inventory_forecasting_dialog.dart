@@ -569,7 +569,7 @@ class _ReorderScheduleList extends StatelessWidget {
                 isHealthy: f.status == 'healthy',
               ),
               const SizedBox(height: 12),
-            ]).toList(),
+            ]),
             const SizedBox(height: 24),
           ],
         );

@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/restaurant_creation_models.dart';
 
+
 abstract class RestaurantDetailsState extends Equatable {
   const RestaurantDetailsState();
 
@@ -22,7 +23,9 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
   final List<Map<String, dynamic>> menuIssues;
   final List<Map<String, dynamic>> tables;
   final Map<String, dynamic> inventoryHealth;
-  final List<Map<String, dynamic>> branches;
+  final List<BranchModel> branches;
+  final bool isBranchesLoading;
+  final String? branchError;
   final Map<String, dynamic> billingInfo;
   final List<Map<String, dynamic>> staffList;
   final Map<String, dynamic> integrationsData;
@@ -38,6 +41,8 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
     required this.tables,
     required this.inventoryHealth,
     required this.branches,
+    this.isBranchesLoading = false,
+    this.branchError,
     required this.billingInfo,
     required this.staffList,
     required this.integrationsData,
@@ -53,7 +58,10 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
     List<Map<String, dynamic>>? menuIssues,
     List<Map<String, dynamic>>? tables,
     Map<String, dynamic>? inventoryHealth,
-    List<Map<String, dynamic>>? branches,
+    List<BranchModel>? branches,
+    bool? isBranchesLoading,
+    String? branchError,
+    bool clearBranchError = false,
     Map<String, dynamic>? billingInfo,
     List<Map<String, dynamic>>? staffList,
     Map<String, dynamic>? integrationsData,
@@ -69,6 +77,8 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
       tables: tables ?? this.tables,
       inventoryHealth: inventoryHealth ?? this.inventoryHealth,
       branches: branches ?? this.branches,
+      isBranchesLoading: isBranchesLoading ?? this.isBranchesLoading,
+      branchError: clearBranchError ? null : (branchError ?? this.branchError),
       billingInfo: billingInfo ?? this.billingInfo,
       staffList: staffList ?? this.staffList,
       integrationsData: integrationsData ?? this.integrationsData,
@@ -87,6 +97,8 @@ class RestaurantDetailsLoaded extends RestaurantDetailsState {
     tables,
     inventoryHealth,
     branches,
+    isBranchesLoading,
+    branchError,
     billingInfo,
     staffList,
     integrationsData,

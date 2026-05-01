@@ -165,7 +165,7 @@ class _BuffetsTabState extends State<BuffetsTab> {
                         const SizedBox(height: 16),
                         _buildLabel('Buffet Type *'),
                         DropdownButtonFormField<String>(
-                          value: selectedType,
+                          initialValue: selectedType,
                           decoration: _inputDecoration(),
                           items: types.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                           onChanged: (v) => setModalState(() => selectedType = v!),
@@ -208,7 +208,7 @@ class _BuffetsTabState extends State<BuffetsTab> {
                                   const Text('From', style: TextStyle(fontSize: 11, color: Colors.grey)),
                                   const SizedBox(height: 4),
                                   DropdownButtonFormField<String>(
-                                    value: hoursFrom,
+                                    initialValue: hoursFrom,
                                     decoration: _inputDecoration(),
                                     isExpanded: true,
                                     items: timeSlots.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 13)))).toList(),
@@ -225,7 +225,7 @@ class _BuffetsTabState extends State<BuffetsTab> {
                                   const Text('To', style: TextStyle(fontSize: 11, color: Colors.grey)),
                                   const SizedBox(height: 4),
                                   DropdownButtonFormField<String>(
-                                    value: hoursTo,
+                                    initialValue: hoursTo,
                                     decoration: _inputDecoration(),
                                     isExpanded: true,
                                     items: timeSlots.map((t) => DropdownMenuItem(value: t, child: Text(t, style: const TextStyle(fontSize: 13)))).toList(),

@@ -16,6 +16,7 @@ enum AppRoutes {
   malls,
   orders,
   kitchenPanel,
+  kitchenOrderDetails,
   onboardingPipeline,
   vendorKycList,
   tableBookings,
@@ -59,6 +60,7 @@ enum AppRoutes {
   feedbackRating,
   createRestaurant,
   addBranch,
+  editBranch,
   viewBranch,
   planUpgrade,
   addStaff,
@@ -105,6 +107,8 @@ extension RouterExt on AppRoutes {
         return "/order";
       case AppRoutes.kitchenPanel:
         return "/kitchen";
+      case AppRoutes.kitchenOrderDetails:
+        return "/kitchen/order-details";
       case AppRoutes.onboardingPipeline:
         return "/onboarding-pipeline";
       case AppRoutes.vendorKycList:
@@ -186,6 +190,8 @@ extension RouterExt on AppRoutes {
         return "/restaurants/create";
       case AppRoutes.addBranch:
         return "/restaurants/details/add-branch";
+      case AppRoutes.editBranch:
+        return "/restaurants/details/edit-branch";
       case AppRoutes.viewBranch:
         return "/restaurants/details/view-branch";
       case AppRoutes.planUpgrade:

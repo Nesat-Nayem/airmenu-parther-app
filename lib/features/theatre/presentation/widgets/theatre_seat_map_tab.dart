@@ -87,10 +87,12 @@ class TheatreSeatMapTab extends StatelessWidget {
                         Color color = const Color(
                           0xFF22C55E,
                         ); // Green (No Order)
-                        if ((rowLabel.codeUnitAt(0) + index) % 5 == 0)
+                        if ((rowLabel.codeUnitAt(0) + index) % 5 == 0) {
                           color = const Color(0xFFEF4444); // Red
-                        if ((rowLabel.codeUnitAt(0) + index) % 7 == 0)
+                        }
+                        if ((rowLabel.codeUnitAt(0) + index) % 7 == 0) {
                           color = const Color(0xFFFACC15); // Yellow
+                        }
 
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),

@@ -187,7 +187,11 @@ class _AdminRestaurantsMobileContent extends StatelessWidget {
                             context.push(
                               '/restaurants/details',
                               extra: restaurant,
-                            );
+                            ).then((_) {
+                              context.read<AdminRestaurantsBloc>().add(
+                                const RefreshRestaurants(),
+                              );
+                            });
                           },
                         );
                       }),

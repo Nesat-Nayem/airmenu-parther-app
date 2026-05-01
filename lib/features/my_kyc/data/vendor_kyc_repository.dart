@@ -30,4 +30,31 @@ class VendorKycRepository {
       );
     }
   }
+
+  /// Vendor resubmission. Only allowed while the current KYC status is
+  /// `rejected`. Sends partial updates (whatever fields the vendor corrected)
+  /// to `PUT /kyc/update`. Backend resets status back to `pending` and clears
+  /// previous admin comments.
+  Future<KycSubmission> updateMyKyc(Map<String, dynamic> updates) async {
+    final response = await _apiService.invoke<KycSubmission>(
+      urlPath: ApiEndpoints.kycUpdate,
+      type: RequestType.put,
+      params: updates,
+      fun: (responseBody) {
+        final json = jsonDecode(responseBody);
+        if (json['success'] == true && json['data'] != null) {
+          return KycSubmission.fromJson(json['data'] as Map<String, dynamic>);
+        }
+        throw Exception(json['message']?.toString() ?? 'Failed to resubmit KYC');
+      },
+    );
+
+    if (response is DataSuccess<KycSubmission>) {
+      return response.data!;
+    } else {
+      throw Exception(
+        (response as DataFailure?)?.error?.message ?? 'Failed to resubmit KYC',
+      );
+    }
+  }
 }

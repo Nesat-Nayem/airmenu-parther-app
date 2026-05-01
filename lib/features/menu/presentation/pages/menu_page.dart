@@ -3,6 +3,7 @@ import 'package:airmenuai_partner_app/core/constants/api_endpoints.dart';
 import 'package:airmenuai_partner_app/core/network/api_service.dart';
 import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/core/network/request_type.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:airmenuai_partner_app/features/menu/presentation/bloc/menu_cubit.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/menu/menu_models.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/repositories/menu_repository.dart';
@@ -43,6 +44,7 @@ class _MenuPageViewState extends State<_MenuPageView> {
   static const _greenColor = Color(0xFF16A34A);
 
   final Set<String> _expandedCategories = {};
+  bool _hasKitchenStations = false;
 
   @override
   void initState() {
@@ -54,37 +56,14 @@ class _MenuPageViewState extends State<_MenuPageView> {
     if (!mounted) return;
     context.read<MenuCubit>().setLoading();
     try {
-      final apiService = locator<ApiService>();
-      final response = await apiService.invoke(
-        urlPath: ApiEndpoints.vendorBranches,
-        type: RequestType.get,
-        fun: (data) => jsonDecode(data),
-      );
-
+      final hotelId = await locator<LocalStorage>().getString(localStorageKey: 'hotelId');
       if (!mounted) return;
-
-      if (response is DataSuccess) {
-        final data = response.data;
-        List<dynamic>? list;
-        if (data is Map<String, dynamic>) {
-          list = data['data'] as List<dynamic>?;
-        } else if (data is List) {
-          list = data;
-        }
-
-        if (list != null && list.isNotEmpty) {
-          final hotel = list.first as Map<String, dynamic>;
-          final hotelId = (hotel['_id'] ?? hotel['id'])?.toString() ?? '';
-          if (hotelId.isNotEmpty) {
-            if (!mounted) return;
-            context.read<MenuCubit>().setHotelLoaded(hotelId);
-            context.read<MenuBloc>().add(LoadMenuCategories(hotelId));
-            return;
-          }
-        }
-        context.read<MenuCubit>().setHotelError('No restaurant found for your account.');
+      if (hotelId != null && hotelId.isNotEmpty) {
+        context.read<MenuCubit>().setHotelLoaded(hotelId);
+        context.read<MenuBloc>().add(LoadMenuCategories(hotelId));
+        await _checkKitchenStations(hotelId);
       } else {
-        context.read<MenuCubit>().setHotelError('Failed to load restaurant data.');
+        context.read<MenuCubit>().setHotelError('No restaurant found for your account.');
       }
     } catch (e) {
       if (!mounted) return;
@@ -92,21 +71,30 @@ class _MenuPageViewState extends State<_MenuPageView> {
     }
   }
 
+  Future<void> _checkKitchenStations(String hotelId) async {
+    if (!mounted) return;
+    try {
+      final response = await locator<ApiService>().invoke(
+        urlPath: ApiEndpoints.kitchenStations(hotelId),
+        type: RequestType.get,
+        fun: (data) => jsonDecode(data),
+      );
+      if (!mounted) return;
+      if (response is DataSuccess && response.data['success'] == true) {
+        final stations = response.data['data'] as List<dynamic>? ?? [];
+        setState(() => _hasKitchenStations = stations.isNotEmpty);
+      }
+    } catch (_) {}
+  }
+
   void _showToast(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(isError ? Icons.error_outline : Icons.check_circle, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: isError ? Colors.red[600] : _greenColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.35),
+      builder: (_) => _SweetAlert(
+        message: message,
+        isError: isError,
       ),
     );
   }
@@ -245,15 +233,34 @@ class _MenuPageViewState extends State<_MenuPageView> {
 
   // ─── Header: Menu Settings | AI Import | Add Category ──────────────────────
   Widget _buildHeader(BuildContext context, admin_menu_state.MenuLoaded state, String hotelId) {
+    const kitchenSetupMessage = 'Set up kitchen stations first (Kitchen tab) before adding menu categories.';
     return Row(
       children: [
         const Text('Menu Categories', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
         const Spacer(),
         _buildHeaderButton('Menu Settings', Icons.settings_outlined, Colors.white, Colors.grey[700]!, () => MenuTabModals.showSettingsModal(context, hotelId, state), hasBorder: true),
         const SizedBox(width: 10),
-        _buildGradientButton('AI Import Menu', Icons.auto_awesome, () => MenuTabModals.showAIImportModal(context, hotelId, state)),
+        Tooltip(
+          message: _hasKitchenStations ? '' : kitchenSetupMessage,
+          child: _buildGradientButton(
+            'AI Import Menu',
+            Icons.auto_awesome,
+            _hasKitchenStations ? () => MenuTabModals.showAIImportModal(context, hotelId, state) : () {},
+            disabled: !_hasKitchenStations,
+          ),
+        ),
         const SizedBox(width: 10),
-        _buildHeaderButton('Add Category', Icons.add, _primaryColor, Colors.white, state.isAddingCategory ? null : () => MenuTabModals.showAddCategoryModal(context, hotelId), isLoading: state.isAddingCategory),
+        Tooltip(
+          message: _hasKitchenStations ? '' : kitchenSetupMessage,
+          child: _buildHeaderButton(
+            'Add Category',
+            Icons.add,
+            _primaryColor,
+            Colors.white,
+            (!_hasKitchenStations || state.isAddingCategory) ? null : () => MenuTabModals.showAddCategoryModal(context, hotelId),
+            isLoading: state.isAddingCategory,
+          ),
+        ),
       ],
     );
   }
@@ -287,27 +294,30 @@ class _MenuPageViewState extends State<_MenuPageView> {
     );
   }
 
-  Widget _buildGradientButton(String label, IconData icon, VoidCallback onPressed) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF9333EA), Color(0xFF4F46E5)]),
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [BoxShadow(color: const Color(0xFF9333EA).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onPressed,
+  Widget _buildGradientButton(String label, IconData icon, VoidCallback onPressed, {bool disabled = false}) {
+    return Opacity(
+      opacity: disabled ? 0.45 : 1.0,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF9333EA), Color(0xFF4F46E5)]),
           borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
-                const SizedBox(width: 8),
-                Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-              ],
+          boxShadow: disabled ? [] : [BoxShadow(color: const Color(0xFF9333EA).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: disabled ? null : onPressed,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                ],
+              ),
             ),
           ),
         ),
@@ -317,6 +327,7 @@ class _MenuPageViewState extends State<_MenuPageView> {
 
   // ─── Empty state ───────────────────────────────────────────────────────────
   Widget _buildEmptyState(String hotelId) {
+    final kitchenReady = _hasKitchenStations;
     return Center(
       child: Container(
         padding: const EdgeInsets.all(48),
@@ -331,20 +342,53 @@ class _MenuPageViewState extends State<_MenuPageView> {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: _primaryColor.withOpacity(0.1), shape: BoxShape.circle),
-              child: Icon(Icons.restaurant_menu, size: 48, color: _primaryColor),
+              decoration: BoxDecoration(
+                color: kitchenReady ? _primaryColor.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                kitchenReady ? Icons.restaurant_menu : Icons.kitchen_outlined,
+                size: 48,
+                color: kitchenReady ? _primaryColor : Colors.orange[700],
+              ),
             ),
             const SizedBox(height: 20),
-            const Text('No Menu Categories Yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF111827))),
-            const SizedBox(height: 8),
-            Text('Add your first category to start building your menu', style: TextStyle(color: Colors.grey[600])),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => MenuTabModals.showAddCategoryModal(context, hotelId),
-              icon: const Icon(Icons.add),
-              label: const Text('Add Category'),
-              style: ElevatedButton.styleFrom(backgroundColor: _primaryColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+            Text(
+              kitchenReady ? 'No Menu Categories Yet' : 'Kitchen Setup Required',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF111827)),
             ),
+            const SizedBox(height: 8),
+            Text(
+              kitchenReady
+                  ? 'Add your first category to start building your menu'
+                  : 'Please set up your kitchen stations first before adding menu categories.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            if (kitchenReady)
+              ElevatedButton.icon(
+                onPressed: () => MenuTabModals.showAddCategoryModal(context, hotelId),
+                icon: const Icon(Icons.add),
+                label: const Text('Add Category'),
+                style: ElevatedButton.styleFrom(backgroundColor: _primaryColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
+              )
+            else
+              Tooltip(
+                message: 'Go to Kitchen tab → Stations to set up your kitchen',
+                child: ElevatedButton.icon(
+                  onPressed: null,
+                  icon: const Icon(Icons.kitchen_outlined),
+                  label: const Text('Set Up Kitchen First'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[100],
+                    foregroundColor: Colors.orange[800],
+                    disabledBackgroundColor: Colors.orange[100],
+                    disabledForegroundColor: Colors.orange[800],
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -716,6 +760,145 @@ class _MenuPageViewState extends State<_MenuPageView> {
             const SizedBox(width: 6),
             Container(width: 28, height: 28, decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6))),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SweetAlert extends StatefulWidget {
+  final String message;
+  final bool isError;
+
+  const _SweetAlert({required this.message, required this.isError});
+
+  @override
+  State<_SweetAlert> createState() => _SweetAlertState();
+}
+
+class _SweetAlertState extends State<_SweetAlert>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _scaleAnim = CurvedAnimation(parent: _controller, curve: Curves.elasticOut)
+        .drive(Tween(begin: 0.6, end: 1.0));
+    _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _controller.forward();
+    Future.delayed(const Duration(seconds: 3), _dismiss);
+  }
+
+  Future<void> _dismiss() async {
+    if (!mounted) return;
+    await _controller.reverse(from: 1.0);
+    if (mounted) Navigator.of(context, rootNavigator: true).maybePop();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isError = widget.isError;
+    final accentColor = isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+    final bgIcon = isError ? Icons.cancel_rounded : Icons.check_circle_rounded;
+
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 80, vertical: 40),
+        child: ScaleTransition(
+          scale: _scaleAnim,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withOpacity(0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Icon(bgIcon, color: Colors.white, size: 36),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                    child: Column(
+                      children: [
+                        Text(
+                          isError ? 'Oops!' : 'Success!',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: accentColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          widget.message,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF6B7280),
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _dismiss,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'OK',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

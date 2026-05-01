@@ -86,9 +86,9 @@ class _OnboardingPipelineViewState extends State<OnboardingPipelineView> {
                 child: KycDetailModal(
                   kyc: _selectedKyc!,
                   onClose: () => setState(() => _selectedKyc = null),
-                  onAction: (action, id) {
+                  onAction: (action, id, comments) {
                     context.read<OnboardingPipelineBloc>().add(
-                      ReviewKyc(id: id, status: action),
+                      ReviewKyc(id: id, status: action, comments: comments),
                     );
                     setState(() => _selectedKyc = null);
                   },

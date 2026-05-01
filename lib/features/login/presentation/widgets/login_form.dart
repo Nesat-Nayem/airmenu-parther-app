@@ -10,7 +10,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -200,33 +199,33 @@ class _LoginFormState extends State<LoginForm> {
                 const SizedBox(height: 24),
 
                 // Create Account Link
-                Center(
-                  child: TextButton(
-                    onPressed: () async {
-                      final uri = Uri.parse('https://air-dealmaker.vercel.app');
-                      if (await canLaunchUrl(uri)) {
-                        await launchUrl(uri, mode: LaunchMode.externalApplication);
-                      }
-                    },
-                    child: RichText(
-                      text: TextSpan(
-                        style: AirMenuTextStyle.normal.copyWith(
-                          color: Colors.grey.shade600,
-                        ),
-                        children: [
-                          const TextSpan(text: "Don't have an account? "),
-                          TextSpan(
-                            text: 'Create one',
-                            style: AirMenuTextStyle.normal.copyWith(
-                              color: AirMenuColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+                // Center(
+                //   child: TextButton(
+                //     onPressed: () async {
+                //       final uri = Uri.parse('https://air-dealmaker.vercel.app');
+                //       if (await canLaunchUrl(uri)) {
+                //         await launchUrl(uri, mode: LaunchMode.externalApplication);
+                //       }
+                //     },
+                //     child: RichText(
+                //       text: TextSpan(
+                //         style: AirMenuTextStyle.normal.copyWith(
+                //           color: Colors.grey.shade600,
+                //         ),
+                //         children: [
+                //           const TextSpan(text: "Don't have an account? "),
+                //           TextSpan(
+                //             text: 'Create one',
+                //             style: AirMenuTextStyle.normal.copyWith(
+                //               color: AirMenuColors.primary,
+                //               fontWeight: FontWeight.w600,
+                //             ),
+                //           ),
+                //         ],
+                //       ),
+                //     ),
+                //   ),
+                // ),
               ],
             ),
           ),

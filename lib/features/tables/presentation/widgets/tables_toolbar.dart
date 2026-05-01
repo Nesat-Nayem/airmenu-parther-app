@@ -47,21 +47,27 @@ class TablesToolbar extends StatelessWidget {
             ),
             const SizedBox(width: 16),
 
-            // Zone Filter
-            _buildDropdown(
-              value: state.zoneFilter ?? 'All Zones',
-              items: ['All Zones', 'Indoor', 'Outdoor', 'Private'],
-              icon: Icons.place_outlined,
-              onChanged: (value) {
-                context.read<TablesBloc>().add(
-                  FilterTables(
-                    searchQuery: state.searchQuery,
-                    zoneFilter: value == 'All Zones' ? null : value,
-                    statusFilter: state.statusFilter,
-                  ),
-                );
-              },
-            ),
+            // Zone Filter - dynamic from loaded zones
+            Builder(builder: (context) {
+              final zoneItems = ['All Zones', ...state.zoneNames];
+              final currentValue = (state.zoneFilter != null && zoneItems.contains(state.zoneFilter))
+                  ? state.zoneFilter!
+                  : 'All Zones';
+              return _buildDropdown(
+                value: currentValue,
+                items: zoneItems,
+                icon: Icons.place_outlined,
+                onChanged: (value) {
+                  context.read<TablesBloc>().add(
+                    FilterTables(
+                      searchQuery: state.searchQuery,
+                      zoneFilter: value == 'All Zones' ? null : value,
+                      statusFilter: state.statusFilter,
+                    ),
+                  );
+                },
+              );
+            }),
             const SizedBox(width: 16),
 
             // Status Filter

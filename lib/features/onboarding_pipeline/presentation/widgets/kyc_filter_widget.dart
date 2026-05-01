@@ -45,6 +45,7 @@ class _KycFilterWidgetState extends State<KycFilterWidget> {
   }
 
   void _applyFilters() {
+    if (!_canApply) return;
     context.read<OnboardingPipelineBloc>().add(
       ApplyFilters(
         restaurantType: _selectedType,
@@ -66,12 +67,18 @@ class _KycFilterWidgetState extends State<KycFilterWidget> {
   }
 
   Future<void> _selectDate(BuildContext context, bool isStart) async {
-    final initialDate = isStart ? _startDate : _endDate;
+    final initialDate = isStart ? _startDate : (_endDate ?? _startDate);
+    final firstDate = isStart ? DateTime(2020) : (_startDate ?? DateTime(2020));
+    final lastDate = isStart
+        ? (_endDate ?? DateTime.now())
+        : DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: initialDate ?? DateTime.now(),
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
+      initialDate: (initialDate != null && initialDate.isAfter(lastDate))
+          ? lastDate
+          : (initialDate ?? DateTime.now()),
+      firstDate: firstDate,
+      lastDate: lastDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -90,6 +97,9 @@ class _KycFilterWidgetState extends State<KycFilterWidget> {
       setState(() {
         if (isStart) {
           _startDate = picked;
+          if (_endDate != null && _endDate!.isBefore(picked)) {
+            _endDate = null;
+          }
         } else {
           _endDate = picked;
         }
@@ -97,8 +107,13 @@ class _KycFilterWidgetState extends State<KycFilterWidget> {
     }
   }
 
+  bool get _hasPartialDateRange =>
+      (_startDate == null) != (_endDate == null);
+
   bool get _hasActiveFilters =>
-      _selectedType != null || _startDate != null || _endDate != null;
+      _selectedType != null || (_startDate != null && _endDate != null);
+
+  bool get _canApply => !_hasPartialDateRange;
 
   @override
   Widget build(BuildContext context) {
@@ -250,6 +265,18 @@ class _KycFilterWidgetState extends State<KycFilterWidget> {
                     ],
                   ),
 
+                  if (_hasPartialDateRange)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Please select both start and end dates to filter by date range.',
+                        style: GoogleFonts.sora(
+                          fontSize: 11,
+                          color: const Color(0xFFF25268),
+                        ),
+                      ),
+                    ),
+
                   const SizedBox(height: 16),
 
                   // Action buttons
@@ -270,7 +297,7 @@ class _KycFilterWidgetState extends State<KycFilterWidget> {
                         ),
                       const SizedBox(width: 8),
                       ElevatedButton(
-                        onPressed: widget.isFiltering ? null : _applyFilters,
+                        onPressed: (widget.isFiltering || !_canApply) ? null : _applyFilters,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFF25268),
                           foregroundColor: Colors.white,

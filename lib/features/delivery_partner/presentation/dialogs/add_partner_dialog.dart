@@ -102,7 +102,7 @@ class _AddPartnerDialogState extends State<AddPartnerDialog> {
               ),
               const SizedBox(height: 8),
               DropdownButtonFormField<String>(
-                value: _selectedType,
+                initialValue: _selectedType,
                 decoration: InputDecoration(
                   hintText: 'Select type',
                   border: OutlineInputBorder(

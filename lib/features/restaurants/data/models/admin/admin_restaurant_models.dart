@@ -30,6 +30,7 @@ class RestaurantModel {
   final double serviceCharge;
   final List<WeeklyTimingModel> weeklyTimings;
   final List<GalleryImageModel> galleryImages;
+  final String? vendorId;
 
   RestaurantModel({
     required this.id,
@@ -54,12 +55,13 @@ class RestaurantModel {
     this.status,
     this.ordersToday = 0,
     this.revenueToday = 0,
-    this.branches = 1,
+    this.branches = 0,
     this.cgstRate = 0,
     this.sgstRate = 0,
     this.serviceCharge = 0,
     this.weeklyTimings = const [],
     this.galleryImages = const [],
+    this.vendorId,
   });
 
   factory RestaurantModel.fromJson(Map<String, dynamic> json) {
@@ -88,10 +90,11 @@ class RestaurantModel {
       status: json['status'] as String?,
       ordersToday: (json['ordersToday'] as num?)?.toInt() ?? 0,
       revenueToday: (json['revenueToday'] as num?)?.toDouble() ?? 0,
-      branches: (json['branches'] as num?)?.toInt() ?? 1,
+      branches: (json['branches'] as num?)?.toInt() ?? 0,
       cgstRate: (json['cgstRate'] as num?)?.toDouble() ?? 0,
       sgstRate: (json['sgstRate'] as num?)?.toDouble() ?? 0,
       serviceCharge: (json['serviceCharge'] as num?)?.toDouble() ?? 0,
+      vendorId: json['vendorId'] as String?,
       weeklyTimings: (json['weeklyTimings'] as List<dynamic>?)
               ?.map((e) => WeeklyTimingModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
@@ -503,5 +506,41 @@ class GalleryImageModel {
       'url': url,
       'alt': alt,
     };
+  }
+}
+
+class BranchModel {
+  final String id;
+  final String name;
+  final String city;
+  final String status;
+  final String lastSync;
+
+  const BranchModel({
+    required this.id,
+    required this.name,
+    required this.city,
+    required this.status,
+    required this.lastSync,
+  });
+
+  factory BranchModel.fromJson(Map<String, dynamic> json) {
+    return BranchModel(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      city: json['city'] as String? ?? '',
+      status: json['status'] as String? ?? 'Inactive',
+      lastSync: json['lastSync'] as String? ?? '',
+    );
+  }
+
+  BranchModel copyWith({String? name, String? city, String? status}) {
+    return BranchModel(
+      id: id,
+      name: name ?? this.name,
+      city: city ?? this.city,
+      status: status ?? this.status,
+      lastSync: lastSync,
+    );
   }
 }

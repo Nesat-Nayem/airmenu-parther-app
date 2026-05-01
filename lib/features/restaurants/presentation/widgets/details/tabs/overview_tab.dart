@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
+import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_bloc.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_event.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_state.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
@@ -123,7 +127,22 @@ class OverviewTab extends StatelessWidget {
                     ),
                   ),
                   OutlinedButton(
-                    onPressed: () => context.push(AppRoutes.addBranch.path),
+                    onPressed: () {
+                      final bloc = context.read<RestaurantDetailsBloc>();
+                      context.push(
+                        AppRoutes.addBranch.path,
+                        extra: {
+                          'restaurantId': state.restaurant.id,
+                          'vendorId': state.restaurant.vendorId,
+                        },
+                      ).then((_) {
+                        if (bloc.state is RestaurantDetailsLoaded) {
+                          bloc.add(LoadBranches(
+                            (bloc.state as RestaurantDetailsLoaded).restaurant.id,
+                          ));
+                        }
+                      });
+                    },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: Color(0xFFE5E7EB)),
                       shape: RoundedRectangleBorder(
@@ -956,6 +975,27 @@ class OverviewTab extends StatelessWidget {
   }
 
   Widget _buildBranchesList(BuildContext context) {
+    if (state.isBranchesLoading) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 24),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (state.branches.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Center(
+          child: Text(
+            'No branches found',
+            style: AirMenuTextStyle.small.copyWith(color: const Color(0xFF9CA3AF)),
+          ),
+        ),
+      );
+    }
+
     return Column(
       children: [
         // Header
@@ -965,103 +1005,133 @@ class OverviewTab extends StatelessWidget {
             children: [
               Expanded(
                 flex: 3,
-                child: Text(
-                  'BRANCH NAME',
-                  style: AirMenuTextStyle.tiny.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF9CA3AF),
-                  ),
-                ),
+                child: Text('BRANCH NAME',
+                    style: AirMenuTextStyle.tiny.copyWith(fontWeight: FontWeight.w600, color: const Color(0xFF9CA3AF))),
               ),
               Expanded(
                 flex: 3,
-                child: Text(
-                  'CITY',
-                  style: AirMenuTextStyle.tiny.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF9CA3AF),
-                  ),
-                ),
+                child: Text('CITY',
+                    style: AirMenuTextStyle.tiny.copyWith(fontWeight: FontWeight.w600, color: const Color(0xFF9CA3AF))),
               ),
               Expanded(
                 flex: 2,
-                child: Text(
-                  'STATUS',
-                  style: AirMenuTextStyle.tiny.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF9CA3AF),
-                  ),
-                ),
+                child: Text('STATUS',
+                    style: AirMenuTextStyle.tiny.copyWith(fontWeight: FontWeight.w600, color: const Color(0xFF9CA3AF))),
               ),
               Expanded(
                 flex: 2,
-                child: Text(
-                  'LAST SYNC',
-                  style: AirMenuTextStyle.tiny.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF9CA3AF),
-                  ),
-                ),
+                child: Text('LAST SYNC',
+                    style: AirMenuTextStyle.tiny.copyWith(fontWeight: FontWeight.w600, color: const Color(0xFF9CA3AF))),
               ),
-              const SizedBox(width: 40), // Action placeholder
+              const SizedBox(width: 80),
             ],
           ),
         ),
         const Divider(height: 1, color: Color(0xFFE5E7EB)),
-        ...state.branches
-            .map(
-              (branch) => Container(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: Text(
-                        branch['name'],
-                        style: AirMenuTextStyle.small.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 3,
-                      child: Text(
-                        branch['city'],
-                        style: AirMenuTextStyle.small.copyWith(
-                          color: const Color(0xFF6B7280),
-                        ),
-                      ),
-                    ),
-                    Expanded(flex: 2, child: _buildStatusTag(branch['status'])),
-                    Expanded(
-                      flex: 2,
-                      child: Text(
-                        branch['lastSync'],
-                        style: AirMenuTextStyle.small.copyWith(
-                          color: const Color(0xFF6B7280),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => context.push(
-                        AppRoutes.viewBranch.path,
-                        extra: branch,
-                      ),
-                      icon: const Icon(
-                        Icons.visibility_outlined,
-                        size: 20,
-                        color: Color(0xFF6B7280),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            )
-            ,
+        ...state.branches.map((branch) => _buildBranchRow(context, branch)),
       ],
+    );
+  }
+
+  Widget _buildBranchRow(BuildContext context, BranchModel branch) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(branch.name,
+                style: AirMenuTextStyle.small.copyWith(fontWeight: FontWeight.w600)),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(branch.city,
+                style: AirMenuTextStyle.small.copyWith(color: const Color(0xFF6B7280))),
+          ),
+          Expanded(flex: 2, child: _buildStatusTag(branch.status)),
+          Expanded(
+            flex: 2,
+            child: Text(branch.lastSync,
+                style: AirMenuTextStyle.small.copyWith(color: const Color(0xFF6B7280))),
+          ),
+          // Actions: Edit + Delete (view branch nav commented out for now)
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                tooltip: 'Edit branch',
+                onPressed: () => _showEditBranchDialog(context, branch),
+                icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF3B82F6)),
+              ),
+              IconButton(
+                tooltip: 'Delete branch',
+                onPressed: () => _showDeleteBranchDialog(context, branch),
+                icon: const Icon(Icons.delete_outlined, size: 18, color: Color(0xFFC52031)),
+              ),
+              // TODO: View branch details to be implemented
+              // IconButton(
+              //   onPressed: () => context.push(AppRoutes.viewBranch.path, extra: branch),
+              //   icon: const Icon(Icons.visibility_outlined, size: 20),
+              // ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditBranchDialog(BuildContext context, BranchModel branch) {
+    final bloc = context.read<RestaurantDetailsBloc>();
+    context.push(
+      AppRoutes.editBranch.path,
+      extra: {
+        'branch': branch,
+        'parentRestaurantId': state.restaurant.id,
+      },
+    ).then((updated) {
+      if (updated == true && bloc.state is RestaurantDetailsLoaded) {
+        bloc.add(LoadBranches(
+          (bloc.state as RestaurantDetailsLoaded).restaurant.id,
+        ));
+      }
+    });
+  }
+
+  void _showDeleteBranchDialog(BuildContext context, BranchModel branch) {
+    final bloc = context.read<RestaurantDetailsBloc>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Branch', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Text(
+          'Are you sure you want to delete "${branch.name}"? This cannot be undone.',
+          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              bloc.add(DeleteBranch(branchId: branch.id, restaurantId: state.restaurant.id));
+              Navigator.of(ctx).pop();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFC52031),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 

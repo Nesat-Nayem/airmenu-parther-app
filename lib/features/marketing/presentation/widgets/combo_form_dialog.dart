@@ -338,7 +338,7 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
                 ? const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
                 : _menuItems.isNotEmpty
                     ? DropdownButtonFormField<String>(
-                        value: _menuItems.any((m) => m.id == item.selectedItemId) ? item.selectedItemId : null,
+                        initialValue: _menuItems.any((m) => m.id == item.selectedItemId) ? item.selectedItemId : null,
                         decoration: _inputDecoration('Select item'),
                         isExpanded: true,
                         hint: const Text('Select an item'),
@@ -654,7 +654,7 @@ class _ComboItemEntry {
   double price;
   String? selectedItemId;
 
-  _ComboItemEntry({String name = '', int quantity = 1, this.price = 0, this.selectedItemId})
+  _ComboItemEntry({String name = '', int quantity = 1, this.price = 0})
     : nameController = TextEditingController(text: name),
       quantityController = TextEditingController(text: quantity.toString());
 }

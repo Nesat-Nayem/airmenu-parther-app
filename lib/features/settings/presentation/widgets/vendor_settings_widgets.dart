@@ -423,11 +423,11 @@ class TimingRow extends StatelessWidget {
           Switch(
             value: enabled,
             onChanged: onToggle,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: AirMenuColors.primary,
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: Colors.grey.shade300,
-            trackOutlineColor: MaterialStateProperty.all(Colors.transparent),
+            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
           ),
         ],
       ),

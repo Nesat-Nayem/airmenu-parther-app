@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
@@ -38,26 +40,30 @@ class VendorQuickActions extends StatelessWidget {
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
               childAspectRatio: childAspectRatio,
-              children: const [
+              children: [
                 _QuickActionTile(
                   icon: Icons.restaurant_menu,
                   label: 'Manage Menu',
                   color: AirMenuColors.error,
+                  onTap: () => context.go(AppRoutes.menu.path),
                 ),
                 _QuickActionTile(
                   icon: Icons.inventory_2_outlined,
                   label: 'View Inventory',
-                  color: Color(0xFFF59E0B),
+                  color: const Color(0xFFF59E0B),
+                  onTap: () => context.go(AppRoutes.inventory.path),
                 ),
                 _QuickActionTile(
-                  icon: Icons.local_fire_department_outlined,
-                  label: 'Open KDS',
-                  color: Color(0xFF10B981),
+                  icon: Icons.qr_code_2_outlined,
+                  label: 'Tables & QR',
+                  color: const Color(0xFF10B981),
+                  onTap: () => context.go(AppRoutes.tables.path),
                 ),
                 _QuickActionTile(
                   icon: Icons.people_outline,
                   label: 'Manage Staff',
-                  color: Color(0xFF3B82F6),
+                  color: const Color(0xFF3B82F6),
+                  onTap: () => context.go(AppRoutes.staffManagement.path),
                 ),
               ],
             );
@@ -72,11 +78,13 @@ class _QuickActionTile extends StatefulWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final VoidCallback? onTap;
 
   const _QuickActionTile({
     required this.icon,
     required this.label,
     required this.color,
+    this.onTap,
   });
 
   @override
@@ -95,11 +103,7 @@ class _QuickActionTileState extends State<_QuickActionTile> {
       onEnter: _isDesktop ? (_) => setState(() => _isHovered = true) : null,
       onExit: _isDesktop ? (_) => setState(() => _isHovered = false) : null,
       child: GestureDetector(
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Navigate to ${widget.label}')),
-          );
-        },
+        onTap: widget.onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeInOut,

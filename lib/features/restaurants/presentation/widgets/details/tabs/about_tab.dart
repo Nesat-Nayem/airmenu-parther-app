@@ -437,7 +437,7 @@ class _AboutTabState extends State<AboutTab> {
         Text(label, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14)),
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
-          value: value.isNotEmpty && options.contains(value) ? value : null,
+          initialValue: value.isNotEmpty && options.contains(value) ? value : null,
           items: options.map((o) => DropdownMenuItem(value: o, child: Text(o))).toList(),
           onChanged: onChanged,
           decoration: InputDecoration(

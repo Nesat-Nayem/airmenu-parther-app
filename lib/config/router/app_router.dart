@@ -45,6 +45,7 @@ import 'package:airmenuai_partner_app/features/table_management/presentation/vie
 import 'package:airmenuai_partner_app/features/terms_conditions/presentation/pages/terms_conditions_page.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/pages/onboarding_pipeline_page.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/add_branch_page.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/edit_branch_page.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/view_branch_page.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/plan_upgrade_page.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/add_staff_page.dart';
@@ -275,6 +276,20 @@ class AppRouter {
               transitionGoRoute(
                 path: AppRoutes.kitchenPanel.path,
                 pageBuilder: (context, state) => const KitchenPanelPage(),
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.kitchenPanel;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.kitchenOrderDetails.path,
+                pageBuilder: (context, state) {
+                  final order = state.extra as OrderModel;
+                  return BlocProvider(
+                    create: (_) => locator<OrdersBloc>()..add(const LoadOrders()),
+                    child: OrderDetailsPage(order: order),
+                  );
+                },
                 redirect: (context, state) {
                   selectedNavMenuItem = NavMenuItem.kitchenPanel;
                   return null;
@@ -570,7 +585,27 @@ class AppRouter {
               ),
               transitionGoRoute(
                 path: AppRoutes.addBranch.path,
-                pageBuilder: (context, state) => const AddBranchPage(),
+                pageBuilder: (context, state) {
+                  final extra = state.extra as Map<String, String?>?;
+                  return AddBranchPage(
+                    parentRestaurantId: extra?['restaurantId'] ?? '',
+                    vendorId: extra?['vendorId'],
+                  );
+                },
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.restaurants;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.editBranch.path,
+                pageBuilder: (context, state) {
+                  final extra = state.extra as Map<String, dynamic>?;
+                  return EditBranchPage(
+                    branch: extra?['branch'],
+                    parentRestaurantId: extra?['parentRestaurantId'] ?? '',
+                  );
+                },
                 redirect: (context, state) {
                   selectedNavMenuItem = NavMenuItem.restaurants;
                   return null;

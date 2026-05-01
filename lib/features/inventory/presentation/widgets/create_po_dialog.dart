@@ -642,7 +642,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
           child: Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: const Color(0xFFEF4444),
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: const Color(0xFFD1D5DB),

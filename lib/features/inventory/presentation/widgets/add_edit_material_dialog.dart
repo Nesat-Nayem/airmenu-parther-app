@@ -125,7 +125,7 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
                           Text('Unit *', style: AirMenuTextStyle.small.bold600()),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
-                            value: _unit,
+                            initialValue: _unit,
                             decoration: _inputDecoration(),
                             items: _units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
                             onChanged: (v) => setState(() => _unit = v ?? 'kg'),

@@ -211,7 +211,7 @@ class _PartnerSettingsDialogState extends State<PartnerSettingsDialog> {
                       ),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
-                        value: _priorityOrder,
+                        initialValue: _priorityOrder,
                         decoration: InputDecoration(
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
@@ -253,7 +253,7 @@ class _PartnerSettingsDialogState extends State<PartnerSettingsDialog> {
                   onChanged: (value) {
                     setState(() => _autoAssign = value);
                   },
-                  activeColor: const Color(0xFFDC2626),
+                  activeThumbColor: const Color(0xFFDC2626),
                 ),
               ],
             ),
@@ -268,7 +268,7 @@ class _PartnerSettingsDialogState extends State<PartnerSettingsDialog> {
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _fallbackPartner,
+              initialValue: _fallbackPartner,
               decoration: InputDecoration(
                 hintText: 'Select fallback partner',
                 border: OutlineInputBorder(

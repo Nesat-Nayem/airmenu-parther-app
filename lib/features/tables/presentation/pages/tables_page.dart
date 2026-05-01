@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import '../../data/repositories/table_repository.dart';
+import '../../data/repositories/zone_repository.dart';
 import '../bloc/tables_bloc.dart';
 import '../widgets/tables_stats_row.dart';
 import '../widgets/tables_toolbar.dart';
 import '../widgets/table_card.dart';
 import '../widgets/add_table_dialog.dart';
+import '../widgets/zone_manager_dialog.dart';
 import '../widgets/download_helper_stub.dart'
     if (dart.library.html) '../widgets/download_helper_web.dart'
     as download_helper;
@@ -18,8 +20,12 @@ class TablesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          TablesBloc(repository: GetIt.I<TableRepository>())..add(LoadTables()),
+      create: (context) => TablesBloc(
+        repository: GetIt.I<TableRepository>(),
+        zoneRepository: GetIt.I<ZoneRepository>(),
+      )
+        ..add(LoadTables())
+        ..add(LoadZones()),
       child: const TablesPageView(),
     );
   }
@@ -223,6 +229,16 @@ class _TablesPageViewContent extends StatelessWidget {
     );
   }
 
+  void _showZoneManager(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => BlocProvider.value(
+        value: context.read<TablesBloc>(),
+        child: const ZoneManagerDialog(),
+      ),
+    );
+  }
+
   Widget _buildToolbarSection(
     BuildContext context,
     bool isDesktop,
@@ -239,6 +255,23 @@ class _TablesPageViewContent extends StatelessWidget {
           ),
           Row(
             children: [
+              OutlinedButton.icon(
+                onPressed: () => _showZoneManager(context),
+                icon: const Icon(Icons.layers_outlined, size: 18),
+                label: const Text('Manage Zones'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(color: Colors.grey.shade300),
+                ),
+              ),
+              const SizedBox(width: 8),
               if (kIsWeb)
               OutlinedButton.icon(
                 onPressed: isDownloadingAll ? null : onDownloadAll,
@@ -263,7 +296,7 @@ class _TablesPageViewContent extends StatelessWidget {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (_) => BlocProvider.value(
+                    builder: (_) => BlocProvider.value( 
                       value: context.read<TablesBloc>(),
                       child: const AddTableDialog(),
                     ),
@@ -297,7 +330,23 @@ class _TablesPageViewContent extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              if (kIsWeb) ...
+              Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _showZoneManager(context),
+                icon: const Icon(Icons.layers_outlined, size: 18),
+                label: const Text('Manage Zones'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  foregroundColor: Colors.grey.shade700,
+                  side: BorderSide(color: Colors.grey.shade300),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            if (kIsWeb) ...
               [
               Expanded(
                 child: OutlinedButton.icon(

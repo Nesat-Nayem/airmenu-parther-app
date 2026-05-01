@@ -8,6 +8,7 @@ import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/det
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_event.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/bloc/details/restaurant_details_state.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/details/details_header.dart';
+import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/details/edit_restaurant_dialog.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/details/details_tabs.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/details/tabs/overview_tab.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/widgets/details/tabs/menu_tab.dart';
@@ -101,8 +102,19 @@ class _RestaurantDetailsContent extends StatelessWidget {
                     // Header with Hero Image
                     DetailsHeader(
                       restaurant: state.restaurant,
-                      onEdit: () {
-                        // TODO: Navigate to edit restaurant
+                      onEdit: () async {
+                        final updated = await showDialog<bool>(
+                          context: context,
+                          barrierDismissible: false,
+                          builder: (_) => EditRestaurantDialog(
+                            restaurant: state.restaurant,
+                          ),
+                        );
+                        if (updated == true && context.mounted) {
+                          context.read<RestaurantDetailsBloc>().add(
+                            LoadRestaurantDetails(hotelId),
+                          );
+                        }
                       },
                       onDelete: () {
                         // TODO: Show delete confirmation

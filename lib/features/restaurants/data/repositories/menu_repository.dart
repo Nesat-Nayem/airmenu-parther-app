@@ -327,9 +327,7 @@ class MenuRepository {
   }) async {
     try {
       // Convert selectedItems Map<int, Set<int>> → Map<String, List<int>> for JSON
-      final Map<String, List<int>>? selectedItemsJson = selectedItems != null
-          ? selectedItems.map((k, v) => MapEntry(k.toString(), v.toList()))
-          : null;
+      final Map<String, List<int>>? selectedItemsJson = selectedItems?.map((k, v) => MapEntry(k.toString(), v.toList()));
 
       final response = await _apiService.invoke(
         urlPath: ApiEndpoints.importExtractedMenu,

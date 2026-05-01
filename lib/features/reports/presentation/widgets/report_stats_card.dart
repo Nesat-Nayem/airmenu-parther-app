@@ -166,14 +166,18 @@ class ReportStatsCard extends StatelessWidget {
   }
 
   Color _getIconBackgroundColor() {
-    if (stat.label.contains('Revenue'))
+    if (stat.label.contains('Revenue')) {
       return AirMenuColors.primary.withValues(alpha: 0.1);
-    if (stat.label.contains('Orders'))
+    }
+    if (stat.label.contains('Orders')) {
       return AirMenuColors.primary.withValues(alpha: 0.1);
-    if (stat.label.contains('Avg'))
+    }
+    if (stat.label.contains('Avg')) {
       return const Color(0xFF10B981).withValues(alpha: 0.1);
-    if (stat.label.contains('Reports'))
+    }
+    if (stat.label.contains('Reports')) {
       return AirMenuColors.primary.withValues(alpha: 0.1);
+    }
     return AirMenuColors.primary.withValues(alpha: 0.1);
   }
 }

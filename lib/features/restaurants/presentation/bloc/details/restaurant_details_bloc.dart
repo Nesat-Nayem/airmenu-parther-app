@@ -15,6 +15,9 @@ class RestaurantDetailsBloc
        super(RestaurantDetailsInitial()) {
     on<LoadRestaurantDetails>(_onLoadRestaurantDetails);
     on<SwitchDetailsTab>(_onSwitchDetailsTab);
+    on<LoadBranches>(_onLoadBranches);
+    on<UpdateBranch>(_onUpdateBranch);
+    on<DeleteBranch>(_onDeleteBranch);
   }
 
   Future<void> _onLoadRestaurantDetails(
@@ -41,27 +44,8 @@ class RestaurantDetailsBloc
         'slaScore': '96%',
       };
 
-      // Branches
-      final branches = [
-        {
-          'name': 'Indiranagar',
-          'city': 'Bangalore',
-          'status': 'Active',
-          'lastSync': '2 min ago',
-        },
-        {
-          'name': 'Koramangala',
-          'city': 'Bangalore',
-          'status': 'Active',
-          'lastSync': '5 min ago',
-        },
-        {
-          'name': 'HSR Layout',
-          'city': 'Bangalore',
-          'status': 'Inactive',
-          'lastSync': '1 hr ago',
-        },
-      ];
+      // Branches - loaded dynamically via LoadBranches event
+      const branches = <BranchModel>[];
 
       // Menu Issues
       final menuIssues = [
@@ -315,6 +299,7 @@ class RestaurantDetailsBloc
           tables: tables,
           inventoryHealth: inventoryHealth,
           branches: branches,
+          isBranchesLoading: true,
           billingInfo: billingInfo,
           staffList: staffList,
           integrationsData: integrationsData,
@@ -322,6 +307,25 @@ class RestaurantDetailsBloc
           isBuffetsLoading: true,
         ),
       );
+
+      // Fetch branches from API
+      try {
+        final fetchedBranches = await _repository.getBranches(
+          restaurantId: event.restaurantId,
+        );
+        if (state is RestaurantDetailsLoaded) {
+          emit((state as RestaurantDetailsLoaded).copyWith(
+            branches: fetchedBranches,
+            isBranchesLoading: false,
+          ));
+        }
+      } catch (_) {
+        if (state is RestaurantDetailsLoaded) {
+          emit((state as RestaurantDetailsLoaded).copyWith(
+            isBranchesLoading: false,
+          ));
+        }
+      }
 
       // Fetch buffets from API
       try {
@@ -362,6 +366,60 @@ class RestaurantDetailsBloc
           selectedTabIndex: event.index,
         ),
       );
+    }
+  }
+
+  Future<void> _onLoadBranches(
+    LoadBranches event,
+    Emitter<RestaurantDetailsState> emit,
+  ) async {
+    if (state is RestaurantDetailsLoaded) {
+      final current = state as RestaurantDetailsLoaded;
+      emit(current.copyWith(isBranchesLoading: true, clearBranchError: true));
+      try {
+        final branches = await _repository.getBranches(restaurantId: event.restaurantId);
+        emit(current.copyWith(branches: branches, isBranchesLoading: false));
+      } catch (e) {
+        emit(current.copyWith(isBranchesLoading: false, branchError: e.toString()));
+      }
+    }
+  }
+
+  Future<void> _onUpdateBranch(
+    UpdateBranch event,
+    Emitter<RestaurantDetailsState> emit,
+  ) async {
+    if (state is RestaurantDetailsLoaded) {
+      final current = state as RestaurantDetailsLoaded;
+      try {
+        await _repository.updateBranch(
+          branchId: event.branchId,
+          data: {'name': event.name, 'location': event.location},
+        );
+        final updated = current.branches.map((b) {
+          if (b.id == event.branchId) return b.copyWith(name: event.name, city: event.location);
+          return b;
+        }).toList();
+        emit(current.copyWith(branches: updated));
+      } catch (e) {
+        emit(current.copyWith(branchError: e.toString()));
+      }
+    }
+  }
+
+  Future<void> _onDeleteBranch(
+    DeleteBranch event,
+    Emitter<RestaurantDetailsState> emit,
+  ) async {
+    if (state is RestaurantDetailsLoaded) {
+      final current = state as RestaurantDetailsLoaded;
+      try {
+        await _repository.deleteBranch(branchId: event.branchId);
+        final updated = current.branches.where((b) => b.id != event.branchId).toList();
+        emit(current.copyWith(branches: updated));
+      } catch (e) {
+        emit(current.copyWith(branchError: e.toString()));
+      }
     }
   }
 }

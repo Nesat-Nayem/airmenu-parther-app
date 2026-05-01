@@ -4,49 +4,49 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:airmenuai_partner_app/core/network/api_service.dart';
+import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/repositories/admin_restaurants_repository.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
-class AddBranchPage extends StatefulWidget {
+class EditBranchPage extends StatefulWidget {
+  final BranchModel branch;
   final String parentRestaurantId;
 
-  const AddBranchPage({
+  const EditBranchPage({
     super.key,
+    required this.branch,
     required this.parentRestaurantId,
-    String? vendorId, // kept for router compat, unused
   });
 
   @override
-  State<AddBranchPage> createState() => _AddBranchPageState();
+  State<EditBranchPage> createState() => _EditBranchPageState();
 }
 
-class _AddBranchPageState extends State<AddBranchPage> {
+class _EditBranchPageState extends State<EditBranchPage> {
   final _repo = AdminRestaurantsRepository(locator<ApiService>());
   final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
-  final _locationCtrl = TextEditingController();
-  final _cuisineCtrl = TextEditingController(text: 'Multi-Cuisine');
-  final _descriptionCtrl = TextEditingController();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _locationCtrl;
+  late final TextEditingController _descriptionCtrl;
 
   XFile? _pickedImage;
-  String _selectedPrice = '₹200 - ₹500';
   bool _isLoading = false;
 
   static const _primaryColor = Color(0xFFC52031);
-  static const _priceOptions = [
-    '₹100 - ₹300',
-    '₹200 - ₹500',
-    '₹300 - ₹700',
-    '₹500 - ₹1000',
-    '₹700 - ₹1500',
-  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.branch.name);
+    _locationCtrl = TextEditingController(text: widget.branch.city);
+    _descriptionCtrl = TextEditingController();
+  }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _locationCtrl.dispose();
-    _cuisineCtrl.dispose();
     _descriptionCtrl.dispose();
     super.dispose();
   }
@@ -63,25 +63,23 @@ class _AddBranchPageState extends State<AddBranchPage> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
-      await _repo.createBranch(
-        parentRestaurantId: widget.parentRestaurantId,
-        name: _nameCtrl.text.trim(),
-        location: _locationCtrl.text.trim(),
-        cuisine: _cuisineCtrl.text.trim().isEmpty ? 'Multi-Cuisine' : _cuisineCtrl.text.trim(),
-        description: _descriptionCtrl.text.trim().isEmpty
-            ? 'Branch outlet at ${_locationCtrl.text.trim()}'
-            : _descriptionCtrl.text.trim(),
-        price: _selectedPrice,
-        imagePath: _pickedImage?.path,
+      await _repo.updateBranch(
+        branchId: widget.branch.id,
+        data: {
+          'name': _nameCtrl.text.trim(),
+          'location': _locationCtrl.text.trim(),
+          if (_descriptionCtrl.text.trim().isNotEmpty)
+            'description': _descriptionCtrl.text.trim(),
+        },
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Branch created successfully!'),
+            content: Text('Branch updated successfully!'),
             backgroundColor: Color(0xFF16A34A),
           ),
         );
-        context.pop();
+        context.pop(true);
       }
     } catch (e) {
       if (mounted) {
@@ -109,7 +107,7 @@ class _AddBranchPageState extends State<AddBranchPage> {
           onPressed: () => context.pop(),
         ),
         title: Text(
-          'Add New Branch',
+          'Edit Branch',
           style: AirMenuTextStyle.headingH4.copyWith(
             fontWeight: FontWeight.bold,
             color: const Color(0xFF111827),
@@ -154,8 +152,10 @@ class _AddBranchPageState extends State<AddBranchPage> {
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(11),
                                 child: kIsWeb
-                                    ? Image.network(_pickedImage!.path, fit: BoxFit.cover)
-                                    : Image.file(File(_pickedImage!.path), fit: BoxFit.cover),
+                                    ? Image.network(_pickedImage!.path,
+                                        fit: BoxFit.cover)
+                                    : Image.file(File(_pickedImage!.path),
+                                        fit: BoxFit.cover),
                               )
                             : Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -164,9 +164,9 @@ class _AddBranchPageState extends State<AddBranchPage> {
                                       size: 32, color: Colors.grey[400]),
                                   const SizedBox(height: 6),
                                   Text(
-                                    'Tap to upload image',
-                                    style: AirMenuTextStyle.small
-                                        .copyWith(color: const Color(0xFF9CA3AF)),
+                                    'Tap to change image',
+                                    style: AirMenuTextStyle.small.copyWith(
+                                        color: const Color(0xFF9CA3AF)),
                                   ),
                                 ],
                               ),
@@ -179,8 +179,9 @@ class _AddBranchPageState extends State<AddBranchPage> {
                     TextFormField(
                       controller: _nameCtrl,
                       decoration: _inputDecoration('e.g. Koramangala Branch'),
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Branch name is required' : null,
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Branch name is required'
+                          : null,
                     ),
                     const SizedBox(height: 20),
 
@@ -188,17 +189,11 @@ class _AddBranchPageState extends State<AddBranchPage> {
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _locationCtrl,
-                      decoration: _inputDecoration('e.g. Koramangala, Bangalore'),
-                      validator: (v) =>
-                          v == null || v.trim().isEmpty ? 'Location is required' : null,
-                    ),
-                    const SizedBox(height: 20),
-
-                    _buildLabel('Cuisine'),
-                    const SizedBox(height: 8),
-                    TextFormField(
-                      controller: _cuisineCtrl,
-                      decoration: _inputDecoration('e.g. Multi-Cuisine'),
+                      decoration:
+                          _inputDecoration('e.g. Koramangala, Bangalore'),
+                      validator: (v) => v == null || v.trim().isEmpty
+                          ? 'Location is required'
+                          : null,
                     ),
                     const SizedBox(height: 20),
 
@@ -207,19 +202,8 @@ class _AddBranchPageState extends State<AddBranchPage> {
                     TextFormField(
                       controller: _descriptionCtrl,
                       maxLines: 3,
-                      decoration: _inputDecoration('Brief description of the branch'),
-                    ),
-                    const SizedBox(height: 20),
-
-                    _buildLabel('Price Range'),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      initialValue: _selectedPrice,
-                      items: _priceOptions
-                          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                          .toList(),
-                      onChanged: (v) => setState(() => _selectedPrice = v!),
-                      decoration: _inputDecoration('Select price range'),
+                      decoration:
+                          _inputDecoration('Brief description of the branch'),
                     ),
                     const SizedBox(height: 32),
 
@@ -234,7 +218,8 @@ class _AddBranchPageState extends State<AddBranchPage> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          disabledBackgroundColor: _primaryColor.withOpacity(0.6),
+                          disabledBackgroundColor:
+                              _primaryColor.withOpacity(0.6),
                         ),
                         child: _isLoading
                             ? const SizedBox(
@@ -246,7 +231,7 @@ class _AddBranchPageState extends State<AddBranchPage> {
                                 ),
                               )
                             : const Text(
-                                'Create Branch',
+                                'Save Changes',
                                 style: TextStyle(
                                     fontWeight: FontWeight.bold, fontSize: 15),
                               ),
@@ -272,8 +257,10 @@ class _AddBranchPageState extends State<AddBranchPage> {
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
         hintText: hint,
-        hintStyle: AirMenuTextStyle.normal.copyWith(color: const Color(0xFF9CA3AF)),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        hintStyle:
+            AirMenuTextStyle.normal.copyWith(color: const Color(0xFF9CA3AF)),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: Color(0xFFE5E7EB)),

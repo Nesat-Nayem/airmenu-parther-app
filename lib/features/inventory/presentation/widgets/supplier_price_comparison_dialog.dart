@@ -305,7 +305,7 @@ class _ItemsPanel extends StatelessWidget {
                 vendorsAvailable: item.vendorsAvailable,
               ),
               const SizedBox(height: 12),
-            ]).toList(),
+            ]),
           ],
         );
       },
@@ -752,7 +752,7 @@ class _DetailsPanel extends StatelessWidget {
                             isBestPrice: e.value.isBestPrice,
                             onSwitch: () {},
                           ),
-                        )).toList(),
+                        )),
                       ])
                       else ...([
                         const Center(child: Padding(

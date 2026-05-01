@@ -182,8 +182,9 @@ class MarketingMobileView extends StatelessWidget {
   }
 
   Widget _buildCampaignsContent(BuildContext context, MarketingState state) {
-    if (state.isCampaignsEmpty)
+    if (state.isCampaignsEmpty) {
       return const Center(child: Text("No campaigns found"));
+    }
 
     return Column(
       children: state.filteredCampaigns.map((campaign) {
@@ -247,8 +248,9 @@ class MarketingMobileView extends StatelessWidget {
   }
 
   Widget _buildCombosContent(BuildContext context, MarketingState state) {
-    if (state.isCombosEmpty)
+    if (state.isCombosEmpty) {
       return const Center(child: Text("No combos found"));
+    }
 
     return Column(
       children: state.filteredCombos.map((combo) {

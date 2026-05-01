@@ -230,7 +230,7 @@ class MenuIssuesTab extends StatelessWidget {
                       ),
                     ),
                   )
-                  .toList(),
+                  ,
             ],
           ),
         );

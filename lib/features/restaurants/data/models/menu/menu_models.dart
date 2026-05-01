@@ -1,4 +1,5 @@
 /// Menu-related models for restaurant menu management
+library;
 
 class FoodItemOption {
   final String label;

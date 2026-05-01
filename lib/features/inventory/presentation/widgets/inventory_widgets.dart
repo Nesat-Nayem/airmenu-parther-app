@@ -1099,11 +1099,30 @@ class _InventoryDashboardSecondaryWidgetsState
             ),
           ),
           if (total > 0)
-            Text('₹${total.toStringAsFixed(0)}',
-                style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary)),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Text('₹${total.toStringAsFixed(0)}',
+                  style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary)),
+            ),
+          InkWell(
+            onTap: () => _openEditPO(tx),
+            borderRadius: BorderRadius.circular(6),
+            child: const Padding(
+              padding: EdgeInsets.all(4),
+              child: Icon(Icons.edit_outlined, size: 16, color: Color(0xFF6B7280)),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _openEditPO(InventoryTransaction tx) async {
+    final updated = await showDialog<bool>(
+      context: context,
+      builder: (_) => _EditPurchaseOrderDialog(transaction: tx),
+    );
+    if (updated == true) _loadPurchaseOrders();
   }
 
   // ignore: unused_element
@@ -1261,6 +1280,238 @@ class _RestockActionButtonState extends State<_RestockActionButton> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _EditPurchaseOrderDialog extends StatefulWidget {
+  final InventoryTransaction transaction;
+  const _EditPurchaseOrderDialog({required this.transaction});
+
+  @override
+  State<_EditPurchaseOrderDialog> createState() => _EditPurchaseOrderDialogState();
+}
+
+class _EditPurchaseOrderDialogState extends State<_EditPurchaseOrderDialog> {
+  late final TextEditingController _qtyController;
+  late final TextEditingController _unitCostController;
+  late final TextEditingController _noteController;
+  final _formKey = GlobalKey<FormState>();
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _qtyController = TextEditingController(text: widget.transaction.quantity.toString());
+    _unitCostController = TextEditingController(text: widget.transaction.unitCost.toString());
+    _noteController = TextEditingController(text: widget.transaction.note);
+  }
+
+  @override
+  void dispose() {
+    _qtyController.dispose();
+    _unitCostController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (_isSaving) return;
+    if (!_formKey.currentState!.validate()) return;
+    final qty = double.tryParse(_qtyController.text.trim()) ?? 0;
+    final unitCost = double.tryParse(_unitCostController.text.trim()) ?? 0;
+    setState(() => _isSaving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await locator<InventoryRepository>().updateTransaction(
+      widget.transaction.id,
+      {
+        'quantity': qty,
+        'unitCost': unitCost,
+        'note': _noteController.text.trim(),
+      },
+    );
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+    if (res is DataSuccess<InventoryTransaction>) {
+      Navigator.of(context).pop(true);
+      messenger.showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+          content: Text('Purchase order updated'),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          content: Text(res.error?.message ?? 'Failed to update purchase order'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isMobile = Responsive.isMobile(context);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final name = widget.transaction.materialName.isNotEmpty ? widget.transaction.materialName : 'Item';
+
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: isMobile ? screenWidth * 0.9 : 460,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Edit Purchase Order',
+                    style: AirMenuTextStyle.headingH4.bold700().withColor(const Color(0xFF111827)),
+                  ),
+                  IconButton(
+                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                name,
+                style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFF6B7280)),
+              ),
+              const SizedBox(height: 16),
+              _EditPOField(
+                label: 'Quantity',
+                controller: _qtyController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  final n = double.tryParse((v ?? '').trim());
+                  if (n == null || n <= 0) return 'Enter a valid quantity';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              _EditPOField(
+                label: 'Unit Cost',
+                prefix: '₹',
+                controller: _unitCostController,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (v) {
+                  final n = double.tryParse((v ?? '').trim());
+                  if (n == null || n < 0) return 'Enter a valid cost';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 12),
+              _EditPOField(
+                label: 'Note',
+                controller: _noteController,
+                maxLines: 2,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF374151)),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: _isSaving ? null : _save,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFEF4444),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation(Colors.white),
+                            ),
+                          )
+                        : const Text('Save Changes'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditPOField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final TextInputType? keyboardType;
+  final String? Function(String?)? validator;
+  final int maxLines;
+  final String? prefix;
+
+  const _EditPOField({
+    required this.label,
+    required this.controller,
+    this.keyboardType,
+    this.validator,
+    this.maxLines = 1,
+    this.prefix,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF374151)),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          keyboardType: keyboardType,
+          validator: validator,
+          maxLines: maxLines,
+          decoration: InputDecoration(
+            prefixText: prefix,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(10),
+              borderSide: const BorderSide(color: Color(0xFFEF4444)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

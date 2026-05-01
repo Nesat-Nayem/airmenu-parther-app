@@ -194,7 +194,6 @@ class AddEditMenuItemDialog extends StatelessWidget {
                           children: [
                             OutlinedButton(
                               onPressed: () => Navigator.pop(context),
-                              child: const Text('Cancel'),
                               style: OutlinedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 24,
@@ -205,11 +204,11 @@ class AddEditMenuItemDialog extends StatelessWidget {
                                 ),
                                 foregroundColor: AirMenuColors.textPrimary,
                               ),
+                              child: const Text('Cancel'),
                             ),
                             const SizedBox(width: 16),
                             ElevatedButton(
                               onPressed: () {},
-                              child: const Text('Save Item'),
                               style: ElevatedButton.styleFrom(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 32,
@@ -221,6 +220,7 @@ class AddEditMenuItemDialog extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(100),
                                 ),
                               ),
+                              child: const Text('Save Item'),
                             ),
                           ],
                         ),

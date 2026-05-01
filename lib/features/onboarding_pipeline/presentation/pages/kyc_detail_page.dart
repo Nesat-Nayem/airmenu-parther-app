@@ -4,6 +4,7 @@ import 'package:airmenuai_partner_app/features/onboarding_pipeline/data/models/k
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_bloc.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_event.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/admin_adobe_signing_section.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/rejection_reason_dialog.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 
@@ -190,7 +191,7 @@ class _KycDetailContent extends StatelessWidget {
                   child: SizedBox(
                     height: 52,
                     child: OutlinedButton.icon(
-                      onPressed: () => _handleAction(context, 'rejected'),
+                      onPressed: () => _handleReject(context),
                       icon: const Icon(Icons.close, size: 18),
                       label: Text(
                         'Reject',
@@ -280,6 +281,16 @@ class _KycDetailContent extends StatelessWidget {
       ReviewKyc(id: kyc.id, status: status),
     );
     // Navigate back after action
+    Navigator.of(context).pop();
+  }
+
+  Future<void> _handleReject(BuildContext context) async {
+    final comments = await RejectionReasonDialog.show(context);
+    if (comments == null || comments.isEmpty) return;
+    if (!context.mounted) return;
+    context.read<OnboardingPipelineBloc>().add(
+      ReviewKyc(id: kyc.id, status: 'rejected', comments: comments),
+    );
     Navigator.of(context).pop();
   }
 

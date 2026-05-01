@@ -15,8 +15,10 @@ abstract class IKycRepository {
   /// Fetch KYC statistics (counts by status)
   Future<KycStats> getKycStats();
 
-  /// Review (approve/reject) a KYC submission
-  Future<KycSubmission> reviewKyc(String id, String status, {String? comments});
+  /// Review (approve/reject) a KYC submission.
+  /// [comments] is a per-field map of rejection reasons (keys like 'general',
+  /// 'bank', 'aadhaar', 'gst', 'fssai', 'address'). Ignored when approving.
+  Future<KycSubmission> reviewKyc(String id, String status, {Map<String, String>? comments});
 
   /// Get admin Adobe signing URL for a KYC submission
   Future<String> getAdminSigningUrl(String kycId);

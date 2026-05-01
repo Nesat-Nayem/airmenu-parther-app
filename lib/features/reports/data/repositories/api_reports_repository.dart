@@ -151,7 +151,7 @@ class ApiReportsRepository implements ReportsRepositoryInterface {
         label: 'Revenue MTD',
         value: _formatCurrency(totalRevenue),
         trend: 'up',
-        percentage: '+${todayOrders} today',
+        percentage: '+$todayOrders today',
         compareLabel: 'Total revenue',
       ),
       ReportStats(
@@ -172,7 +172,7 @@ class ApiReportsRepository implements ReportsRepositoryInterface {
         label: 'Bookings',
         value: _formatNumber(totalBookings),
         trend: todayBookings > 0 ? 'up' : 'neutral',
-        percentage: '+${todayBookings} today',
+        percentage: '+$todayBookings today',
         compareLabel: 'Table bookings',
       ),
     ];

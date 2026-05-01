@@ -149,7 +149,7 @@ class EditStaffPage extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
-          value: initialValue,
+          initialValue: initialValue,
           items: items
               .map((e) => DropdownMenuItem(value: e, child: Text(e)))
               .toList(),

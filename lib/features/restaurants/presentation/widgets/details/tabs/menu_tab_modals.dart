@@ -249,7 +249,7 @@ class MenuTabModals {
                                   _buildLabel('Category *'),
                                   const SizedBox(height: 6),
                                   DropdownButtonFormField<MenuCategory>(
-                                    value: selectedCategory,
+                                    initialValue: selectedCategory,
                                     decoration: InputDecoration(
                                       prefixIcon: const Icon(Icons.category_outlined, size: 18),
                                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -977,7 +977,7 @@ class MenuTabModals {
                     _buildLabel('Kitchen Station'),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<String>(
-                      value: station,
+                      initialValue: station,
                       decoration: InputDecoration(
                         filled: true, fillColor: Colors.white,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
@@ -997,7 +997,7 @@ class MenuTabModals {
                     _buildLabel('Complexity'),
                     const SizedBox(height: 6),
                     DropdownButtonFormField<double>(
-                      value: complexity,
+                      initialValue: complexity,
                       decoration: InputDecoration(
                         filled: true, fillColor: Colors.white,
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: Colors.grey[300]!)),
@@ -1107,8 +1107,9 @@ class MenuTabModals {
                   if (bytes != null) {
                     final ext = (file.extension ?? 'jpg').toLowerCase();
                     String mime = 'image/jpeg';
-                    if (ext == 'png') mime = 'image/png';
-                    else if (ext == 'webp') mime = 'image/webp';
+                    if (ext == 'png') {
+                      mime = 'image/png';
+                    } else if (ext == 'webp') mime = 'image/webp';
                     else if (ext == 'gif') mime = 'image/gif';
                     else if (ext == 'pdf') mime = 'application/pdf';
                     onFileSelected(bytes, base64Encode(bytes), mime, file.name);
@@ -1254,7 +1255,9 @@ class MenuTabModals {
                 onPressed: () => setDialogState(() {
                   if (totalSelected == totalItems) {
                     // deselect all
-                    for (final k in selectedItems.keys) selectedItems[k]!.clear();
+                    for (final k in selectedItems.keys) {
+                      selectedItems[k]!.clear();
+                    }
                   } else {
                     // select all
                     for (int i = 0; i < extractedMenu.categories.length; i++) {

@@ -42,19 +42,11 @@ class TableModel extends Equatable {
         mappedStatus = TableStatus.vacant;
     }
 
-    // Map backend zone to display value
+    // Preserve zone name as-is from backend (dynamic zones)
     final backendZone = json['zone'] as String? ?? 'indoor';
-    String mappedZone;
-    switch (backendZone.toLowerCase()) {
-      case 'outdoor':
-        mappedZone = 'Outdoor';
-        break;
-      case 'private':
-        mappedZone = 'Private';
-        break;
-      default:
-        mappedZone = 'Indoor';
-    }
+    final mappedZone = backendZone.isNotEmpty
+        ? backendZone[0].toUpperCase() + backendZone.substring(1)
+        : 'Indoor';
 
     return TableModel(
       id: json['_id'] as String? ?? '',

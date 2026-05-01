@@ -1,4 +1,5 @@
 import 'package:airmenuai_partner_app/features/my_kyc/presentation/bloc/vendor_kyc_bloc.dart';
+import 'package:airmenuai_partner_app/features/my_kyc/presentation/widgets/resubmit_kyc_dialog.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/data/models/kyc_submission.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
@@ -37,7 +38,28 @@ class _MyKycViewState extends State<_MyKycView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<VendorKycBloc, VendorKycState>(
+    return BlocConsumer<VendorKycBloc, VendorKycState>(
+      listenWhen: (prev, curr) =>
+          curr is VendorKycResubmitted || curr is VendorKycError,
+      listener: (context, state) {
+        if (state is VendorKycResubmitted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.green.shade600,
+              content: const Text(
+                  'KYC resubmitted successfully. Your application is back under review.'),
+            ),
+          );
+        } else if (state is VendorKycError) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.red.shade600,
+              content: Text(state.message),
+            ),
+          );
+        }
+      },
+      buildWhen: (prev, curr) => curr is! VendorKycResubmitted,
       builder: (context, state) {
         if (state is VendorKycLoading || state is VendorKycInitial) {
           return const Center(
@@ -68,11 +90,32 @@ class _MyKycViewState extends State<_MyKycView> {
           );
         }
         if (state is VendorKycLoaded) {
-          return _buildContent(state.kyc);
+          return Stack(
+            children: [
+              _buildContent(state.kyc),
+              if (state.isSubmitting)
+                Container(
+                  color: Colors.black.withOpacity(0.25),
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      valueColor:
+                          AlwaysStoppedAnimation<Color>(AirMenuColors.primary),
+                    ),
+                  ),
+                ),
+            ],
+          );
         }
         return const SizedBox.shrink();
       },
     );
+  }
+
+  Future<void> _openResubmitDialog(BuildContext context, KycSubmission kyc) async {
+    final updates = await ResubmitKycDialog.show(context, kyc: kyc);
+    if (updates == null || updates.isEmpty) return;
+    if (!context.mounted) return;
+    context.read<VendorKycBloc>().add(ResubmitMyKyc(updates));
   }
 
   Widget _buildContent(KycSubmission kyc) {
@@ -168,44 +211,10 @@ class _MyKycViewState extends State<_MyKycView> {
               ),
             ],
           ),
-          // Admin comments (rejection reasons)
+          // Admin comments (rejection reasons) + Resubmit
           if (kyc.status == 'rejected') ...[
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.red.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.info_outline_rounded, size: 18, color: Colors.red.shade700),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Admin Feedback',
-                        style: GoogleFonts.sora(
-                          fontWeight: FontWeight.w600,
-                          color: Colors.red.shade700,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Your KYC has been rejected. Please contact support or resubmit via the web portal.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.red.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            _buildRejectionPanel(kyc),
           ],
           // Submitted / reviewed dates
           const SizedBox(height: 16),
@@ -232,6 +241,166 @@ class _MyKycViewState extends State<_MyKycView> {
                   kyc.reviewerName!,
                 ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Rich rejection panel: shows the admin's per-field notes plus a CTA to
+  /// open the resubmission dialog. Uses the same key vocabulary as
+  /// [RejectionReasonDialog] (`aadhaar`, `gst`, `fssai`, `bank`, `address`,
+  /// `restaurant`, `general`).
+  Widget _buildRejectionPanel(KycSubmission kyc) {
+    const fieldLabels = <String, String>{
+      'aadhaar': 'Aadhaar details',
+      'gst': 'GST details',
+      'fssai': 'FSSAI details',
+      'bank': 'Bank details',
+      'address': 'Address details',
+      'restaurant': 'Restaurant information',
+    };
+
+    final comments = kyc.adminComments;
+    final general = comments['general'];
+    final perField = comments.entries
+        .where((e) => e.key != 'general' && e.value.trim().isNotEmpty)
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.red.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.report_gmailerrorred_rounded,
+                  size: 20, color: Colors.red.shade700),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Application Rejected — Action Required',
+                  style: GoogleFonts.sora(
+                    fontWeight: FontWeight.w700,
+                    color: Colors.red.shade700,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The admin has flagged the details below. Please correct them and '
+            'resubmit — your application will go back under review.',
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.red.shade700,
+              height: 1.4,
+            ),
+          ),
+          if (general != null && general.trim().isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade100),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Admin note',
+                    style: GoogleFonts.sora(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.red.shade600,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    general,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF374151),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (perField.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            ...perField.map((e) {
+              final label = fieldLabels[e.key] ?? e.key;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade400,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF374151),
+                            height: 1.4,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: '$label: ',
+                              style: GoogleFonts.sora(
+                                fontWeight: FontWeight.w700,
+                                color: Colors.red.shade700,
+                              ),
+                            ),
+                            TextSpan(text: e.value),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: () => _openResubmitDialog(context, kyc),
+              icon: const Icon(Icons.edit_rounded, size: 18),
+              label: const Text('Correct & Resubmit'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AirMenuColors.primary,
+                foregroundColor: Colors.white,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
           ),
         ],
       ),

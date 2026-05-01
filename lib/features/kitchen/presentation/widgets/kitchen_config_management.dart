@@ -266,7 +266,7 @@ class _KitchenConfigManagementState extends State<KitchenConfigManagement> {
               ],
             ),
           ),
-          Switch(value: value, onChanged: onChanged, activeColor: _primaryColor),
+          Switch(value: value, onChanged: onChanged, activeThumbColor: _primaryColor),
         ],
       ),
     );

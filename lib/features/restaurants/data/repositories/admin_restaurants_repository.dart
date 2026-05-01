@@ -277,7 +277,7 @@ class AdminRestaurantsRepository {
 
         final response = await _apiService.invokeMultipart(
           urlPath: '${ApiEndpoints.hotels}/$id',
-          type: RequestType.patch,
+          type: RequestType.put,
           fields: fields,
           files: {'mainImage': imagePath},
           fun: (data) => jsonDecode(data),
@@ -289,7 +289,7 @@ class AdminRestaurantsRepository {
       } else {
         final response = await _apiService.invoke(
           urlPath: '${ApiEndpoints.hotels}/$id',
-          type: RequestType.patch,
+          type: RequestType.put,
           params: data,
           fun: (data) => jsonDecode(data),
         );
@@ -335,6 +335,91 @@ class AdminRestaurantsRepository {
       }
     } catch (e) {
       return [];
+    }
+  }
+
+  /// Create a branch for a restaurant via dedicated endpoint
+  Future<BranchModel> createBranch({
+    required String parentRestaurantId,
+    required String name,
+    required String location,
+    String? cuisine,
+    String? description,
+    String? price,
+    String? imagePath,
+  }) async {
+    final fields = <String, String>{
+      'name': name,
+      'location': location,
+      if (cuisine != null) 'cuisine': cuisine,
+      if (description != null) 'description': description,
+      if (price != null) 'price': price,
+    };
+
+    final response = imagePath != null
+        ? await _apiService.invokeMultipart(
+            urlPath: ApiEndpoints.createHotelBranch(parentRestaurantId),
+            type: RequestType.post,
+            fields: fields,
+            files: {'mainImage': imagePath},
+            fun: (data) => jsonDecode(data),
+          )
+        : await _apiService.invoke(
+            urlPath: ApiEndpoints.createHotelBranch(parentRestaurantId),
+            type: RequestType.post,
+            params: fields,
+            fun: (data) => jsonDecode(data),
+          );
+
+    if (response is DataSuccess) {
+      return BranchModel.fromJson(response.data['data'] as Map<String, dynamic>);
+    }
+    throw Exception(response is DataFailure ? response.error?.message : 'Failed to create branch');
+  }
+
+  /// Get branches (sibling hotels) for a restaurant
+  Future<List<BranchModel>> getBranches({required String restaurantId}) async {
+    try {
+      final response = await _apiService.invoke(
+        urlPath: ApiEndpoints.hotelBranches(restaurantId),
+        type: RequestType.get,
+        fun: (data) => jsonDecode(data),
+      );
+      if (response is DataSuccess) {
+        final list = response.data['data'] as List<dynamic>? ?? [];
+        return list.map((e) => BranchModel.fromJson(e as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// Update a branch (hotel) name/city/status
+  Future<void> updateBranch({
+    required String branchId,
+    required Map<String, dynamic> data,
+  }) async {
+    final response = await _apiService.invoke(
+      urlPath: '${ApiEndpoints.hotels}/$branchId',
+      type: RequestType.put,
+      params: data,
+      fun: (data) => jsonDecode(data),
+    );
+    if (response is! DataSuccess) {
+      throw Exception('Failed to update branch');
+    }
+  }
+
+  /// Delete (soft-delete) a branch
+  Future<void> deleteBranch({required String branchId}) async {
+    final response = await _apiService.invoke(
+      urlPath: '${ApiEndpoints.hotels}/$branchId',
+      type: RequestType.delete,
+      fun: (data) => jsonDecode(data),
+    );
+    if (response is! DataSuccess) {
+      throw Exception('Failed to delete branch');
     }
   }
 

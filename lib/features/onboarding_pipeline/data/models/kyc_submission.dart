@@ -83,6 +83,9 @@ class KycSubmission extends Equatable {
   // User relational data
   final String? userId;
 
+  // Admin rejection feedback (per-field or general)
+  final Map<String, String> adminComments;
+
   const KycSubmission({
     required this.id,
     required this.restaurantName,
@@ -133,6 +136,7 @@ class KycSubmission extends Equatable {
     this.reviewedAt,
     this.reviewerName,
     this.userId,
+    this.adminComments = const {},
   });
 
   factory KycSubmission.fromJson(Map<String, dynamic> json) {
@@ -271,6 +275,9 @@ class KycSubmission extends Equatable {
       userId:
           userObj['_id']?.toString() ??
           (json['userId'] is String ? json['userId'] : null),
+
+      // Admin comments (rejection feedback)
+      adminComments: _parseAdminComments(json['adminComments']),
     );
   }
 
@@ -342,5 +349,17 @@ class KycSubmission extends Equatable {
     reviewedAt,
     reviewerName,
     userId,
+    adminComments,
   ];
+
+  static Map<String, String> _parseAdminComments(dynamic raw) {
+    if (raw is Map) {
+      final out = <String, String>{};
+      raw.forEach((k, v) {
+        if (v != null) out[k.toString()] = v.toString();
+      });
+      return out;
+    }
+    return const {};
+  }
 }

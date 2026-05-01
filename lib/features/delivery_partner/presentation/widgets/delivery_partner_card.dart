@@ -165,7 +165,7 @@ class _DeliveryPartnerCardState extends State<DeliveryPartnerCard> {
                           TogglePartnerStatus(widget.partner.id, value),
                         );
                       },
-                      activeColor: const Color(0xFFDC2626),
+                      activeThumbColor: const Color(0xFFDC2626),
                       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),

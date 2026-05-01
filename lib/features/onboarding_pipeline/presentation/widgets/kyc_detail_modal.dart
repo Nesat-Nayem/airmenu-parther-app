@@ -5,6 +5,7 @@ import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/bloc/onboarding_pipeline_state.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/admin_adobe_signing_section.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/document_verification_section.dart';
+import 'package:airmenuai_partner_app/features/onboarding_pipeline/presentation/widgets/rejection_reason_dialog.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -13,7 +14,8 @@ import 'package:google_fonts/google_fonts.dart';
 class KycDetailModal extends StatefulWidget {
   final KycSubmission kyc;
   final VoidCallback onClose;
-  final Function(String, String) onAction;
+  /// (action, id, comments) — `comments` is a per-field rejection map; null for approvals.
+  final Function(String action, String id, Map<String, String>? comments) onAction;
 
   const KycDetailModal({
     super.key,
@@ -374,7 +376,7 @@ class _KycDetailModalState extends State<KycDetailModal> {
                     child: SizedBox(
                       height: 48,
                       child: OutlinedButton.icon(
-                        onPressed: () => widget.onAction('rejected', widget.kyc.id),
+                        onPressed: () => _handleReject(context),
                         icon: const Icon(Icons.close, size: 18),
                         label: Text(
                           'Reject',
@@ -394,25 +396,34 @@ class _KycDetailModalState extends State<KycDetailModal> {
                   Expanded(
                     child: SizedBox(
                       height: 48,
-                      child: ElevatedButton.icon(
-                        onPressed: () => widget.onAction('approved', widget.kyc.id),
-                        icon: const Icon(
-                          Icons.check,
-                          size: 18,
-                          color: Colors.white,
-                        ),
-                        label: Text(
-                          'Approve',
-                          style: GoogleFonts.sora(
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                      child: Tooltip(
+                        message: _adminSigned
+                            ? ''
+                            : 'Admin must sign the agreement before approving',
+                        child: ElevatedButton.icon(
+                          onPressed: _adminSigned
+                              ? () => widget.onAction('approved', widget.kyc.id, null)
+                              : null,
+                          icon: Icon(
+                            Icons.check,
+                            size: 18,
+                            color: _adminSigned ? Colors.white : Colors.white54,
                           ),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AirMenuColors.success,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
+                          label: Text(
+                            'Approve',
+                            style: GoogleFonts.sora(
+                              fontWeight: FontWeight.w600,
+                              color: _adminSigned ? Colors.white : Colors.white54,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _adminSigned
+                                ? AirMenuColors.success
+                                : AirMenuColors.success.withValues(alpha: 0.4),
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
                           ),
                         ),
                       ),
@@ -578,4 +589,12 @@ class _KycDetailModalState extends State<KycDetailModal> {
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
+
+  Future<void> _handleReject(BuildContext context) async {
+    final result = await RejectionReasonDialog.show(context);
+    if (result != null && result.isNotEmpty) {
+      widget.onAction('rejected', widget.kyc.id, result);
+    }
+  }
 }
+

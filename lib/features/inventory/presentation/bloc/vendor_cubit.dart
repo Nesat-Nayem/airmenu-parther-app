@@ -39,38 +39,50 @@ class VendorCubit extends Cubit<VendorState> {
   VendorCubit(this._repo) : super(const VendorState());
 
   Future<void> loadVendors() async {
-    emit(state.copyWith(status: VendorStatus.loading));
+    emit(state.copyWith(status: VendorStatus.loading, errorMessage: ''));
     final result = await _repo.getVendors();
     if (result is DataSuccess<List<VendorModel>>) {
       emit(state.copyWith(vendors: result.data!, status: VendorStatus.loaded));
     } else {
-      emit(state.copyWith(status: VendorStatus.error, errorMessage: 'Failed to load vendors'));
+      emit(state.copyWith(
+        status: VendorStatus.error,
+        errorMessage: result.error?.message ?? 'Failed to load vendors',
+      ));
     }
   }
 
-  Future<void> addVendor(Map<String, dynamic> params) async {
+  /// Returns null on success, or the error message on failure.
+  Future<String?> addVendor(Map<String, dynamic> params) async {
     final result = await _repo.createVendor(params);
     if (result is DataSuccess<VendorModel>) {
       emit(state.copyWith(
         vendors: [...state.vendors, result.data!],
         status: VendorStatus.loaded,
       ));
+      return null;
     }
+    return result.error?.message ?? 'Failed to create vendor';
   }
 
-  Future<void> updateVendor(String id, Map<String, dynamic> params) async {
+  /// Returns null on success, or the error message on failure.
+  Future<String?> updateVendor(String id, Map<String, dynamic> params) async {
     final result = await _repo.updateVendor(id, params);
     if (result is DataSuccess<VendorModel>) {
       final updated = state.vendors.map((v) => v.id == id ? result.data! : v).toList();
       emit(state.copyWith(vendors: updated, status: VendorStatus.loaded));
+      return null;
     }
+    return result.error?.message ?? 'Failed to update vendor';
   }
 
-  Future<void> removeVendor(String id) async {
+  /// Returns null on success, or the error message on failure.
+  Future<String?> removeVendor(String id) async {
     final result = await _repo.deleteVendor(id);
     if (result is DataSuccess<bool>) {
       final updated = state.vendors.where((v) => v.id != id).toList();
       emit(state.copyWith(vendors: updated, status: VendorStatus.loaded));
+      return null;
     }
+    return result.error?.message ?? 'Failed to delete vendor';
   }
 }

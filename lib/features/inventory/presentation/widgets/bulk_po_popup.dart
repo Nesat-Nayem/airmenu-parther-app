@@ -467,7 +467,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
           child: Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: Colors.white,
+            activeThumbColor: Colors.white,
             activeTrackColor: const Color(0xFFEF4444),
             inactiveThumbColor: Colors.white,
             inactiveTrackColor: const Color(0xFFE5E7EB),

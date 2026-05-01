@@ -30,21 +30,11 @@ class _MenuTabState extends State<MenuTab> {
   }
 
   void _showToast(BuildContext context, String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(isError ? Icons.error_outline : Icons.check_circle, color: Colors.white, size: 20),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: isError ? Colors.red[600] : _greenColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
-      ),
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.35),
+      builder: (_) => _SweetAlert(message: message, isError: isError),
     );
   }
 
@@ -642,6 +632,145 @@ class _MenuTabState extends State<MenuTab> {
         child: isLoading
             ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: color))
             : Icon(icon, color: color, size: 16),
+      ),
+    );
+  }
+}
+
+class _SweetAlert extends StatefulWidget {
+  final String message;
+  final bool isError;
+
+  const _SweetAlert({required this.message, required this.isError});
+
+  @override
+  State<_SweetAlert> createState() => _SweetAlertState();
+}
+
+class _SweetAlertState extends State<_SweetAlert>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
+    _scaleAnim = CurvedAnimation(parent: _controller, curve: Curves.elasticOut)
+        .drive(Tween(begin: 0.6, end: 1.0));
+    _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _controller.forward();
+    Future.delayed(const Duration(seconds: 3), _dismiss);
+  }
+
+  Future<void> _dismiss() async {
+    if (!mounted) return;
+    await _controller.reverse(from: 1.0);
+    if (mounted) Navigator.of(context, rootNavigator: true).maybePop();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isError = widget.isError;
+    final accentColor = isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+    final bgIcon = isError ? Icons.cancel_rounded : Icons.check_circle_rounded;
+
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 80, vertical: 40),
+        child: ScaleTransition(
+          scale: _scaleAnim,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 320),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: accentColor.withOpacity(0.18),
+                    blurRadius: 24,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    decoration: BoxDecoration(
+                      color: accentColor,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(16),
+                        topRight: Radius.circular(16),
+                      ),
+                    ),
+                    child: Icon(bgIcon, color: Colors.white, size: 36),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+                    child: Column(
+                      children: [
+                        Text(
+                          isError ? 'Oops!' : 'Success!',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                            color: accentColor,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          widget.message,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF6B7280),
+                            height: 1.4,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _dismiss,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: accentColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 11),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'OK',
+                              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

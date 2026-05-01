@@ -211,8 +211,9 @@ class _DeliveryPartnerMobileViewState extends State<DeliveryPartnerMobileView> {
             // List (Vertical)
             BlocBuilder<DeliveryPartnerBloc, DeliveryPartnerState>(
               builder: (context, state) {
-                if (state is DeliveryPartnerLoading)
+                if (state is DeliveryPartnerLoading) {
                   return const DeliveryPartnerGridShimmer();
+                }
                 if (state is DeliveryPartnerSuccess) {
                   return ListView.builder(
                     shrinkWrap: true,
@@ -228,8 +229,9 @@ class _DeliveryPartnerMobileViewState extends State<DeliveryPartnerMobileView> {
                     },
                   );
                 }
-                if (state is DeliveryPartnerEmpty)
+                if (state is DeliveryPartnerEmpty) {
                   return DeliveryPartnerEmptyState(message: state.message);
+                }
                 if (state is DeliveryPartnerError) {
                   return DeliveryPartnerErrorState(
                     message: state.message,

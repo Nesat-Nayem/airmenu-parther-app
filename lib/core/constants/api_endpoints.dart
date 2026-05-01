@@ -10,6 +10,8 @@ class ApiEndpoints {
   static const String kycStats = "/kyc/stats";
   static String kycReview(String id) => "/kyc/review/$id";
   static const String kycDelete = "/kyc";
+  // Vendor resubmission endpoint (only usable while status == 'rejected')
+  static const String kycUpdate = "/kyc/update";
 
   // KYC Adobe Sign endpoints
   static String kycAdminSigningView(String id) => "/kyc/$id/adobe/admin-view";
@@ -131,6 +133,10 @@ class ApiEndpoints {
   // Hotel About Info endpoints
   static String hotelAboutInfo(String hotelId) => "/hotels/$hotelId/about";
 
+  // Hotel Branches endpoints
+  static String hotelBranches(String hotelId) => "/hotels/$hotelId/branches";
+  static String createHotelBranch(String hotelId) => "/hotels/$hotelId/branches";
+
   // Menu endpoints
   static String hotelMenu(String hotelId) => "/hotels/$hotelId/menu";
   static String menuCategories(String hotelId) => "/hotels/$hotelId/menu-categories";
@@ -148,17 +154,20 @@ class ApiEndpoints {
 
   // Kitchen Management endpoints
   static String kitchenStations(String hotelId) => "/kitchen/stations/hotel/$hotelId";
+  static const String kitchenStationsCreate = "/kitchen/stations";
   static String kitchenStation(String stationId) => "/kitchen/stations/$stationId";
-  static String kitchenStationAdjust(String stationId) => "/kitchen/stations/$stationId/adjust-slots";
+  static String kitchenStationAdjust(String stationId) => "/kitchen/stations/$stationId/slots";
   static String kitchenConfiguration(String hotelId) => "/kitchen-config/$hotelId";
   static String kitchenConfigurationReset(String hotelId) => "/kitchen/config/$hotelId/reset";
   static String kitchenStatus(String hotelId) => "/kitchen-load/status/$hotelId";
-  static String kitchenInitialize(String hotelId) => "/kitchen/stations/$hotelId/initialize";
+  static String kitchenInitialize(String hotelId) => "/kitchen/stations/initialize";
+
 
   // Inventory endpoints
   static const String inventoryMaterials = '/inventory/materials';
   static String inventoryMaterial(String id) => '/inventory/materials/$id';
   static const String inventoryTransactions = '/inventory/transactions';
+  static String inventoryTransaction(String id) => '/inventory/transactions/$id';
   static const String inventoryRecipes = '/inventory/recipes';
   static String inventoryRecipe(String id) => '/inventory/recipes/$id';
   static const String inventoryReportOverview = '/inventory/reports/overview';

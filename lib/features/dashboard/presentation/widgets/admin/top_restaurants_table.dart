@@ -109,14 +109,14 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.filter_list, size: 20),
-                      onPressed: () {
-                        // TODO: Implement filter
-                      },
-                      color: const Color(0xFF6B7280),
-                      tooltip: 'Filter',
-                    ),
+                    // IconButton(
+                    //   icon: const Icon(Icons.filter_list, size: 20),
+                    //   onPressed: () {
+                    //     // TODO: Implement filter
+                    //   },
+                    //   color: const Color(0xFF6B7280),
+                    //   tooltip: 'Filter',
+                    // ),
                   ],
                 ),
               ],
@@ -129,24 +129,24 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
               ),
             ),
             const SizedBox(height: 16),
-            // Table with horizontal scroll
+            // Table
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 900),
-                  child: SingleChildScrollView(
+              child: LayoutBuilder(
+                builder: (context, constraints) => SingleChildScrollView(
+                  child: SizedBox(
+                    width: constraints.maxWidth,
                     child: Table(
                       columnWidths: const {
-                        0: FixedColumnWidth(200),
-                        1: FixedColumnWidth(100),
-                        2: FixedColumnWidth(100), // SLA
-                        3: FixedColumnWidth(120),
-                        4: FixedColumnWidth(100),
-                        5: FixedColumnWidth(140),
-                        6: FixedColumnWidth(140),
-                        7: FixedColumnWidth(100),
+                        0: FlexColumnWidth(2),
+                        1: FlexColumnWidth(1),
+                        2: FlexColumnWidth(1), // SLA
+                        3: FlexColumnWidth(1.2),
+                        4: FlexColumnWidth(1),
+                        5: FlexColumnWidth(1.4),
+                        6: FlexColumnWidth(1.4),
+                        // 7: FixedColumnWidth(100), // ACTIONS - hidden
                       },
+
                       children: [
                         // Header row
                         TableRow(
@@ -162,7 +162,7 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
                             _buildHeaderCell('QUEUE'),
                             _buildHeaderCell('HEALTH'),
                             _buildHeaderCell('STATUS'),
-                            _buildHeaderCell('ACTIONS'),
+                            // _buildHeaderCell('ACTIONS'),
                           ],
                         ),
                         // Data rows
@@ -324,15 +324,15 @@ class _TopRestaurantsTableState extends State<TopRestaurantsTable> {
             ),
           ),
         ),
-        _buildDataCell(
-          IconButton(
-            icon: const Icon(Icons.more_vert, size: 18),
-            onPressed: () {
-              // TODO: Show actions menu
-            },
-            color: const Color(0xFF6B7280),
-          ),
-        ),
+        // _buildDataCell(
+        //   IconButton(
+        //     icon: const Icon(Icons.more_vert, size: 18),
+        //     onPressed: () {
+        //       // TODO: Show actions menu
+        //     },
+        //     color: const Color(0xFF6B7280),
+        //   ),
+        // ),
       ],
     );
   }

@@ -1,7 +1,9 @@
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
 import '../../data/models/table_model.dart';
+import '../../data/models/zone_model.dart';
 import '../../data/repositories/table_repository.dart';
+import '../../data/repositories/zone_repository.dart';
 
 // Events
 abstract class TablesEvent extends Equatable {
@@ -48,6 +50,39 @@ class DeleteTable extends TablesEvent {
   List<Object?> get props => [id];
 }
 
+// Zone Events
+class LoadZones extends TablesEvent {}
+
+class CreateZone extends TablesEvent {
+  final String name;
+  final String description;
+  const CreateZone({required this.name, this.description = ''});
+  @override
+  List<Object?> get props => [name, description];
+}
+
+class UpdateZone extends TablesEvent {
+  final String id;
+  final String name;
+  final String description;
+  final bool isActive;
+  const UpdateZone({
+    required this.id,
+    required this.name,
+    this.description = '',
+    this.isActive = true,
+  });
+  @override
+  List<Object?> get props => [id, name, description, isActive];
+}
+
+class DeleteZone extends TablesEvent {
+  final String id;
+  const DeleteZone(this.id);
+  @override
+  List<Object?> get props => [id];
+}
+
 // State
 class TablesState extends Equatable {
   final List<TableModel> allTables;
@@ -60,6 +95,11 @@ class TablesState extends Equatable {
   final String? zoneFilter;
   final TableStatus? statusFilter;
 
+  // Zones
+  final List<ZoneModel> zones;
+  final bool isLoadingZones;
+  final String? zoneError;
+
   const TablesState({
     this.allTables = const [],
     this.filteredTables = const [],
@@ -68,6 +108,9 @@ class TablesState extends Equatable {
     this.searchQuery = '',
     this.zoneFilter,
     this.statusFilter,
+    this.zones = const [],
+    this.isLoadingZones = false,
+    this.zoneError,
   });
 
   TablesState copyWith({
@@ -78,17 +121,25 @@ class TablesState extends Equatable {
     String? searchQuery,
     String? zoneFilter,
     TableStatus? statusFilter,
+    List<ZoneModel>? zones,
+    bool? isLoadingZones,
+    String? zoneError,
   }) {
     return TablesState(
       allTables: allTables ?? this.allTables,
       filteredTables: filteredTables ?? this.filteredTables,
       isLoading: isLoading ?? this.isLoading,
-      error: error, // Clear error on new state unless explicitly provided
+      error: error,
       searchQuery: searchQuery ?? this.searchQuery,
       zoneFilter: zoneFilter ?? this.zoneFilter,
       statusFilter: statusFilter ?? this.statusFilter,
+      zones: zones ?? this.zones,
+      isLoadingZones: isLoadingZones ?? this.isLoadingZones,
+      zoneError: zoneError,
     );
   }
+
+  List<String> get zoneNames => zones.map((z) => z.name).toList();
 
   @override
   List<Object?> get props => [
@@ -99,18 +150,27 @@ class TablesState extends Equatable {
     searchQuery,
     zoneFilter,
     statusFilter,
+    zones,
+    isLoadingZones,
+    zoneError,
   ];
 }
 
 class TablesBloc extends Bloc<TablesEvent, TablesState> {
   final TableRepository repository;
+  final ZoneRepository zoneRepository;
 
-  TablesBloc({required this.repository}) : super(const TablesState()) {
+  TablesBloc({required this.repository, required this.zoneRepository})
+      : super(const TablesState()) {
     on<LoadTables>(_onLoadTables);
     on<FilterTables>(_onFilterTables);
     on<AddTable>(_onAddTable);
     on<UpdateTable>(_onUpdateTable);
     on<DeleteTable>(_onDeleteTable);
+    on<LoadZones>(_onLoadZones);
+    on<CreateZone>(_onCreateZone);
+    on<UpdateZone>(_onUpdateZone);
+    on<DeleteZone>(_onDeleteZone);
   }
 
   Future<void> _onLoadTables(
@@ -256,6 +316,59 @@ class TablesBloc extends Bloc<TablesEvent, TablesState> {
     }
   }
 
+  Future<void> _onLoadZones(LoadZones event, Emitter<TablesState> emit) async {
+    emit(state.copyWith(isLoadingZones: true));
+    try {
+      final zones = await zoneRepository.getZones();
+      emit(state.copyWith(zones: zones, isLoadingZones: false));
+    } catch (e) {
+      emit(state.copyWith(isLoadingZones: false, zoneError: e.toString()));
+    }
+  }
+
+  Future<void> _onCreateZone(CreateZone event, Emitter<TablesState> emit) async {
+    emit(state.copyWith(isLoadingZones: true));
+    try {
+      final zone = await zoneRepository.createZone(
+        name: event.name,
+        description: event.description,
+      );
+      emit(state.copyWith(
+        zones: [...state.zones, zone],
+        isLoadingZones: false,
+      ));
+    } catch (e) {
+      emit(state.copyWith(isLoadingZones: false, zoneError: e.toString()));
+    }
+  }
+
+  Future<void> _onUpdateZone(UpdateZone event, Emitter<TablesState> emit) async {
+    emit(state.copyWith(isLoadingZones: true));
+    try {
+      final updated = await zoneRepository.updateZone(
+        id: event.id,
+        name: event.name,
+        description: event.description,
+        isActive: event.isActive,
+      );
+      final updatedZones = state.zones.map((z) => z.id == updated.id ? updated : z).toList();
+      emit(state.copyWith(zones: updatedZones, isLoadingZones: false));
+    } catch (e) {
+      emit(state.copyWith(isLoadingZones: false, zoneError: e.toString()));
+    }
+  }
+
+  Future<void> _onDeleteZone(DeleteZone event, Emitter<TablesState> emit) async {
+    emit(state.copyWith(isLoadingZones: true));
+    try {
+      await zoneRepository.deleteZone(event.id);
+      final updatedZones = state.zones.where((z) => z.id != event.id).toList();
+      emit(state.copyWith(zones: updatedZones, isLoadingZones: false));
+    } catch (e) {
+      emit(state.copyWith(isLoadingZones: false, zoneError: e.toString()));
+    }
+  }
+
   List<TableModel> _applyFilters(
     List<TableModel> tables,
     String query,
@@ -270,7 +383,7 @@ class TablesBloc extends Bloc<TablesEvent, TablesState> {
       }
 
       if (zone != null && zone != 'All Zones') {
-        if (table.zone != zone) return false;
+        if (table.zone.toLowerCase() != zone.toLowerCase()) return false;
       }
 
       if (status != null) {

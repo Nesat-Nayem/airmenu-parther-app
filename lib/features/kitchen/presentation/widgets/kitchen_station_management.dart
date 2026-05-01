@@ -72,7 +72,7 @@ class _KitchenStationManagementState extends State<KitchenStationManagement> {
     final response = await locator<ApiService>().invoke(
       urlPath: ApiEndpoints.kitchenInitialize(widget.hotelId),
       type: RequestType.post,
-      params: {'useDefaults': true},
+      params: {'hotelId': widget.hotelId, 'useDefaults': true},
       fun: (data) => jsonDecode(data),
     );
     if (response is DataSuccess && response.data['success'] == true) {
@@ -88,7 +88,7 @@ class _KitchenStationManagementState extends State<KitchenStationManagement> {
   Future<void> _createStation(Map<String, dynamic> data) async {
     setState(() => _isSaving = true);
     final response = await locator<ApiService>().invoke(
-      urlPath: ApiEndpoints.kitchenStations(widget.hotelId),
+      urlPath: ApiEndpoints.kitchenStationsCreate,
       type: RequestType.post,
       params: data,
       fun: (data) => jsonDecode(data),
@@ -142,7 +142,7 @@ class _KitchenStationManagementState extends State<KitchenStationManagement> {
     setState(() => _isSaving = true);
     final response = await locator<ApiService>().invoke(
       urlPath: ApiEndpoints.kitchenStationAdjust(stationId),
-      type: RequestType.put,
+      type: RequestType.patch,
       params: {'parallelSlots': slots, 'reason': reason},
       fun: (data) => jsonDecode(data),
     );
@@ -238,6 +238,7 @@ class _KitchenStationManagementState extends State<KitchenStationManagement> {
           ],
         ),
         Row(
+          
           children: [
             if (_stations.isEmpty)
               Padding(

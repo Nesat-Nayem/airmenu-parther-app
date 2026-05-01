@@ -60,7 +60,7 @@ class RefreshKycByStatus extends OnboardingPipelineEvent {
 class ReviewKyc extends OnboardingPipelineEvent {
   final String id;
   final String status; // 'approved' or 'rejected'
-  final String? comments;
+  final Map<String, String>? comments;
 
   const ReviewKyc({required this.id, required this.status, this.comments});
 

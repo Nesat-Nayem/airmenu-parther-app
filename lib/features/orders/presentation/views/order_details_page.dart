@@ -27,6 +27,16 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   String _refundMethod = 'cash';
   late String _orderStatus;
 
+  /// Live snapshot of the current order. Initialised from the constructor
+  /// argument and kept in sync with `OrdersBloc` so any background refresh
+  /// (after a status update, refund, manual payment, etc.) is reflected on
+  /// screen without requiring a manual reload.
+  late OrderModel _order;
+
+  /// True while a mutation (status update, refund, manual payment, item
+  /// status change, mark-complete) or an explicit reload is in flight.
+  bool _isSyncing = false;
+
   static const _allStatuses = [
     'pending',
     'confirmed',
@@ -42,7 +52,34 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   @override
   void initState() {
     super.initState();
-    _orderStatus = widget.order.status ?? 'pending';
+    _order = widget.order;
+    _orderStatus = _order.status ?? 'pending';
+  }
+
+  /// Pull the latest version of this order out of the bloc state so the page
+  /// reflects server-side changes after any mutation refreshes the list.
+  void _syncOrderFromState(OrdersState state) {
+    if (state is! OrdersLoaded) return;
+    final id = _order.id;
+    if (id == null) return;
+    final source = state.allOrders.isNotEmpty ? state.allOrders : state.orders;
+    OrderModel? match;
+    for (final o in source) {
+      if (o.id == id) {
+        match = o;
+        break;
+      }
+    }
+    if (match == null) return;
+    setState(() {
+      _order = match!;
+      _orderStatus = match.status ?? _orderStatus;
+    });
+  }
+
+  void _triggerReload() {
+    setState(() => _isSyncing = true);
+    context.read<OrdersBloc>().add(const RefreshOrders());
   }
 
   @override
@@ -57,30 +94,48 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   Widget build(BuildContext context) {
     return BlocListener<OrdersBloc, OrdersState>(
       listener: (context, state) {
+        // Track in-flight work so we can show a non-blocking loading overlay.
+        if (state is RefundProcessing ||
+            state is ManualPaymentProcessing ||
+            state is MarkCompleteProcessing ||
+            state is ItemStatusUpdating ||
+            (state is OrdersLoaded && state.isRefreshing)) {
+          if (!_isSyncing) setState(() => _isSyncing = true);
+        }
+
         if (state is RefundSuccess) {
           _showSnack('Refund processed successfully', Colors.green[600]!);
           _refundAmountCtrl.clear();
           _refundReasonCtrl.clear();
         } else if (state is RefundFailure) {
+          setState(() => _isSyncing = false);
           _showSnack(state.message, Colors.red[600]!);
         } else if (state is ManualPaymentSuccess) {
           _showSnack('Payment recorded successfully', Colors.green[600]!);
           _manualPaymentCtrl.clear();
         } else if (state is ManualPaymentFailure) {
+          setState(() => _isSyncing = false);
           _showSnack(state.message, Colors.red[600]!);
         } else if (state is MarkCompleteSuccess) {
           _showSnack('Order marked as complete', Colors.green[600]!);
           Navigator.pop(context);
         } else if (state is MarkCompleteFailure) {
+          setState(() => _isSyncing = false);
           _showSnack(state.message, Colors.red[600]!);
         } else if (state is ItemStatusUpdateSuccess) {
           _showSnack('Item status updated', Colors.green[600]!);
         } else if (state is ItemStatusUpdateFailure) {
+          setState(() => _isSyncing = false);
           _showSnack(state.message, Colors.red[600]!);
         } else if (state is OrderStatusUpdateSuccess) {
           _showSnack('Order status updated', Colors.green[600]!);
         } else if (state is OrderStatusUpdateFailure) {
+          setState(() => _isSyncing = false);
           _showSnack(state.message, Colors.red[600]!);
+        } else if (state is OrdersLoaded && !state.isRefreshing) {
+          // Fresh data has landed — sync the displayed order and clear spinner.
+          _syncOrderFromState(state);
+          if (_isSyncing) setState(() => _isSyncing = false);
         }
       },
       child: Scaffold(
@@ -88,17 +143,27 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         body: LayoutBuilder(
           builder: (context, constraints) {
             final isDesktop = constraints.maxWidth >= 900;
-            return CustomScrollView(
-              slivers: [
-                _buildHeader(isDesktop),
-                SliverPadding(
-                  padding: EdgeInsets.all(isDesktop ? 24 : 16),
-                  sliver: SliverToBoxAdapter(
-                    child: isDesktop
-                        ? _buildDesktopLayout()
-                        : _buildMobileLayout(),
-                  ),
+            return Stack(
+              children: [
+                CustomScrollView(
+                  slivers: [
+                    _buildHeader(isDesktop),
+                    SliverPadding(
+                      padding: EdgeInsets.all(isDesktop ? 24 : 16),
+                      sliver: SliverToBoxAdapter(
+                        child: isDesktop
+                            ? _buildDesktopLayout()
+                            : _buildMobileLayout(),
+                      ),
+                    ),
+                  ],
                 ),
+                if (_isSyncing)
+                  Positioned(
+                    top: (isDesktop ? 80 : 70) + 8,
+                    right: 16,
+                    child: _buildSyncingPill(),
+                  ),
               ],
             );
           },
@@ -107,10 +172,53 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     );
   }
 
+  Widget _buildSyncingPill() {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation(Color(0xFFDC2626)),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Syncing…',
+              style: GoogleFonts.sora(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF374151),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── HEADER ─────────────────────────────────────────────────────────────
 
   Widget _buildHeader(bool isDesktop) {
-    final o = widget.order;
+    final o = _order;
     return SliverAppBar(
       pinned: true,
       toolbarHeight: isDesktop ? 80 : 70,
@@ -178,14 +286,18 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                   ],
                 ),
               ),
-              // Status dropdown + Print buttons
+              // Status dropdown + Reload + Print buttons
               if (isDesktop) ...[
                 _buildCompactStatusDropdown(),
                 const SizedBox(width: 10),
+                _headerIconBtn(Icons.refresh_rounded, _triggerReload),
+                const SizedBox(width: 8),
                 _headerActionBtn(Icons.receipt_long_outlined, 'Print Bill', const Color(0xFFDC2626), _handlePrintBill),
                 const SizedBox(width: 8),
                 _headerActionBtn(Icons.print_outlined, 'Print KOT', const Color(0xFF374151), _handlePrintKOT),
               ] else ...[
+                _headerIconBtn(Icons.refresh_rounded, _triggerReload),
+                const SizedBox(width: 6),
                 _headerIconBtn(Icons.print_outlined, _handlePrintBill),
                 const SizedBox(width: 6),
                 _headerIconBtn(Icons.receipt_long_outlined, _handlePrintKOT),
@@ -254,7 +366,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           onChanged: (val) {
             if (val != null && val != _orderStatus) {
               setState(() => _orderStatus = val);
-              context.read<OrdersBloc>().add(UpdateOrderStatus(orderId: widget.order.id!, newStatus: val));
+              context.read<OrdersBloc>().add(UpdateOrderStatus(orderId: _order.id!, newStatus: val));
             }
           },
         ),
@@ -273,7 +385,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         const SizedBox(height: 16),
         _buildRefundHistoryCard(),
         const SizedBox(height: 16),
-        if (widget.order.users != null && widget.order.users!.isNotEmpty) ...[
+        if (_order.users != null && _order.users!.isNotEmpty) ...[
           _buildGuestsCard(),
           const SizedBox(height: 16),
         ],
@@ -309,7 +421,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           width: 380,
           child: Column(
             children: [
-              if (widget.order.users != null && widget.order.users!.isNotEmpty) ...[
+              if (_order.users != null && _order.users!.isNotEmpty) ...[
                 _buildGuestsCard(),
                 const SizedBox(height: 16),
               ],
@@ -345,7 +457,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ─── ORDER ITEMS TABLE ──────────────────────────────────────────────────
 
   Widget _buildOrderItemsTable() {
-    final items = widget.order.items ?? [];
+    final items = _order.items ?? [];
     return _card(
       padding: EdgeInsets.zero,
       child: Column(
@@ -506,7 +618,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           onChanged: (val) {
             if (val != null && val != current && item.id != null) {
               context.read<OrdersBloc>().add(
-                UpdateItemStatus(orderId: widget.order.id!, itemId: item.id!, status: val),
+                UpdateItemStatus(orderId: _order.id!, itemId: item.id!, status: val),
               );
             }
           },
@@ -530,7 +642,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
             ],
           ),
           const SizedBox(height: 14),
-          ...widget.order.users!.map(
+          ..._order.users!.map(
             (user) => Container(
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: const BoxDecoration(
@@ -562,7 +674,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ─── ORDER STATUS CARD ──────────────────────────────────────────────────
 
   Widget _buildOrderStatusCard() {
-    final o = widget.order;
+    final o = _order;
     return _card(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,7 +710,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ─── PAYMENT INFORMATION CARD ───────────────────────────────────────────
 
   Widget _buildPaymentInfoCard() {
-    final o = widget.order;
+    final o = _order;
     final taxes = (o.cgstAmount ?? 0) + (o.sgstAmount ?? 0);
     final amountDue = (o.totalAmount ?? 0) - (o.amountPaid ?? 0);
     final refundable = (o.amountPaid ?? 0) - (o.amountRefunded ?? 0);
@@ -627,7 +739,31 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               _sidebarRow('Payment Status:', _paymentStatusBadge(o.paymentStatus)),
               if (o.paymentId != null) ...[
                 const SizedBox(height: 10),
-                _sidebarRow('Payment ID:', Text(o.paymentId!, style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))),
+                // Payment IDs can be quite long (e.g. Razorpay/Phonepe IDs)
+                // and previously caused horizontal overflow inside the
+                // fixed-width sidebar card. Stack the label above the
+                // value and let the value wrap onto multiple lines.
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Payment ID:',
+                      style: GoogleFonts.sora(
+                        fontSize: 12,
+                        color: const Color(0xFF6B7280),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    SelectableText(
+                      o.paymentId!,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontFamily: 'monospace',
+                        color: Color(0xFF111827),
+                      ),
+                    ),
+                  ],
+                ),
               ],
               // Breakdown
               const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Color(0xFFE5E7EB))),
@@ -845,7 +981,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ─── REFUND HISTORY ───────────────────────────────────────────────────
 
   Widget _buildRefundHistoryCard() {
-    final refunds = widget.order.refunds ?? [];
+    final refunds = _order.refunds ?? [];
     return _card(
       padding: EdgeInsets.zero,
       child: Column(
@@ -898,7 +1034,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   // ─── ORDER TIMELINE CARD ────────────────────────────────────────────────
 
   Widget _buildOrderTimelineCard() {
-    final o = widget.order;
+    final o = _order;
     final status = _orderStatus.toLowerCase();
 
     final List<_TimelineEntry> entries = [
@@ -1094,7 +1230,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     }
     context.read<OrdersBloc>().add(
       ProcessRefund(
-        orderId: widget.order.id!,
+        orderId: _order.id!,
         amount: amount,
         method: _refundMethod,
         reason: _refundReasonCtrl.text.isNotEmpty ? _refundReasonCtrl.text : null,
@@ -1109,12 +1245,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
       return;
     }
     context.read<OrdersBloc>().add(
-      RecordManualPayment(orderId: widget.order.id!, amount: amount),
+      RecordManualPayment(orderId: _order.id!, amount: amount),
     );
   }
 
   void _handleMarkComplete() => context.read<OrdersBloc>().add(
-        MarkOrderComplete(orderId: widget.order.id!),
+        MarkOrderComplete(orderId: _order.id!),
       );
 
   void _showSnack(String message, Color bg) {
@@ -1145,14 +1281,14 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
   }
 
   String _getShortOrderId() {
-    final orderId = widget.order.id ?? 'N/A';
+    final orderId = _order.id ?? 'N/A';
     return orderId.length > 8 ? orderId.substring(orderId.length - 8) : orderId;
   }
 
   // ─── PRINT HTML BUILDERS ──────────────────────────────────────────────
 
   String _buildBillHtml() {
-    final o = widget.order;
+    final o = _order;
     final hotelName = o.hotel?.name ?? 'Restaurant';
     final orderIdShort = '#${_getShortOrderId()}';
     final created = _formatDate(o.createdAt ?? '');
@@ -1208,7 +1344,7 @@ Payment${' ' * (24 - 'Payment'.length)}$payMethod
   }
 
   String _buildKotHtml() {
-    final o = widget.order;
+    final o = _order;
     final hotelName = o.hotel?.name ?? 'Restaurant';
     final orderIdShort = '#${_getShortOrderId()}';
     final created = _formatDate(o.createdAt ?? '');

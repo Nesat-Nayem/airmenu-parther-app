@@ -212,12 +212,14 @@ class _VendorDialogContentState extends State<_VendorDialogContent> {
 
                         ElevatedButton.icon(
                           onPressed: () {
+                            final cubit = context.read<VendorCubit>();
                             showDialog(
                               context: context,
+                              barrierDismissible: false,
                               builder: (_) => BlocProvider.value(
-                                value: context.read<VendorCubit>(),
+                                value: cubit,
                                 child: AddEditVendorDialog(
-                                  onSave: (v) => context.read<VendorCubit>().addVendor(v.toJson()),
+                                  onSave: (v) => cubit.addVendor(v.toJson()),
                                 ),
                               ),
                             );
@@ -258,23 +260,44 @@ class _VendorDialogContentState extends State<_VendorDialogContent> {
                                       (vendor) => VendorCard(
                                         vendor: vendor,
                                         onEdit: () {
+                                          final cubit = context.read<VendorCubit>();
                                           showDialog(
                                             context: context,
+                                            barrierDismissible: false,
                                             builder: (_) => BlocProvider.value(
-                                              value: context.read<VendorCubit>(),
+                                              value: cubit,
                                               child: AddEditVendorDialog(
                                                 vendor: vendor,
-                                                onSave: (v) => context.read<VendorCubit>().updateVendor(v.id, v.toJson()),
+                                                onSave: (v) => cubit.updateVendor(v.id, v.toJson()),
                                               ),
                                             ),
                                           );
                                         },
                                         onDelete: () {
+                                          final cubit = context.read<VendorCubit>();
+                                          final rootMessenger = ScaffoldMessenger.of(context);
                                           showDialog(
                                             context: context,
                                             builder: (_) => RemoveVendorDialog(
                                               vendorName: vendor.companyName,
-                                              onConfirm: () => context.read<VendorCubit>().removeVendor(vendor.id),
+                                              onConfirm: () async {
+                                                final err = await cubit.removeVendor(vendor.id);
+                                                if (err == null) {
+                                                  rootMessenger.showSnackBar(
+                                                    const SnackBar(
+                                                      backgroundColor: Color(0xFF16A34A),
+                                                      content: Text('Vendor removed'),
+                                                    ),
+                                                  );
+                                                } else {
+                                                  rootMessenger.showSnackBar(
+                                                    SnackBar(
+                                                      backgroundColor: const Color(0xFFDC2626),
+                                                      content: Text(err),
+                                                    ),
+                                                  );
+                                                }
+                                              },
                                             ),
                                           );
                                         },
@@ -530,7 +553,7 @@ class VendorCard extends StatelessWidget {
 
 class AddEditVendorDialog extends StatefulWidget {
   final Vendor? vendor;
-  final Function(Vendor) onSave;
+  final Future<String?> Function(Vendor) onSave;
 
   const AddEditVendorDialog({super.key, this.vendor, required this.onSave});
 
@@ -552,6 +575,7 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
 
   List<String> _supplies = [];
   final _formKey = GlobalKey<FormState>();
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -573,24 +597,43 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
     }
   }
 
-  void _save() {
-    if (_formKey.currentState!.validate()) {
-      final vendor = Vendor(
-        id:
-            widget.vendor?.id ??
-            DateTime.now().millisecondsSinceEpoch.toString(),
-        companyName: _companyController.text,
-        contactPerson: _personController.text,
-        phone: _phoneController.text,
-        whatsapp: _whatsappController.text,
-        email: _emailController.text,
-        address: _addressController.text,
-        gstNumber: _gstController.text,
-        paymentTerms: _termsController.text,
-        supplies: _supplies,
-      );
-      widget.onSave(vendor);
+  Future<void> _save() async {
+    if (_isSaving) return;
+    if (!_formKey.currentState!.validate()) return;
+    final vendor = Vendor(
+      id: widget.vendor?.id ?? '',
+      companyName: _companyController.text.trim(),
+      contactPerson: _personController.text.trim(),
+      phone: _phoneController.text.trim(),
+      whatsapp: _whatsappController.text.trim(),
+      email: _emailController.text.trim(),
+      address: _addressController.text.trim(),
+      gstNumber: _gstController.text.trim(),
+      paymentTerms: _termsController.text.trim(),
+      supplies: _supplies,
+    );
+    setState(() => _isSaving = true);
+    final messenger = ScaffoldMessenger.of(context);
+    final err = await widget.onSave(vendor);
+    if (!mounted) return;
+    setState(() => _isSaving = false);
+    if (err == null) {
       Navigator.of(context).pop();
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+          content: Text(widget.vendor == null ? 'Vendor created' : 'Vendor updated'),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          content: Text(err),
+        ),
+      );
     }
   }
 
@@ -864,10 +907,16 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                 children: [
                   InventorySecondaryButton(
                     label: 'Cancel',
-                    onTap: () => Navigator.pop(context),
+                    onTap: _isSaving ? () {} : () => Navigator.pop(context),
                   ),
                   const SizedBox(width: 12),
-                  InventoryPrimaryButton(label: 'Save Changes', onTap: _save),
+                  InventoryPrimaryButton(
+                    label: _isSaving
+                        ? (widget.vendor == null ? 'Creating...' : 'Saving...')
+                        : 'Save Changes',
+                    isLoading: _isSaving,
+                    onTap: _save,
+                  ),
                 ],
               ),
             ),

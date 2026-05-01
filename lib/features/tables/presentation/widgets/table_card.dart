@@ -286,6 +286,13 @@ class TableCard extends StatelessWidget {
   void _showEditDialog(BuildContext context) {
     final tableNumberController = TextEditingController(text: table.tableNumber);
     final capacityController = TextEditingController(text: table.capacity.toString());
+    // Build zone list from bloc state, always include current table.zone as fallback
+    final blocZoneNames = context.read<TablesBloc>().state.zoneNames;
+    final zoneItems = blocZoneNames.isNotEmpty
+        ? (blocZoneNames.contains(table.zone)
+            ? blocZoneNames
+            : [table.zone, ...blocZoneNames])
+        : [table.zone];
     String selectedZone = table.zone;
     final formKey = GlobalKey<FormState>();
 
@@ -377,8 +384,11 @@ class TableCard extends StatelessWidget {
                             child: DropdownButton<String>(
                               value: selectedZone,
                               isExpanded: true,
-                              items: ['Indoor', 'Outdoor', 'Private'].map((z) {
-                                return DropdownMenuItem(value: z, child: Text(z));
+                              items: zoneItems.map((z) {
+                                return DropdownMenuItem(
+                                  value: z,
+                                  child: Text(z, style: GoogleFonts.sora(fontSize: 14)),
+                                );
                               }).toList(),
                               onChanged: (val) {
                                 if (val != null) setDialogState(() => selectedZone = val);

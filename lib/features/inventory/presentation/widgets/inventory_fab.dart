@@ -258,7 +258,7 @@ class _HoverableMenuOptionState extends State<_HoverableMenuOption> {
     return InkWell(
       onTap: widget.onTap,
       onHover: (hovering) => setState(() => _isHovering = hovering),
-      overlayColor: MaterialStateProperty.all(Colors.transparent),
+      overlayColor: WidgetStateProperty.all(Colors.transparent),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.end,

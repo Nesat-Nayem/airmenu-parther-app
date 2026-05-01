@@ -134,7 +134,7 @@ class _CategoryRow extends StatelessWidget {
 
           Switch(
             value: isVisible,
-            activeColor: AirMenuColors.primaryRed,
+            activeThumbColor: AirMenuColors.primaryRed,
             onChanged: (val) {},
           ),
           const SizedBox(width: 8),

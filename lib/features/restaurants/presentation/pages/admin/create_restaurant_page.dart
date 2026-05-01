@@ -50,6 +50,8 @@ class _CreateRestaurantPageState extends State<CreateRestaurantPage> {
   Uint8List? _selectedImageBytes;
   String? _selectedImagePath;
   final ImagePicker _imagePicker = ImagePicker();
+  String? _imageError;
+  String? _priceError;
 
   // Weekly Timings
   final Map<String, bool> _closedDays = {};
@@ -129,6 +131,7 @@ class _CreateRestaurantPageState extends State<CreateRestaurantPage> {
       setState(() {
         _selectedImageBytes = bytes;
         _selectedImagePath = image.path;
+        _imageError = null;
         if (!kIsWeb) {
           _selectedImage = File(image.path);
         }
@@ -433,7 +436,10 @@ class _CreateRestaurantPageState extends State<CreateRestaurantPage> {
                 value: _minPrice,
                 hint: 'Min Price',
                 items: _priceOptions,
-                onChanged: (val) => setState(() => _minPrice = val),
+                onChanged: (val) => setState(() {
+                  _minPrice = val;
+                  _priceError = null;
+                }),
                 prefix: '₹',
               ),
             ),
@@ -443,12 +449,23 @@ class _CreateRestaurantPageState extends State<CreateRestaurantPage> {
                 value: _maxPrice,
                 hint: 'Max Price',
                 items: _priceOptions,
-                onChanged: (val) => setState(() => _maxPrice = val),
+                onChanged: (val) => setState(() {
+                  _maxPrice = val;
+                  _priceError = null;
+                }),
                 prefix: '₹',
               ),
             ),
           ],
         ),
+        if (_priceError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _priceError!,
+              style: const TextStyle(color: Colors.red, fontSize: 12),
+            ),
+          ),
       ],
     );
   }
@@ -661,9 +678,9 @@ class _CreateRestaurantPageState extends State<CreateRestaurantPage> {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              'Main image is required *',
+              _imageError ?? 'Main image is required *',
               style: AirMenuTextStyle.small.copyWith(
-                color: const Color(0xFF9CA3AF),
+                color: _imageError != null ? Colors.red : const Color(0xFF9CA3AF),
               ),
             ),
           ),
@@ -1005,81 +1022,65 @@ class _CreateRestaurantPageState extends State<CreateRestaurantPage> {
   void _submitForm(BuildContext context) {
     _hideOverlay();
 
-    // Validate image
+    // Validate all form fields first so inline errors appear on required fields
+    final formValid = _formKey.currentState!.validate();
+
+    // Validate image inline
     if (_selectedImageBytes == null || _selectedImagePath == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a main image'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+      setState(() => _imageError = 'Please select a main image');
     }
 
-    // Validate price range
+    // Validate price range inline
     if (_minPrice == null && _maxPrice == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a price range'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      setState(() => _priceError = 'Please select a price range');
+    }
+
+    if (!formValid ||
+        _selectedImageBytes == null ||
+        (_minPrice == null && _maxPrice == null)) {
       return;
     }
 
-    // Validate location
-    if (_locationController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a location'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    // Build price string
+    String priceString;
+    if (_minPrice != null && _maxPrice != null) {
+      priceString = '₹$_minPrice - ₹$_maxPrice';
+    } else if (_minPrice != null) {
+      priceString = 'Above ₹$_minPrice';
+    } else {
+      priceString = 'Under ₹$_maxPrice';
     }
 
-    if (_formKey.currentState!.validate()) {
-      // Build price string
-      String priceString;
-      if (_minPrice != null && _maxPrice != null) {
-        priceString = '₹$_minPrice - ₹$_maxPrice';
-      } else if (_minPrice != null) {
-        priceString = 'Above ₹$_minPrice';
+    // Build weekly timings
+    final weeklyTimings = <WeeklyTimingModel>[];
+    for (final day in _weekDays) {
+      if (_closedDays[day] == true) {
+        weeklyTimings.add(WeeklyTimingModel(day: day, hours: 'Closed'));
       } else {
-        priceString = 'Under ₹$_maxPrice';
+        final from = _fromTimes[day] ?? '9:00 AM';
+        final to = _toTimes[day] ?? '10:00 PM';
+        weeklyTimings.add(WeeklyTimingModel(day: day, hours: '$from - $to'));
       }
-
-      // Build weekly timings
-      final weeklyTimings = <WeeklyTimingModel>[];
-      for (final day in _weekDays) {
-        if (_closedDays[day] == true) {
-          weeklyTimings.add(WeeklyTimingModel(day: day, hours: 'Closed'));
-        } else {
-          final from = _fromTimes[day] ?? '9:00 AM';
-          final to = _toTimes[day] ?? '10:00 PM';
-          weeklyTimings.add(WeeklyTimingModel(day: day, hours: '$from - $to'));
-        }
-      }
-
-      context.read<CreateRestaurantBloc>().add(
-        SubmitRestaurantWithImage(
-          name: _nameController.text,
-          cuisine: _cuisineController.text,
-          description: _descriptionController.text,
-          location: _locationController.text,
-          googlePlaceId: _placeIdController.text.isNotEmpty
-              ? _placeIdController.text
-              : null,
-          price: priceString,
-          rating: double.tryParse(_ratingController.text),
-          offer: _offerController.text.isNotEmpty ? _offerController.text : null,
-          cgstRate: num.tryParse(_cgstController.text),
-          sgstRate: num.tryParse(_sgstController.text),
-          serviceCharge: num.tryParse(_serviceChargeController.text),
-          weeklyTimings: weeklyTimings,
-          imagePath: _selectedImagePath!,
-        ),
-      );
     }
+
+    context.read<CreateRestaurantBloc>().add(
+      SubmitRestaurantWithImage(
+        name: _nameController.text,
+        cuisine: _cuisineController.text,
+        description: _descriptionController.text,
+        location: _locationController.text,
+        googlePlaceId: _placeIdController.text.isNotEmpty
+            ? _placeIdController.text
+            : null,
+        price: priceString,
+        rating: double.tryParse(_ratingController.text),
+        offer: _offerController.text.isNotEmpty ? _offerController.text : null,
+        cgstRate: num.tryParse(_cgstController.text),
+        sgstRate: num.tryParse(_sgstController.text),
+        serviceCharge: num.tryParse(_serviceChargeController.text),
+        weeklyTimings: weeklyTimings,
+        imagePath: _selectedImagePath!,
+      ),
+    );
   }
 }
