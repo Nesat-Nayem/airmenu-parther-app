@@ -2,6 +2,7 @@ import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item.dart';
 import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item_config.dart';
 import 'package:airmenuai_partner_app/core/enums/user_role.dart';
+import 'package:airmenuai_partner_app/core/network/auth_service.dart';
 import 'package:airmenuai_partner_app/core/services/role_service.dart';
 import 'package:airmenuai_partner_app/features/common_shell/widgets/modern_nav_menu.dart';
 import 'package:airmenuai_partner_app/features/common_shell/widgets/profile_menu.dart';
@@ -9,6 +10,7 @@ import 'package:airmenuai_partner_app/features/my_kyc/data/vendor_kyc_repository
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
@@ -59,6 +61,18 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         final VendorKycRepository kycRepo = locator<VendorKycRepository>();
         final kyc = await kycRepo.getMyKyc();
         isKycApproved = kyc.status == 'approved';
+
+        // An approved vendor must have a cached hotelId for the vendor screens
+        // (menu, kitchen, inventory, settings, etc.) to work. If it's missing —
+        // e.g. they logged in while still pending and were approved later — pull
+        // a fresh profile so status/hotelId get persisted before the panel loads.
+        if (isKycApproved) {
+          final storedHotelId = await locator<LocalStorage>()
+              .getString(localStorageKey: 'hotelId');
+          if (storedHotelId == null || storedHotelId.isEmpty) {
+            await locator<AuthService>().refreshUserProfile();
+          }
+        }
       } catch (_) {
         isKycApproved = false;
       }

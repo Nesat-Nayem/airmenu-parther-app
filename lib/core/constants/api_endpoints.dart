@@ -1,5 +1,8 @@
 class ApiEndpoints {
   static const String login = "/auth/signin";
+  // Current authenticated user — used to re-hydrate the cached profile
+  // (e.g. vendor hotelId/status after admin approval) without a re-login.
+  static const String me = "/auth/me";
 
   // Platform Activity endpoints
   static const String platformActivitiesAll = "/activities/all";

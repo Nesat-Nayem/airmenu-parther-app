@@ -1,3 +1,4 @@
+import 'package:airmenuai_partner_app/core/network/auth_service.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/data/vendor_kyc_repository.dart';
 import 'package:airmenuai_partner_app/utils/services/user_service.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
@@ -11,6 +12,7 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   final LoginUsecase loginUsecase;
   final UserService _userService = locator<UserService>();
   final VendorKycRepository _vendorKycRepo = locator<VendorKycRepository>();
+  final AuthService _authService = locator<AuthService>();
 
   LoginBloc({required this.loginUsecase}) : super(LoginInitial()) {
     on<LoginSubmitted>((event, emit) async {
@@ -31,6 +33,11 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
             try {
               final kyc = await _vendorKycRepo.getMyKyc();
               isKycApproved = kyc.status == 'approved';
+              // Make sure an approved vendor has a fresh profile (status +
+              // hotelId) persisted before we route them into the panel.
+              if (isKycApproved) {
+                await _authService.refreshUserProfile();
+              }
             } catch (_) {
               // No KYC found means not approved
               isKycApproved = false;

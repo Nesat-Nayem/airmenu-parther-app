@@ -1,3 +1,4 @@
+import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/presentation/bloc/vendor_kyc_bloc.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/presentation/widgets/resubmit_kyc_dialog.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/data/models/kyc_submission.dart';
@@ -6,6 +7,7 @@ import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class MyKycPage extends StatelessWidget {
@@ -40,9 +42,24 @@ class _MyKycViewState extends State<_MyKycView> {
   Widget build(BuildContext context) {
     return BlocConsumer<VendorKycBloc, VendorKycState>(
       listenWhen: (prev, curr) =>
-          curr is VendorKycResubmitted || curr is VendorKycError,
+          curr is VendorKycResubmitted ||
+          curr is VendorKycApproved ||
+          curr is VendorKycError,
       listener: (context, state) {
-        if (state is VendorKycResubmitted) {
+        if (state is VendorKycApproved) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Colors.green.shade600,
+              content: const Text(
+                  'Your application is approved. Redirecting to your dashboard...'),
+            ),
+          );
+          // Profile is already refreshed in the bloc, so the dashboard and
+          // vendor screens now have a valid hotelId/status to work with.
+          Future.delayed(const Duration(milliseconds: 600), () {
+            if (context.mounted) context.go(AppRoutes.dashboard.path);
+          });
+        } else if (state is VendorKycResubmitted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               backgroundColor: Colors.green.shade600,
@@ -59,7 +76,8 @@ class _MyKycViewState extends State<_MyKycView> {
           );
         }
       },
-      buildWhen: (prev, curr) => curr is! VendorKycResubmitted,
+      buildWhen: (prev, curr) =>
+          curr is! VendorKycResubmitted && curr is! VendorKycApproved,
       builder: (context, state) {
         if (state is VendorKycLoading || state is VendorKycInitial) {
           return const Center(
@@ -92,7 +110,7 @@ class _MyKycViewState extends State<_MyKycView> {
         if (state is VendorKycLoaded) {
           return Stack(
             children: [
-              _buildContent(state.kyc),
+              _buildContent(state.kyc, isRefreshing: state.isRefreshing),
               if (state.isSubmitting)
                 Container(
                   color: Colors.black.withOpacity(0.25),
@@ -118,7 +136,7 @@ class _MyKycViewState extends State<_MyKycView> {
     context.read<VendorKycBloc>().add(ResubmitMyKyc(updates));
   }
 
-  Widget _buildContent(KycSubmission kyc) {
+  Widget _buildContent(KycSubmission kyc, {bool isRefreshing = false}) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -127,7 +145,7 @@ class _MyKycViewState extends State<_MyKycView> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildStatusHeader(kyc),
+              _buildStatusHeader(kyc, isRefreshing: isRefreshing),
               const SizedBox(height: 20),
               _buildStepperCard(kyc),
             ],
@@ -138,7 +156,7 @@ class _MyKycViewState extends State<_MyKycView> {
   }
 
   // ── Status header ────────────────────────────────────────────────────────────
-  Widget _buildStatusHeader(KycSubmission kyc) {
+  Widget _buildStatusHeader(KycSubmission kyc, {bool isRefreshing = false}) {
     final statusColor = _statusColor(kyc.status);
     final statusText = _statusText(kyc.status);
     return Container(
@@ -211,6 +229,12 @@ class _MyKycViewState extends State<_MyKycView> {
               ),
             ],
           ),
+          // Reload status — lets a vendor pull the latest decision (e.g. just
+          // approved by admin) without logging out and back in.
+          if (kyc.status != 'approved') ...[
+            const SizedBox(height: 12),
+            _buildReloadBanner(isRefreshing: isRefreshing),
+          ],
           // Admin comments (rejection reasons) + Resubmit
           if (kyc.status == 'rejected') ...[
             const SizedBox(height: 16),
@@ -241,6 +265,64 @@ class _MyKycViewState extends State<_MyKycView> {
                   kyc.reviewerName!,
                 ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// A small banner with a "Reload status" action. Vendors sit on this page
+  /// while their application is under review; once the admin approves them the
+  /// only way to advance (short of re-login) is to re-check the status — this
+  /// triggers [RefreshMyKyc], which also re-hydrates the cached profile.
+  Widget _buildReloadBanner({required bool isRefreshing}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade100),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline_rounded, size: 18, color: Colors.blue.shade600),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Already approved by the team? Reload to refresh your status and '
+              'unlock your dashboard.',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.blue.shade800,
+                height: 1.4,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton.icon(
+            onPressed: isRefreshing
+                ? null
+                : () => context.read<VendorKycBloc>().add(RefreshMyKyc()),
+            icon: isRefreshing
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.refresh_rounded, size: 18),
+            label: Text(isRefreshing ? 'Checking...' : 'Reload'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AirMenuColors.primary,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
           ),
         ],
       ),
