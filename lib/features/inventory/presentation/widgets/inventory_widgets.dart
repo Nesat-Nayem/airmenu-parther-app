@@ -11,6 +11,8 @@ import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/recipe_mapping_dialog.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
+import 'package:airmenuai_partner_app/features/restaurants/data/repositories/menu_repository.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -903,11 +905,13 @@ class _InventoryDashboardSecondaryWidgetsState
     extends State<InventoryDashboardSecondaryWidgets> {
   List<InventoryTransaction> _purchaseOrders = [];
   bool _loadingPO = true;
+  int _menuItemCount = 0;
 
   @override
   void initState() {
     super.initState();
     _loadPurchaseOrders();
+    _loadMenuItemCount();
   }
 
   Future<void> _loadPurchaseOrders() async {
@@ -923,15 +927,31 @@ class _InventoryDashboardSecondaryWidgetsState
     }
   }
 
+  // Total menu items for this hotel — used to compute how many are unmapped
+  // (i.e. menu items without a recipe) in the Recipe Mapping summary.
+  Future<void> _loadMenuItemCount() async {
+    try {
+      final hotelId = await locator<LocalStorage>().getString(localStorageKey: 'hotelId');
+      if (hotelId == null || hotelId.isEmpty) return;
+      final categories = await locator<MenuRepository>().getMenuCategories(hotelId);
+      final count = categories.fold<int>(0, (sum, c) => sum + c.items.length);
+      if (mounted) setState(() => _menuItemCount = count);
+    } catch (_) {
+      // Non-fatal; summary will just show 0 unmapped.
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
     final state = context.watch<InventoryBloc>().state;
 
-    // Derive recipe mapping stats from actual data
-    final totalItems = state.items.length;
+    // Recipe mapping stats: mapped = menu items with a recipe; unmapped = the
+    // rest of the menu. Falls back to recipe count if the menu hasn't loaded.
     final mappedCount = state.recipes.length;
-    final unmappedCount = (totalItems - mappedCount).clamp(0, totalItems);
+    final unmappedCount = _menuItemCount > 0
+        ? (_menuItemCount - mappedCount).clamp(0, _menuItemCount)
+        : 0;
 
     final purchaseOrders = Container(
       padding: const EdgeInsets.all(20),

@@ -9,6 +9,15 @@ import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+/// Recipe Mapping manager.
+///
+/// Two views:
+///  • List  — shows every menu item with its mapping status (mapped → shows
+///            ingredient chips; unmapped → "Map recipe" CTA). Mapped recipes
+///            can be edited or deleted.
+///  • Form  — create or edit a single recipe (pick a menu item + ingredients
+///            with quantities). When an order is served the backend deducts
+///            each ingredient's quantity × ordered qty from inventory.
 class RecipeMappingDialog extends StatefulWidget {
   const RecipeMappingDialog({super.key});
 
@@ -16,19 +25,23 @@ class RecipeMappingDialog extends StatefulWidget {
   State<RecipeMappingDialog> createState() => _RecipeMappingDialogState();
 }
 
+enum _View { list, form }
+
 class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
-  // State
-  FoodItem? selectedMenuItem;
-  final List<RecipeIngredient> ingredients = [];
+  _View _view = _View.list;
+
+  // Menu items for this hotel.
   List<FoodItem> _menuItems = [];
   bool _loadingMenu = true;
-  final String _searchQuery = '';
+
+  // Form state
+  FoodItem? _selectedMenuItem;
+  String? _editingRecipeId; // non-null when editing an existing recipe
+  final List<RecipeIngredient> _ingredients = [];
 
   @override
   void initState() {
     super.initState();
-    ingredients.add(RecipeIngredient());
-    // Load recipes if not already loaded
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.read<InventoryBloc>().add(LoadRecipes());
     });
@@ -51,45 +64,99 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
     }
   }
 
-  void _addIngredient() {
-    setState(() => ingredients.add(RecipeIngredient()));
+  String _menuItemName(String menuItemId, String fallback) {
+    final match = _menuItems.where((m) => m.id == menuItemId).firstOrNull;
+    if (match != null) return match.title;
+    return fallback.isNotEmpty ? fallback : 'Unknown item';
   }
 
-  void _removeIngredient(int index) {
-    setState(() => ingredients.removeAt(index));
+  // ── Form helpers ────────────────────────────────────────────────────────────
+  void _startCreate({FoodItem? preselect}) {
+    setState(() {
+      _editingRecipeId = null;
+      _selectedMenuItem = preselect;
+      _ingredients
+        ..clear()
+        ..add(RecipeIngredient());
+      _view = _View.form;
+    });
   }
+
+  void _startEdit(RecipeModel recipe) {
+    final menuItem = _menuItems.where((m) => m.id == recipe.menuItemId).firstOrNull;
+    setState(() {
+      _editingRecipeId = recipe.id;
+      _selectedMenuItem = menuItem;
+      _ingredients
+        ..clear()
+        ..addAll(recipe.ingredients.map((i) => RecipeIngredient(
+              materialId: i.materialId,
+              materialName: i.materialName,
+              quantity: _fmtQty(i.quantity),
+            )));
+      if (_ingredients.isEmpty) _ingredients.add(RecipeIngredient());
+      _view = _View.form;
+    });
+  }
+
+  static String _fmtQty(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
+  void _addIngredient() => setState(() => _ingredients.add(RecipeIngredient()));
+  void _removeIngredient(int index) => setState(() => _ingredients.removeAt(index));
 
   void _saveMapping() {
-    if (selectedMenuItem == null) return;
-    final validIngredients = ingredients
-        .where((i) => i.materialId != null && i.quantity != null && i.quantity!.isNotEmpty)
+    if (_selectedMenuItem == null) return;
+    final validIngredients = _ingredients
+        .where((i) => i.materialId != null && i.quantity != null && i.quantity!.trim().isNotEmpty)
         .map((i) => {
               'materialId': i.materialId,
               'quantity': double.tryParse(i.quantity ?? '0') ?? 0,
             })
+        .where((m) => (m['quantity'] as double) > 0)
         .toList();
-    if (validIngredients.isEmpty) return;
+    if (validIngredients.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least one ingredient with a quantity')),
+      );
+      return;
+    }
 
-    context.read<InventoryBloc>().add(AddRecipe({
-      'menuItemId': selectedMenuItem!.id,
-      'menuItemName': selectedMenuItem!.title,
+    final bloc = context.read<InventoryBloc>();
+    final payload = {
+      'menuItemId': _selectedMenuItem!.id,
       'ingredients': validIngredients,
-    }));
-    Navigator.pop(context);
+    };
+    if (_editingRecipeId != null) {
+      bloc.add(EditRecipe(_editingRecipeId!, payload));
+    } else {
+      bloc.add(AddRecipe(payload));
+    }
+    setState(() => _view = _View.list);
   }
 
-  double get _estimatedCost {
-    final materials = context.read<InventoryBloc>().state.items;
-    double total = 0;
-    for (final ing in ingredients) {
-      if (ing.materialId == null) continue;
-      final qty = double.tryParse(ing.quantity ?? '0') ?? 0;
-      final mat = materials.where((m) => m.id == ing.materialId).firstOrNull;
-      if (mat != null) {
-        total += mat.costPrice * qty;
-      }
-    }
-    return total;
+  void _confirmDelete(RecipeModel recipe) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove recipe mapping'),
+        content: Text(
+          'Remove the recipe for "${_menuItemName(recipe.menuItemId, recipe.menuItemName)}"? '
+          'Inventory will no longer be deducted for this item.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () {
+              context.read<InventoryBloc>().add(DeleteRecipe(recipe.id));
+              Navigator.pop(ctx);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -105,7 +172,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.15),
+              color: Colors.black.withValues(alpha: 0.15),
               blurRadius: 20,
               offset: const Offset(0, 10),
             ),
@@ -115,110 +182,10 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
-            _buildHeader(), // Red top border included here if needed or via Container decoration
-            // Content
+            _buildHeader(),
             Flexible(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Select Menu Item
-                    Text(
-                      'Select Menu Item',
-                      style: AirMenuTextStyle.normal.medium500().withColor(
-                        const Color(0xFF6B7280),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildMenuItemSelector(),
-                    const SizedBox(height: 24),
-
-                    // Ingredients Section Header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Ingredients',
-                          style: AirMenuTextStyle.normal.medium500().withColor(
-                            const Color(0xFF6B7280),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: _addIngredient,
-                          icon: const Icon(Icons.add, size: 16),
-                          label: const Text('Add Ingredient'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: const Color(0xFF111827),
-                            textStyle: AirMenuTextStyle.small.bold600(),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Ingredients List
-                    ...ingredients.asMap().entries.map((entry) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildIngredientRow(entry.key, entry.value),
-                      );
-                    }),
-
-                    const SizedBox(height: 32),
-
-                    // Estimated Cost
-                    Container(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      decoration: const BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: Color(0xFFE5E7EB), width: 1),
-                        ),
-                      ),
-                      child: Responsive.isMobile(context)
-                          ? Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Estimated Cost per Serving',
-                                  style: AirMenuTextStyle.large
-                                      .medium500()
-                                      .withColor(const Color(0xFF6B7280)),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '₹${_estimatedCost.toStringAsFixed(2)}',
-                                  style: AirMenuTextStyle.headingH2
-                                      .black900()
-                                      .withColor(const Color(0xFF111827)),
-                                ),
-                              ],
-                            )
-                          : Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Estimated Cost per Serving',
-                                  style: AirMenuTextStyle.large
-                                      .medium500()
-                                      .withColor(const Color(0xFF6B7280)),
-                                ),
-                                Text(
-                                  '₹${_estimatedCost.toStringAsFixed(2)}',
-                                  style: AirMenuTextStyle.headingH2
-                                      .black900()
-                                      .withColor(const Color(0xFF111827)),
-                                ),
-                              ],
-                            ),
-                    ),
-                  ],
-                ),
-              ),
+              child: _view == _View.list ? _buildListView() : _buildFormView(),
             ),
-
-            // Footer
             _buildFooter(),
           ],
         ),
@@ -226,6 +193,7 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
     );
   }
 
+  // ── Header ────────────────────────────────────────────────────────────────
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
@@ -234,15 +202,23 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
         border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Container(
-            padding: const EdgeInsets.only(top: 4), // Visual adjustment
+          if (_view == _View.form)
+            IconButton(
+              onPressed: () => setState(() => _view = _View.list),
+              icon: const Icon(Icons.arrow_back, size: 20),
+              color: const Color(0xFF6B7280),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              splashRadius: 20,
+            ),
+          if (_view == _View.form) const SizedBox(width: 8),
+          Expanded(
             child: Text(
-              'Recipe Mapping',
-              style: AirMenuTextStyle.headingH3.bold700().withColor(
-                Colors.black,
-              ),
+              _view == _View.list
+                  ? 'Recipe Mapping'
+                  : (_editingRecipeId != null ? 'Edit Recipe' : 'New Recipe'),
+              style: AirMenuTextStyle.headingH3.bold700().withColor(Colors.black),
             ),
           ),
           IconButton(
@@ -253,6 +229,270 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
             constraints: const BoxConstraints(),
             splashRadius: 20,
           ),
+        ],
+      ),
+    );
+  }
+
+  // ── List view ───────────────────────────────────────────────────────────────
+  Widget _buildListView() {
+    return BlocBuilder<InventoryBloc, InventoryState>(
+      builder: (context, state) {
+        final recipes = state.recipes;
+        final recipeByMenuId = {for (final r in recipes) r.menuItemId: r};
+
+        if (_loadingMenu) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(40),
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        final mappedCount = _menuItems.where((m) => recipeByMenuId.containsKey(m.id)).length;
+        final unmappedCount = _menuItems.length - mappedCount;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Summary strip
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  _summaryPill('$mappedCount Mapped', const Color(0xFF16A34A), const Color(0xFFDCFCE7)),
+                  const SizedBox(width: 8),
+                  _summaryPill('$unmappedCount Unmapped', const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: _menuItems.isEmpty ? null : () => _startCreate(),
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('New'),
+                    style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: _menuItems.isEmpty
+                  ? const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(40),
+                        child: Text('No menu items found for this restaurant',
+                            style: TextStyle(color: Color(0xFF6B7280))),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      itemCount: _menuItems.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) {
+                        final item = _menuItems[i];
+                        final recipe = recipeByMenuId[item.id];
+                        return _menuItemTile(item, recipe);
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _summaryPill(String text, Color fg, Color bg) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      child: Text(text, style: AirMenuTextStyle.small.bold600().withColor(fg)),
+    );
+  }
+
+  Widget _menuItemTile(FoodItem item, RecipeModel? recipe) {
+    final isMapped = recipe != null;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isMapped ? const Color(0xFFDCFCE7) : const Color(0xFFF3F4F6),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isMapped ? const Color(0xFFDCFCE7) : const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  isMapped ? Icons.check_circle_outline : Icons.link_off,
+                  size: 18,
+                  color: isMapped ? const Color(0xFF16A34A) : const Color(0xFF9CA3AF),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.title,
+                        style: AirMenuTextStyle.normal.bold600().withColor(const Color(0xFF111827)),
+                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      isMapped
+                          ? '${recipe.ingredients.length} ingredient${recipe.ingredients.length == 1 ? '' : 's'}'
+                          : 'No recipe mapped',
+                      style: AirMenuTextStyle.caption.medium500().withColor(
+                            isMapped ? const Color(0xFF16A34A) : const Color(0xFF9CA3AF),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isMapped) ...[
+                IconButton(
+                  onPressed: () => _startEdit(recipe),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  color: const Color(0xFF6B7280),
+                  splashRadius: 18,
+                  tooltip: 'Edit',
+                ),
+                IconButton(
+                  onPressed: () => _confirmDelete(recipe),
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  color: const Color(0xFFEF4444),
+                  splashRadius: 18,
+                  tooltip: 'Remove',
+                ),
+              ] else
+                TextButton(
+                  onPressed: () => _startCreate(preselect: item),
+                  child: const Text('Map recipe'),
+                ),
+            ],
+          ),
+          if (isMapped && recipe.ingredients.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: recipe.ingredients.map((ing) {
+                final name = ing.materialName.isNotEmpty ? ing.materialName : 'Item';
+                final unit = ing.materialUnit;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: Text(
+                    '$name · ${_fmtQty(ing.quantity)}${unit.isNotEmpty ? ' $unit' : ''}',
+                    style: AirMenuTextStyle.caption.medium500().withColor(const Color(0xFF374151)),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ── Form view ────────────────────────────────────────────────────────────────
+  Widget _buildFormView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Menu Item',
+              style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF6B7280))),
+          const SizedBox(height: 8),
+          _buildMenuItemSelector(),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Ingredients',
+                  style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF6B7280))),
+              TextButton.icon(
+                onPressed: _addIngredient,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Ingredient'),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF111827),
+                  textStyle: AirMenuTextStyle.small.bold600(),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ..._ingredients.asMap().entries.map((entry) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildIngredientRow(entry.key, entry.value),
+            );
+          }),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFBFDBFE)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline, size: 16, color: Color(0xFF2563EB)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Quantities are per single serving. When an order for this '
+                    'item is served, stock is reduced by quantity × number ordered.',
+                    style: AirMenuTextStyle.caption.medium500().withColor(const Color(0xFF1D4ED8)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildEstimatedCost(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEstimatedCost() {
+    final materials = context.read<InventoryBloc>().state.items;
+    double total = 0;
+    for (final ing in _ingredients) {
+      if (ing.materialId == null) continue;
+      final qty = double.tryParse(ing.quantity ?? '0') ?? 0;
+      final mat = materials.where((m) => m.id == ing.materialId).firstOrNull;
+      if (mat != null) total += mat.costPrice * qty;
+    }
+    if (total <= 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text('Estimated Cost / Serving',
+              style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF6B7280))),
+          Text('₹${total.toStringAsFixed(2)}',
+              style: AirMenuTextStyle.headingH4.black900().withColor(const Color(0xFF111827))),
         ],
       ),
     );
@@ -272,87 +512,65 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
       );
     }
 
-    final filtered = _menuItems.where((item) {
-      if (_searchQuery.isEmpty) return true;
-      return item.title.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Search + selected display
-        InkWell(
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      // When editing, the menu item is locked (the recipe is keyed to it).
+      onTap: _editingRecipeId != null ? null : () => _showMenuItemPicker(),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFAFAFA),
           borderRadius: BorderRadius.circular(12),
-          onTap: () => _showMenuItemPicker(filtered),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFAFAFA),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: selectedMenuItem != null
-                    ? const Color(0xFFEF4444)
-                    : const Color(0xFFF3F4F6),
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: selectedMenuItem != null
-                      ? Row(
-                          children: [
-                            const Icon(Icons.restaurant_menu, size: 16, color: Color(0xFFEF4444)),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                selectedMenuItem!.title,
-                                style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF111827)),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Text(
-                              '₹${selectedMenuItem!.price.toStringAsFixed(0)}',
-                              style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFF6B7280)),
-                            ),
-                          ],
-                        )
-                      : Text(
-                          _menuItems.isEmpty
-                              ? 'No menu items found'
-                              : 'Tap to select a menu item',
-                          style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF)),
-                        ),
-                ),
-                Icon(
-                  selectedMenuItem != null ? Icons.check_circle : Icons.keyboard_arrow_down,
-                  size: 18,
-                  color: selectedMenuItem != null ? const Color(0xFFEF4444) : const Color(0xFF9CA3AF),
-                ),
-              ],
-            ),
+          border: Border.all(
+            color: _selectedMenuItem != null ? const Color(0xFFEF4444) : const Color(0xFFF3F4F6),
           ),
         ),
-        if (selectedMenuItem != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: TextButton.icon(
-              onPressed: () => setState(() => selectedMenuItem = null),
-              icon: const Icon(Icons.close, size: 14),
-              label: const Text('Clear selection'),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF9CA3AF),
-                textStyle: AirMenuTextStyle.small.medium500(),
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _selectedMenuItem != null
+                  ? Row(
+                      children: [
+                        const Icon(Icons.restaurant_menu, size: 16, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            _selectedMenuItem!.title,
+                            style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF111827)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text('₹${_selectedMenuItem!.price.toStringAsFixed(0)}',
+                            style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFF6B7280))),
+                      ],
+                    )
+                  : Text(
+                      _menuItems.isEmpty ? 'No menu items found' : 'Tap to select a menu item',
+                      style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF)),
+                    ),
             ),
-          ),
-      ],
+            Icon(
+              _editingRecipeId != null
+                  ? Icons.lock_outline
+                  : (_selectedMenuItem != null ? Icons.check_circle : Icons.keyboard_arrow_down),
+              size: 18,
+              color: _selectedMenuItem != null ? const Color(0xFFEF4444) : const Color(0xFF9CA3AF),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
-  void _showMenuItemPicker(List<FoodItem> items) {
+  void _showMenuItemPicker() {
+    // Menu items that already have a recipe (excluding the one being edited).
+    final mappedIds = context
+        .read<InventoryBloc>()
+        .state
+        .recipes
+        .map((r) => r.menuItemId)
+        .toSet();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -375,10 +593,10 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
               maxChildSize: 0.9,
               builder: (_, controller) => Column(
                 children: [
-                  // Handle
                   Container(
                     margin: const EdgeInsets.symmetric(vertical: 12),
-                    width: 40, height: 4,
+                    width: 40,
+                    height: 4,
                     decoration: BoxDecoration(
                       color: Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(2),
@@ -406,24 +624,46 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
                             itemCount: filtered.length,
                             itemBuilder: (_, i) {
                               final item = filtered[i];
-                              final isSelected = selectedMenuItem?.id == item.id;
+                              final isSelected = _selectedMenuItem?.id == item.id;
+                              final alreadyMapped = mappedIds.contains(item.id);
                               return ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor: const Color(0xFFFEF2F2),
                                   child: Text(
                                     item.title.isNotEmpty ? item.title[0].toUpperCase() : '?',
-                                    style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                        color: Color(0xFFEF4444), fontWeight: FontWeight.bold),
                                   ),
                                 ),
-                                title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                subtitle: Text('₹${item.price.toStringAsFixed(0)}',
-                                    style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+                                title: Text(item.title,
+                                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                                subtitle: Text(
+                                  alreadyMapped
+                                      ? 'Already mapped · selecting will edit it'
+                                      : '₹${item.price.toStringAsFixed(0)}',
+                                  style: TextStyle(
+                                    color: alreadyMapped ? const Color(0xFFF59E0B) : const Color(0xFF6B7280),
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 trailing: isSelected
                                     ? const Icon(Icons.check_circle, color: Color(0xFFEF4444))
                                     : null,
                                 onTap: () {
-                                  setState(() => selectedMenuItem = item);
                                   Navigator.pop(ctx);
+                                  // If the picked item is already mapped, switch
+                                  // into edit mode for that recipe instead.
+                                  final existing = context
+                                      .read<InventoryBloc>()
+                                      .state
+                                      .recipes
+                                      .where((r) => r.menuItemId == item.id)
+                                      .firstOrNull;
+                                  if (existing != null) {
+                                    _startEdit(existing);
+                                  } else {
+                                    setState(() => _selectedMenuItem = item);
+                                  }
                                 },
                               );
                             },
@@ -442,50 +682,39 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
     final materials = context.watch<InventoryBloc>().state.items;
     final isMobile = Responsive.isMobile(context);
 
-    final materialDropdown = DropdownButtonFormField<InventoryItem>(
-      initialValue: materials.where((m) => m.id == ingredient.materialId).firstOrNull,
-      hint: Text('Select Ingredient', style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF))),
+    final materialDropdown = DropdownButtonFormField<String>(
+      initialValue: materials.any((m) => m.id == ingredient.materialId) ? ingredient.materialId : null,
+      isExpanded: true,
+      hint: Text('Select Ingredient',
+          style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF9CA3AF))),
       onChanged: (val) => setState(() {
-        ingredient.materialId = val?.id;
-        ingredient.materialName = val?.name;
+        final m = materials.where((m) => m.id == val).firstOrNull;
+        ingredient.materialId = val;
+        ingredient.materialName = m?.name;
       }),
-      items: materials.map((m) => DropdownMenuItem(
-        value: m,
-        child: Text('${m.name} (${m.unit})', style: AirMenuTextStyle.normal.medium500(), overflow: TextOverflow.ellipsis),
-      )).toList(),
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
-        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444))),
-        fillColor: Colors.white,
-        filled: true,
-      ),
+      items: materials
+          .map((m) => DropdownMenuItem(
+                value: m.id,
+                child: Text('${m.name} (${m.unit})',
+                    style: AirMenuTextStyle.normal.medium500(), overflow: TextOverflow.ellipsis),
+              ))
+          .toList(),
+      decoration: _fieldDecoration(),
       dropdownColor: Colors.white,
       icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF9CA3AF), size: 18),
     );
 
     final qtyField = TextFormField(
       initialValue: ingredient.quantity,
-      keyboardType: TextInputType.number,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
       textAlign: TextAlign.center,
-      onChanged: (val) => ingredient.quantity = val,
-      decoration: InputDecoration(
-        isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
-        hintText: 'Qty',
-        hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
-        fillColor: Colors.white,
-        filled: true,
-      ),
+      onChanged: (val) => setState(() => ingredient.quantity = val),
+      decoration: _fieldDecoration(hint: 'Qty'),
       style: AirMenuTextStyle.normal.medium500(),
     );
 
     final removeBtn = IconButton(
-      onPressed: () => _removeIngredient(index),
+      onPressed: _ingredients.length > 1 ? () => _removeIngredient(index) : null,
       icon: const Icon(Icons.close, size: 18),
       color: const Color(0xFFEF4444),
       splashRadius: 20,
@@ -519,80 +748,48 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
     ]);
   }
 
-  Widget _buildFooter() {
-    bool isMobile = Responsive.isMobile(context);
+  InputDecoration _fieldDecoration({String? hint}) => InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF3F4F6))),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFEF4444))),
+        hintText: hint,
+        hintStyle: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+        fillColor: Colors.white,
+        filled: true,
+      );
 
-    if (isMobile) {
+  // ── Footer ───────────────────────────────────────────────────────────────────
+  Widget _buildFooter() {
+    if (_view == _View.list) {
       return Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
         ),
-        child: Column(
-          children: [
-            // Save Button (Full Width)
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
-                ),
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFEF4444).withOpacity(0.3),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ElevatedButton(
-                onPressed: _saveMapping,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: Text(
-                  'Save Mapping',
-                  style: AirMenuTextStyle.normal.bold600().withColor(
-                    Colors.white,
-                  ),
-                ),
-              ),
+        child: SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => Navigator.pop(context),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF374151),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: const BorderSide(color: Color(0xFFE5E7EB)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            const SizedBox(height: 12),
-            // Cancel Button (Full Width)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF374151),
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  elevation: 2,
-                  shadowColor: Colors.black.withOpacity(0.1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    side: const BorderSide(color: Color(0xFFE5E7EB)),
-                  ),
-                ),
-                child: Text('Cancel', style: AirMenuTextStyle.normal.bold600()),
-              ),
-            ),
-          ],
+            child: Text('Close', style: AirMenuTextStyle.normal.bold600()),
+          ),
         ),
       );
     }
 
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(16),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(20)),
@@ -600,60 +797,21 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          // Cancel Button
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.white,
-              foregroundColor: const Color(0xFF374151),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              elevation: 2,
-              shadowColor: Colors.black.withOpacity(0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-                side: const BorderSide(color: Color(0xFFE5E7EB)),
-              ),
-            ),
-            child: Text('Cancel', style: AirMenuTextStyle.normal.bold600()),
+          TextButton(
+            onPressed: () => setState(() => _view = _View.list),
+            child: Text('Cancel', style: AirMenuTextStyle.normal.bold600().withColor(const Color(0xFF374151))),
           ),
-          const SizedBox(width: 16),
-
-          // Save Button
-          Container(
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFDC2626), Color(0xFFEF4444)],
-              ),
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFEF4444).withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: _selectedMenuItem == null ? null : _saveMapping,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: ElevatedButton(
-              onPressed: _saveMapping,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: Text(
-                'Save Mapping',
-                style: AirMenuTextStyle.normal.bold600().withColor(
-                  Colors.white,
-                ),
-              ),
-            ),
+            child: Text(_editingRecipeId != null ? 'Update Recipe' : 'Save Recipe',
+                style: AirMenuTextStyle.normal.bold600().withColor(Colors.white)),
           ),
         ],
       ),

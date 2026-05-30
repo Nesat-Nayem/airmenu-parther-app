@@ -245,18 +245,21 @@ class InventoryTransaction {
 class RecipeIngredientModel {
   final String materialId;
   final String materialName;
+  final String materialUnit;
   final double quantity;
 
   const RecipeIngredientModel({
     required this.materialId,
     this.materialName = '',
+    this.materialUnit = '',
     required this.quantity,
   });
 
   factory RecipeIngredientModel.fromJson(Map<String, dynamic> json) {
     return RecipeIngredientModel(
       materialId: (json['materialId'] ?? '').toString(),
-      materialName: json['materialName'] ?? '',
+      materialName: (json['materialName'] ?? '').toString(),
+      materialUnit: (json['materialUnit'] ?? '').toString(),
       quantity: (json['quantity'] ?? 0).toDouble(),
     );
   }
@@ -271,6 +274,7 @@ class RecipeIngredientModel {
 class RecipeModel {
   final String id;
   final String menuItemId;
+  final String menuItemName;
   final String variant;
   final double yieldQty;
   final List<RecipeIngredientModel> ingredients;
@@ -278,6 +282,7 @@ class RecipeModel {
   const RecipeModel({
     required this.id,
     required this.menuItemId,
+    this.menuItemName = '',
     this.variant = 'default',
     this.yieldQty = 1,
     this.ingredients = const [],
@@ -286,7 +291,8 @@ class RecipeModel {
   factory RecipeModel.fromJson(Map<String, dynamic> json) {
     return RecipeModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
-      menuItemId: json['menuItemId'] ?? '',
+      menuItemId: (json['menuItemId'] ?? '').toString(),
+      menuItemName: (json['menuItemName'] ?? '').toString(),
       variant: json['variant'] ?? 'default',
       yieldQty: (json['yield'] ?? 1).toDouble(),
       ingredients: (json['ingredients'] as List? ?? [])

@@ -166,7 +166,8 @@ class InventoryRepository {
 
   Future<DataState<List<RecipeModel>>> getRecipes({String? menuItemId}) async {
     try {
-      final p = menuItemId != null ? {'menuItemId': menuItemId} : <String, String>{};
+      final p = <String, String>{'details': 'true'};
+      if (menuItemId != null) p['menuItemId'] = menuItemId;
       final res = await _api.invoke(
         urlPath: '${ApiEndpoints.inventoryRecipes}${_buildQuery(p)}',
         type: RequestType.get,

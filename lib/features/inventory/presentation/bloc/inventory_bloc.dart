@@ -307,7 +307,12 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
     emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
     final res = await _repo.createRecipe(event.data);
     if (res is DataSuccess<RecipeModel>) {
-      emit(state.copyWith(isActionLoading: false, recipes: [res.data!, ...state.recipes], successMessage: 'Recipe saved'));
+      // Reload with details so menu item / ingredient names are populated.
+      final recipesRes = await _repo.getRecipes();
+      final recipes = recipesRes is DataSuccess<List<RecipeModel>>
+          ? recipesRes.data!
+          : [res.data!, ...state.recipes];
+      emit(state.copyWith(isActionLoading: false, recipes: recipes, successMessage: 'Recipe saved'));
     } else {
       emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to save recipe'));
     }
@@ -317,8 +322,12 @@ class InventoryBloc extends Bloc<InventoryEvent, InventoryState> {
     emit(state.copyWith(isActionLoading: true, errorMessage: null, successMessage: null));
     final res = await _repo.updateRecipe(event.id, event.data);
     if (res is DataSuccess<RecipeModel>) {
-      final updated = state.recipes.map((r) => r.id == event.id ? res.data! : r).toList();
-      emit(state.copyWith(isActionLoading: false, recipes: updated, successMessage: 'Recipe updated'));
+      // Reload with details so menu item / ingredient names stay populated.
+      final recipesRes = await _repo.getRecipes();
+      final recipes = recipesRes is DataSuccess<List<RecipeModel>>
+          ? recipesRes.data!
+          : state.recipes.map((r) => r.id == event.id ? res.data! : r).toList();
+      emit(state.copyWith(isActionLoading: false, recipes: recipes, successMessage: 'Recipe updated'));
     } else {
       emit(state.copyWith(isActionLoading: false, errorMessage: res.error?.message ?? 'Failed to update recipe'));
     }
