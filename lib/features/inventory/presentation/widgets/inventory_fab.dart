@@ -131,24 +131,24 @@ class _InventoryFABState extends State<InventoryFAB>
                           widget.onStockIn();
                         },
                       ),
-                      const SizedBox(height: 16),
-                      _buildMenuOption(
-                        label: 'Scan Out',
-                        icon: Icons.qr_code_scanner,
-                        color: const Color(0xFFEAB308), // Yellow
-                        onTap: () {
-                          widget.onScanOut();
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildMenuOption(
-                        label: 'Scan In',
-                        icon: Icons.qr_code_scanner,
-                        color: const Color(0xFF10B981), // Green
-                        onTap: () {
-                          widget.onScanIn();
-                        },
-                      ),
+                      // const SizedBox(height: 16),
+                      // _buildMenuOption(
+                      //   label: 'Scan Out',
+                      //   icon: Icons.qr_code_scanner,
+                      //   color: const Color(0xFFEAB308), // Yellow
+                      //   onTap: () {
+                      //     widget.onScanOut();
+                      //   },
+                      // ),
+                      // const SizedBox(height: 16),
+                      // _buildMenuOption(
+                      //   label: 'Scan In',
+                      //   icon: Icons.qr_code_scanner,
+                      //   color: const Color(0xFF10B981), // Green
+                      //   onTap: () {
+                      //     widget.onScanIn();
+                      //   },
+                      // ),
                     ],
                   ),
                 ),
