@@ -183,6 +183,7 @@ class InventoryTransaction {
   final String id;
   final String materialId;
   final String materialName;
+  final String materialUnit;
   final String type; // purchase | adjustment | consume | wastage | return
   final double quantity;
   final double unitCost;
@@ -194,6 +195,7 @@ class InventoryTransaction {
     required this.id,
     required this.materialId,
     this.materialName = '',
+    this.materialUnit = '',
     required this.type,
     required this.quantity,
     this.unitCost = 0,
@@ -203,10 +205,23 @@ class InventoryTransaction {
   });
 
   factory InventoryTransaction.fromJson(Map<String, dynamic> json) {
+    // materialId may be a populated object ({_id, name, unit}) or a raw id.
+    final rawMat = json['materialId'];
+    String matId = '';
+    String matName = (json['materialName'] ?? '').toString();
+    String matUnit = (json['materialUnit'] ?? '').toString();
+    if (rawMat is Map) {
+      matId = (rawMat['_id'] ?? '').toString();
+      if (matName.isEmpty) matName = (rawMat['name'] ?? '').toString();
+      if (matUnit.isEmpty) matUnit = (rawMat['unit'] ?? '').toString();
+    } else if (rawMat != null) {
+      matId = rawMat.toString();
+    }
     return InventoryTransaction(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
-      materialId: (json['materialId'] ?? '').toString(),
-      materialName: json['materialName'] ?? '',
+      materialId: matId,
+      materialName: matName,
+      materialUnit: matUnit,
       type: json['type'] ?? 'adjustment',
       quantity: (json['quantity'] ?? 0).toDouble(),
       unitCost: (json['unitCost'] ?? 0).toDouble(),

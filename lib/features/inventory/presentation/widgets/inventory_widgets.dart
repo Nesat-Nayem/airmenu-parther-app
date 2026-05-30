@@ -973,13 +973,22 @@ class _InventoryDashboardSecondaryWidgetsState
               ),
             )
           else
-            ...(_purchaseOrders.take(5).map((tx) => _buildPORow(tx))),
-          if (_purchaseOrders.length > 5)
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(
-                '+ ${_purchaseOrders.length - 5} more',
-                style: const TextStyle(color: Colors.grey, fontSize: 12),
+            // Show every purchase order. Once the list grows past a handful of
+            // rows it becomes its own scroll area so the dashboard card keeps a
+            // sensible height instead of stretching down the page.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: Scrollbar(
+                thumbVisibility: _purchaseOrders.length > 5,
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  physics: _purchaseOrders.length > 5
+                      ? const ClampingScrollPhysics()
+                      : const NeverScrollableScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  itemCount: _purchaseOrders.length,
+                  itemBuilder: (context, i) => _buildPORow(_purchaseOrders[i]),
+                ),
               ),
             ),
         ],
@@ -1066,6 +1075,7 @@ class _InventoryDashboardSecondaryWidgetsState
   Widget _buildPORow(InventoryTransaction tx) {
     final dateStr = DateFormat('dd MMM yyyy').format(tx.createdAt);
     final name = tx.materialName.isNotEmpty ? tx.materialName : 'Item';
+    final unitLabel = tx.materialUnit.isNotEmpty ? tx.materialUnit : 'units';
     final total = tx.totalCost > 0 ? tx.totalCost : tx.unitCost * tx.quantity;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -1094,17 +1104,19 @@ class _InventoryDashboardSecondaryWidgetsState
                 Text(name,
                     style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary),
                     overflow: TextOverflow.ellipsis),
-                Text('${tx.quantity.toStringAsFixed(0)} units · $dateStr',
+                Text('${tx.quantity.toStringAsFixed(0)} $unitLabel · $dateStr',
                     style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary)),
               ],
             ),
           ),
-          if (total > 0)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Text('₹${total.toStringAsFixed(0)}',
-                  style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary)),
-            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: total > 0
+                ? Text('₹${total.toStringAsFixed(0)}',
+                    style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary))
+                : Text('Set price',
+                    style: AirMenuTextStyle.caption.medium500().withColor(const Color(0xFFEF4444))),
+          ),
           InkWell(
             onTap: () => _openEditPO(tx),
             borderRadius: BorderRadius.circular(6),
@@ -1300,13 +1312,28 @@ class _EditPurchaseOrderDialogState extends State<_EditPurchaseOrderDialog> {
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
 
+  // Formats a double without a trailing ".0" so the input reads "10" not "10.0".
+  static String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
+  double get _livePreviewTotal {
+    final qty = double.tryParse(_qtyController.text.trim()) ?? 0;
+    final cost = double.tryParse(_unitCostController.text.trim()) ?? 0;
+    return qty * cost;
+  }
+
   @override
   void initState() {
     super.initState();
-    _qtyController = TextEditingController(text: widget.transaction.quantity.toString());
-    _unitCostController = TextEditingController(text: widget.transaction.unitCost.toString());
+    _qtyController = TextEditingController(text: _fmt(widget.transaction.quantity));
+    _unitCostController = TextEditingController(text: _fmt(widget.transaction.unitCost));
     _noteController = TextEditingController(text: widget.transaction.note);
+    // Recompute the live total as the user types.
+    _qtyController.addListener(_onValuesChanged);
+    _unitCostController.addListener(_onValuesChanged);
   }
+
+  void _onValuesChanged() => setState(() {});
 
   @override
   void dispose() {
@@ -1387,10 +1414,39 @@ class _EditPurchaseOrderDialogState extends State<_EditPurchaseOrderDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                name,
-                style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFF6B7280)),
+              const SizedBox(height: 12),
+              // Item is shown read-only: changing which material a stock
+              // transaction belongs to would require reversing/re-applying
+              // stock, so edits are limited to quantity, cost and note.
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Item',
+                        style: AirMenuTextStyle.caption.medium500().withColor(const Color(0xFF9CA3AF))),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        const Icon(Icons.shopping_cart_outlined, size: 16, color: Color(0xFF6B7280)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            name,
+                            style: AirMenuTextStyle.normal.bold600().withColor(const Color(0xFF111827)),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 16),
               _EditPOField(
@@ -1420,6 +1476,31 @@ class _EditPurchaseOrderDialogState extends State<_EditPurchaseOrderDialog> {
                 label: 'Note',
                 controller: _noteController,
                 maxLines: 2,
+              ),
+              const SizedBox(height: 16),
+              // Live total preview so the price is visible while editing — this
+              // is why a freshly added PO with no unit cost shows no price until
+              // a cost is entered here.
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Total',
+                      style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF374151)),
+                    ),
+                    Text(
+                      '₹${_livePreviewTotal.toStringAsFixed(0)}',
+                      style: AirMenuTextStyle.headingH4.bold700().withColor(const Color(0xFFEF4444)),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 20),
               Row(
