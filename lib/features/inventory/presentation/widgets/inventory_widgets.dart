@@ -511,10 +511,11 @@ class InventoryItemsTable extends StatelessWidget {
                         Expanded(
                           flex: 3,
                           child: Text(
-                            item.vendor,
+                            item.vendor.isNotEmpty ? item.vendor : '—',
                             style: AirMenuTextStyle.normal.withColor(
                               Colors.grey.shade600,
                             ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],

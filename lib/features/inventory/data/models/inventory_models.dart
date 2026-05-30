@@ -52,6 +52,11 @@ class InventoryItem {
   final double minStock;
   final String unit;
   final String hotelId;
+  // Backed by nullable storage so legacy/stale instances (e.g. after a hot
+  // reload) or a null from the API never throw a type error. Read them through
+  // the [vendorId] / [vendorName] getters which coalesce to ''.
+  final String? _vendorId;
+  final String? _vendorName;
 
   const InventoryItem({
     required this.id,
@@ -64,7 +69,13 @@ class InventoryItem {
     this.minStock = 0,
     required this.unit,
     this.hotelId = '',
-  });
+    String? vendorId,
+    String? vendorName,
+  })  : _vendorId = vendorId,
+        _vendorName = vendorName;
+
+  String get vendorId => _vendorId ?? '';
+  String get vendorName => _vendorName ?? '';
 
   StockStatus get status {
     if (currentStock <= 0) return StockStatus.critical;
@@ -84,10 +95,20 @@ class InventoryItem {
     return ConsumptionLevel.low;
   }
 
-  String get vendor => '';
+  String get vendor => vendorName;
   double get costPrice => 0;
 
   factory InventoryItem.fromJson(Map<String, dynamic> json) {
+    // vendorId may be a populated object ({_id, companyName}) or a raw id string.
+    final rawVendor = json['vendorId'];
+    String vId = '';
+    String vName = '';
+    if (rawVendor is Map) {
+      vId = (rawVendor['_id'] ?? '').toString();
+      vName = (rawVendor['companyName'] ?? '').toString();
+    } else if (rawVendor != null) {
+      vId = rawVendor.toString();
+    }
     return InventoryItem(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       name: json['name'] ?? '',
@@ -99,6 +120,8 @@ class InventoryItem {
       minStock: (json['minStock'] ?? 0).toDouble(),
       unit: json['unit'] ?? 'pcs',
       hotelId: (json['hotelId'] ?? '').toString(),
+      vendorId: vId,
+      vendorName: vName,
     );
   }
 
@@ -110,6 +133,7 @@ class InventoryItem {
     'openingStock': openingStock,
     'reorderLevel': reorderLevel,
     'minStock': minStock,
+    if (vendorId.isNotEmpty) 'vendorId': vendorId,
   };
 
   Map<String, dynamic> toUpdateJson() => {
@@ -120,6 +144,7 @@ class InventoryItem {
     'currentStock': currentStock,
     'reorderLevel': reorderLevel,
     'minStock': minStock,
+    if (vendorId.isNotEmpty) 'vendorId': vendorId,
   };
 
   InventoryItem copyWith({
@@ -133,6 +158,8 @@ class InventoryItem {
     double? minStock,
     String? unit,
     String? hotelId,
+    String? vendorId,
+    String? vendorName,
   }) {
     return InventoryItem(
       id: id ?? this.id,
@@ -145,6 +172,8 @@ class InventoryItem {
       minStock: minStock ?? this.minStock,
       unit: unit ?? this.unit,
       hotelId: hotelId ?? this.hotelId,
+      vendorId: vendorId ?? this.vendorId,
+      vendorName: vendorName ?? this.vendorName,
     );
   }
 }

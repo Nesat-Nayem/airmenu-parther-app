@@ -41,13 +41,16 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
     final qty = double.tryParse(_quantityController.text.trim());
     if (qty == null || qty <= 0) return;
 
-    final txnType = widget.isStockIn ? 'purchase' : 'adjustment';
-    context.read<InventoryBloc>().add(CreateTransaction({
+    // Stock In adds via a 'purchase'; Stock Out removes via an 'adjustment'
+    // flagged with direction 'out' so the backend subtracts the quantity.
+    final body = <String, dynamic>{
       'materialId': selectedIngredient!.id,
-      'type': txnType,
+      'type': widget.isStockIn ? 'purchase' : 'adjustment',
+      if (!widget.isStockIn) 'direction': 'out',
       'quantity': qty,
       if (_notesController.text.trim().isNotEmpty) 'note': _notesController.text.trim(),
-    }));
+    };
+    context.read<InventoryBloc>().add(CreateTransaction(body));
     Navigator.pop(context);
   }
 

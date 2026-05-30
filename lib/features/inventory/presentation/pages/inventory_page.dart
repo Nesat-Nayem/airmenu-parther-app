@@ -40,7 +40,32 @@ class InventoryPageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<InventoryBloc, InventoryState>(
+    return BlocConsumer<InventoryBloc, InventoryState>(
+      listenWhen: (prev, curr) =>
+          prev.successMessage != curr.successMessage ||
+          prev.errorMessage != curr.errorMessage,
+      listener: (context, state) {
+        final messenger = ScaffoldMessenger.of(context);
+        if (state.successMessage != null) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(state.successMessage!),
+              backgroundColor: InventoryColors.successGreen,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        } else if (state.errorMessage != null) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text(state.errorMessage!),
+              backgroundColor: InventoryColors.primaryRed,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      },
       builder: (context, state) {
         if (state.isLoading && state.items.isEmpty) {
           return const Scaffold(
@@ -53,134 +78,164 @@ class InventoryPageView extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: InventoryColors.bgLight,
-          body: Builder(
-            builder: (innerContext) {
-              return CustomScrollView(
-                slivers: [
-                  SliverPadding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isMobile ? 12 : 32,
-                      vertical: isMobile ? 16 : 20, // Reduced from 24
-                    ),
-                    sliver: SliverList(
-                      delegate: SliverChildListDelegate([
-                        // Stats Cards Grid
-                        const _InventoryStatsGrid(),
-                        const SizedBox(height: 20), // Reduced from 24
-                        // Critical Alert
-                        CriticalItemsAlert(
-                          criticalItems: state.items
-                              .where((i) => i.status == StockStatus.critical)
-                              .toList(),
-                          onCreatePO: () {
-                            showDialog(
-                              context: innerContext,
-                              builder: (context) => BulkPurchaseOrderDialog(
-                                criticalItems: state.items
-                                    .where(
-                                      (i) => i.status == StockStatus.critical,
-                                    )
-                                    .toList(),
-                              ),
-                            );
-                          },
+          body: Stack(
+            children: [
+              Builder(
+                builder: (innerContext) {
+                  return CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isMobile ? 12 : 32,
+                          vertical: isMobile ? 16 : 20, // Reduced from 24
                         ),
+                        sliver: SliverList(
+                          delegate: SliverChildListDelegate([
+                            // Stats Cards Grid
+                            const _InventoryStatsGrid(),
+                            const SizedBox(height: 20), // Reduced from 24
+                            // Critical Alert
+                            CriticalItemsAlert(
+                              criticalItems: state.items
+                                  .where((i) => i.status == StockStatus.critical)
+                                  .toList(),
+                              onCreatePO: () {
+                                showDialog(
+                                  context: innerContext,
+                                  builder: (context) => BulkPurchaseOrderDialog(
+                                    criticalItems: state.items
+                                        .where(
+                                          (i) => i.status == StockStatus.critical,
+                                        )
+                                        .toList(),
+                                  ),
+                                ).then((_) {
+                                  if (innerContext.mounted) {
+                                    innerContext
+                                        .read<InventoryBloc>()
+                                        .add(RefreshInventory());
+                                  }
+                                });
+                              },
+                            ),
 
-                        // Search Bar with Filters
-                        InventorySearchBar(
-                          searchQuery: state.searchQuery,
-                          onSearchChanged: (query) => context
-                              .read<InventoryBloc>()
-                              .add(UpdateSearchQuery(query)),
-                          categoryFilter: state.categoryFilter,
-                          onCategoryChanged: (category) => context
-                              .read<InventoryBloc>()
-                              .add(UpdateCategoryFilter(category)),
-                          statusFilter: state.statusFilter,
-                          onStatusChanged: (status) => context
-                              .read<InventoryBloc>()
-                              .add(UpdateStatusFilter(status)),
-                          isCompactView: state.isCompactView,
-                          onToggleCompact: () => context
-                              .read<InventoryBloc>()
-                              .add(ToggleCompactView()),
-                          onCostAnalysis: () {
-                            showDialog(
-                              context: innerContext,
-                              builder: (context) =>
-                                  const SupplierPriceComparisonDialog(),
-                            );
-                          },
-                          onForecast: () {
-                            showDialog(
-                              context: innerContext,
-                              builder: (context) =>
-                                  const InventoryForecastingDialog(),
-                            );
-                          },
-                          onLocations: () {
-                            showDialog(
-                              context: innerContext,
-                              builder: (context) =>
-                                  const InventoryLocationsMainDialog(),
-                            );
-                          },
-                          onExport: () {
-                            showDialog(
-                              context: innerContext,
-                              builder: (context) =>
-                                  const InventoryExportDialog(),
-                            );
-                          },
-                          onVendors: () {
-                            showDialog(
-                              context: innerContext,
-                              builder: (context) =>
-                                  const VendorManagementDialog(),
-                            );
-                          },
-                          onShortcuts: () {
-                            // TODO: Show shortcuts dialog
-                          },
-                        ),
-                        const SizedBox(height: 24),
+                            // Search Bar with Filters
+                            InventorySearchBar(
+                              searchQuery: state.searchQuery,
+                              onSearchChanged: (query) => context
+                                  .read<InventoryBloc>()
+                                  .add(UpdateSearchQuery(query)),
+                              categoryFilter: state.categoryFilter,
+                              onCategoryChanged: (category) => context
+                                  .read<InventoryBloc>()
+                                  .add(UpdateCategoryFilter(category)),
+                              statusFilter: state.statusFilter,
+                              onStatusChanged: (status) => context
+                                  .read<InventoryBloc>()
+                                  .add(UpdateStatusFilter(status)),
+                              isCompactView: state.isCompactView,
+                              onToggleCompact: () => context
+                                  .read<InventoryBloc>()
+                                  .add(ToggleCompactView()),
+                              onCostAnalysis: () {
+                                showDialog(
+                                  context: innerContext,
+                                  builder: (context) =>
+                                      const SupplierPriceComparisonDialog(),
+                                );
+                              },
+                              onForecast: () {
+                                showDialog(
+                                  context: innerContext,
+                                  builder: (context) =>
+                                      const InventoryForecastingDialog(),
+                                );
+                              },
+                              onLocations: () {
+                                showDialog(
+                                  context: innerContext,
+                                  builder: (context) =>
+                                      const InventoryLocationsMainDialog(),
+                                );
+                              },
+                              onExport: () {
+                                showDialog(
+                                  context: innerContext,
+                                  builder: (context) =>
+                                      const InventoryExportDialog(),
+                                );
+                              },
+                              onVendors: () {
+                                showDialog(
+                                  context: innerContext,
+                                  builder: (context) =>
+                                      const VendorManagementDialog(),
+                                );
+                              },
+                              onShortcuts: () {
+                                // TODO: Show shortcuts dialog
+                              },
+                            ),
+                            const SizedBox(height: 24),
 
-                        // Inventory Table
-                        InventoryItemsTable(
-                          items: state.filteredItems,
-                          isCompactView: state.isCompactView,
-                          onRestock: (item) {
-                            showDialog(
-                              context: innerContext,
-                              builder: (_) => BlocProvider.value(
-                                value: innerContext.read<InventoryBloc>(),
-                                child: ManualStockDialog(
-                                  isStockIn: true,
-                                  preselectedItem: item,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 20),
+                            // Inventory Table
+                            InventoryItemsTable(
+                              items: state.filteredItems,
+                              isCompactView: state.isCompactView,
+                              onRestock: (item) {
+                                showDialog(
+                                  context: innerContext,
+                                  builder: (_) => BlocProvider.value(
+                                    value: innerContext.read<InventoryBloc>(),
+                                    child: ManualStockDialog(
+                                      isStockIn: true,
+                                      preselectedItem: item,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 20),
 
-                        // Secondary Widgets (Recipe Mapping)
-                        InventoryDashboardSecondaryWidgets(
-                          onNewPO: () {
-                            showDialog(
-                              context: innerContext,
-                              builder: (context) =>
-                                  const CreatePurchaseOrderDialog(),
-                            );
-                          },
+                            // Secondary Widgets (Recipe Mapping)
+                            InventoryDashboardSecondaryWidgets(
+                              onNewPO: () {
+                                showDialog(
+                                  context: innerContext,
+                                  builder: (_) =>
+                                      const CreatePurchaseOrderDialog(),
+                                ).then((_) {
+                                  if (innerContext.mounted) {
+                                    innerContext
+                                        .read<InventoryBloc>()
+                                        .add(RefreshInventory());
+                                  }
+                                });
+                              },
+                            ),
+                            const SizedBox(height: 32),
+                          ]),
                         ),
-                        const SizedBox(height: 32),
-                      ]),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              // Action-loading overlay for create/update/delete/stock operations
+              if (state.isActionLoading)
+                Positioned.fill(
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          InventoryColors.primaryRed,
+                        ),
+                      ),
                     ),
                   ),
-                ],
-              );
-            },
+                ),
+            ],
           ),
           floatingActionButton: InventoryFAB(
             onAddItem: () {
@@ -195,31 +250,41 @@ class InventoryPageView extends StatelessWidget {
             onCreatePO: () {
               showDialog(
                 context: context,
-                builder: (context) => const CreatePurchaseOrderDialog(),
-              );
+                builder: (_) => const CreatePurchaseOrderDialog(),
+              ).then((_) {
+                if (context.mounted) {
+                  context.read<InventoryBloc>().add(RefreshInventory());
+                }
+              });
             },
             onStockOut: () {
               showDialog(
                 context: context,
-                builder: (context) => const ManualStockDialog(isStockIn: false),
+                builder: (_) => BlocProvider.value(
+                  value: context.read<InventoryBloc>(),
+                  child: const ManualStockDialog(isStockIn: false),
+                ),
               );
             },
             onStockIn: () {
               showDialog(
                 context: context,
-                builder: (context) => const ManualStockDialog(isStockIn: true),
+                builder: (_) => BlocProvider.value(
+                  value: context.read<InventoryBloc>(),
+                  child: const ManualStockDialog(isStockIn: true),
+                ),
               );
             },
             onScanOut: () {
               showDialog(
                 context: context,
-                builder: (context) => const ScanStockDialog(isStockIn: false),
+                builder: (_) => const ScanStockDialog(isStockIn: false),
               );
             },
             onScanIn: () {
               showDialog(
                 context: context,
-                builder: (context) => const ScanStockDialog(isStockIn: true),
+                builder: (_) => const ScanStockDialog(isStockIn: true),
               );
             },
           ),
