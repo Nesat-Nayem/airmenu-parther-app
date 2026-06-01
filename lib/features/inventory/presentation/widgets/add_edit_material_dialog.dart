@@ -24,8 +24,6 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
   late TextEditingController _skuCtrl;
   late TextEditingController _categoryCtrl;
   late TextEditingController _openingStockCtrl;
-  late TextEditingController _reorderLevelCtrl;
-  late TextEditingController _minStockCtrl;
   String _unit = 'kg';
   String? _vendorId;
 
@@ -44,8 +42,6 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
     _skuCtrl = TextEditingController(text: item?.sku ?? '');
     _categoryCtrl = TextEditingController(text: item?.category ?? '');
     _openingStockCtrl = TextEditingController(text: isEditing ? item!.currentStock.toString() : '0');
-    _reorderLevelCtrl = TextEditingController(text: item?.reorderLevel.toString() ?? '0');
-    _minStockCtrl = TextEditingController(text: item?.minStock.toString() ?? '0');
     _unit = item?.unit ?? 'kg';
     _vendorId = (item?.vendorId.isNotEmpty ?? false) ? item!.vendorId : null;
     _loadVendors();
@@ -72,8 +68,6 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
     _skuCtrl.dispose();
     _categoryCtrl.dispose();
     _openingStockCtrl.dispose();
-    _reorderLevelCtrl.dispose();
-    _minStockCtrl.dispose();
     super.dispose();
   }
 
@@ -87,8 +81,6 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
         if (_categoryCtrl.text.trim().isNotEmpty) 'category': _categoryCtrl.text.trim(),
         'unit': _unit,
         'currentStock': double.tryParse(_openingStockCtrl.text) ?? 0,
-        'reorderLevel': double.tryParse(_reorderLevelCtrl.text) ?? 0,
-        'minStock': double.tryParse(_minStockCtrl.text) ?? 0,
         'vendorId': _vendorId,
       }));
     } else {
@@ -98,8 +90,6 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
         if (_categoryCtrl.text.trim().isNotEmpty) 'category': _categoryCtrl.text.trim(),
         'unit': _unit,
         'openingStock': double.tryParse(_openingStockCtrl.text) ?? 0,
-        'reorderLevel': double.tryParse(_reorderLevelCtrl.text) ?? 0,
-        'minStock': double.tryParse(_minStockCtrl.text) ?? 0,
         if (_vendorId != null) 'vendorId': _vendorId,
       }));
     }
@@ -166,12 +156,6 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
                         _openingStockCtrl,
                       ),
                     ),
-                  ]),
-                  const SizedBox(height: 14),
-                  Row(children: [
-                    Expanded(child: _numField('Reorder Level', _reorderLevelCtrl)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _numField('Min Stock', _minStockCtrl)),
                   ]),
                   const SizedBox(height: 14),
                   _buildVendorField(),

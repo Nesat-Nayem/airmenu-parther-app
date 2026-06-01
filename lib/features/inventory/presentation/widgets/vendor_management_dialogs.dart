@@ -1,3 +1,4 @@
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/vendor_cubit.dart';
@@ -333,15 +334,22 @@ class VendorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 290,
-      padding: const EdgeInsets.all(16), // Reduced from 20
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
+        border: Border(
+          left: BorderSide(color: const Color(0xFFDC2626), width: 3),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 16,
+            color: Colors.black.withOpacity(0.07),
+            blurRadius: 20,
             offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
           ),
         ],
       ),
@@ -349,141 +357,192 @@ class VendorCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: InventoryColors.bgRedTint,
-                  borderRadius: BorderRadius.circular(10),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 12, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: InventoryColors.bgRedTint,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.store_mall_directory_outlined,
+                    color: InventoryColors.primaryRed,
+                    size: 20,
+                  ),
                 ),
-                child: const Icon(
-                  Icons.store_mall_directory_outlined,
-                  color: InventoryColors.primaryRed,
-                  size: 20,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vendor.companyName,
-                      style: AirMenuTextStyle.normal.bold700().withColor(
-                        InventoryColors.textPrimary,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        vendor.companyName,
+                        style: AirMenuTextStyle.normal
+                            .bold700()
+                            .withColor(InventoryColors.textPrimary)
+                            .copyWith(fontSize: 15),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    Text(
-                      vendor.contactPerson,
-                      style: AirMenuTextStyle.small.withColor(
-                        InventoryColors.textTertiary,
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person_outline,
+                            size: 12,
+                            color: InventoryColors.textQuaternary,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              vendor.contactPerson,
+                              style: AirMenuTextStyle.small.withColor(
+                                InventoryColors.textTertiary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              InkWell(
-                onTap: onEdit,
-                child: const Icon(
-                  Icons.edit_outlined,
-                  size: 18,
-                  color: InventoryColors.textTertiary,
+                IconButton(
+                  onPressed: onEdit,
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 16,
+                    color: InventoryColors.textTertiary,
+                  ),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(32, 32),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              InkWell(
-                onTap: onDelete,
-                child: const Icon(
-                  Icons.delete_outline,
-                  size: 18,
-                  color: InventoryColors.primaryRed,
+                IconButton(
+                  onPressed: onDelete,
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 16,
+                    color: InventoryColors.primaryRed,
+                  ),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size(32, 32),
+                    padding: EdgeInsets.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Contact Info
-          _buildInfoRow(Icons.phone_outlined, vendor.phone),
-          const SizedBox(height: 8),
-          _buildInfoRow(Icons.email_outlined, vendor.email),
-          const SizedBox(height: 8),
-          _buildInfoRow(Icons.location_on_outlined, vendor.address),
-          const SizedBox(height: 16),
-
-          // Supplies
-          Text(
-            'Supplies:',
-            style: AirMenuTextStyle.small.medium500().withColor(
-              InventoryColors.textTertiary,
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              ...vendor.supplies.take(3).map((item) => _buildChip(item)),
-              if (vendor.supplies.length > 3)
-                _buildChip('+${vendor.supplies.length - 3} more', isMore: true),
-            ],
-          ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          // Footer
-          Row(
-            children: [
-              _buildTag(vendor.paymentTerms),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
+          // Divider
+          const Divider(height: 1, thickness: 1, color: Color(0xFFF3F4F6)),
+          const SizedBox(height: 12),
+
+          // Contact Info
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: [
+                _buildInfoRow(Icons.phone_outlined, vendor.phone, muted: false),
+                const SizedBox(height: 6),
+                _buildInfoRow(Icons.email_outlined, vendor.email),
+                const SizedBox(height: 6),
+                _buildInfoRow(Icons.location_on_outlined, vendor.address),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // GST
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.receipt_long_outlined,
+                  size: 12,
+                  color: InventoryColors.textQuaternary,
+                ),
+                const SizedBox(width: 6),
+                Text(
                   'GST: ${vendor.gstNumber}',
                   style: AirMenuTextStyle.tiny.withColor(
                     InventoryColors.textQuaternary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
 
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  'WhatsApp',
-                  Icons.message_outlined,
-                  Colors.green,
+          // Supplies
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Supplies',
+                  style: AirMenuTextStyle.tiny.bold600().withColor(
+                    InventoryColors.textTertiary,
+                  ),
                 ),
-              ), // Using message icon as closest generic match or valid whatsapp icon
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildActionButton(
-                  'Email',
-                  Icons.email_outlined,
-                  Colors.grey,
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    ...vendor.supplies.take(3).map((item) => _buildChip(item)),
+                    if (vendor.supplies.length > 3)
+                      _buildChip(
+                        '+${vendor.supplies.length - 3} more',
+                        isMore: true,
+                      ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Action buttons
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
+            child: Row(
+              children: [
+                Expanded(child: _buildActionButton('WhatsApp', Icons.message_outlined, isWhatsApp: true)),
+                const SizedBox(width: 10),
+                Expanded(child: _buildActionButton('Email', Icons.email_outlined, isEmail: true)),
+              ],
+            ),
           ),
         ],
       ).animate().fadeIn(duration: 300.ms),
     );
   }
 
-  Widget _buildInfoRow(IconData icon, String text) {
+  Widget _buildInfoRow(IconData icon, String text, {bool muted = true}) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: InventoryColors.textQuaternary),
-        const SizedBox(width: 8),
+        Icon(
+          icon,
+          size: 13,
+          color: muted
+              ? InventoryColors.textQuaternary
+              : InventoryColors.textTertiary,
+        ),
+        const SizedBox(width: 7),
         Expanded(
           child: Text(
             text,
@@ -500,10 +559,16 @@ class VendorCard extends StatelessWidget {
 
   Widget _buildChip(String label, {bool isMore = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isMore ? InventoryColors.borderLight : InventoryColors.bgRedTint,
-        borderRadius: BorderRadius.circular(6),
+        color: isMore ? const Color(0xFFF3F4F6) : InventoryColors.bgRedTint,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isMore
+              ? const Color(0xFFE5E7EB)
+              : const Color(0xFFDC2626).withOpacity(0.15),
+          width: 0.5,
+        ),
       ),
       child: Text(
         label,
@@ -516,35 +581,38 @@ class VendorCard extends StatelessWidget {
     );
   }
 
-  Widget _buildTag(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: InventoryColors.borderLight,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        label,
-        style: AirMenuTextStyle.tiny.bold600().withColor(
-          InventoryColors.textSecondaryStrong,
-        ),
-      ),
-    );
-  }
+  Widget _buildActionButton(
+    String label,
+    IconData icon, {
+    bool isWhatsApp = false,
+    bool isEmail = false,
+  }) {
+    final Color bgColor = isWhatsApp
+        ? const Color(0xFFDCFCE7)
+        : isEmail
+            ? const Color(0xFFEFF6FF)
+            : const Color(0xFFF3F4F6);
+    final Color fgColor = isWhatsApp
+        ? const Color(0xFF16A34A)
+        : isEmail
+            ? const Color(0xFF2563EB)
+            : InventoryColors.textTertiary;
 
-  Widget _buildActionButton(String label, IconData icon, MaterialColor color) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        border: Border.all(color: InventoryColors.border),
-        borderRadius: BorderRadius.circular(8),
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 14, color: color), // Simplified color usage
-          const SizedBox(width: 6),
-          Text(label, style: AirMenuTextStyle.small.bold600().withColor(color)),
+          Icon(icon, size: 14, color: fgColor),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: AirMenuTextStyle.small.bold600().withColor(fgColor),
+          ),
         ],
       ),
     );
@@ -569,11 +637,10 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
   late TextEditingController _emailController;
   late TextEditingController _addressController;
   late TextEditingController _gstController;
-  late TextEditingController _termsController;
-  final TextEditingController _suppliesInputController =
-      TextEditingController();
 
   List<String> _supplies = [];
+  List<String> _availableMaterials = [];
+  bool _loadingMaterials = false;
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
 
@@ -591,15 +658,152 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
     _emailController = TextEditingController(text: widget.vendor?.email);
     _addressController = TextEditingController(text: widget.vendor?.address);
     _gstController = TextEditingController(text: widget.vendor?.gstNumber);
-    _termsController = TextEditingController(text: widget.vendor?.paymentTerms);
     if (widget.vendor != null) {
       _supplies = List.from(widget.vendor!.supplies);
     }
+    _fetchMaterials();
+  }
+
+  Future<void> _fetchMaterials() async {
+    setState(() => _loadingMaterials = true);
+    final res = await locator<InventoryRepository>().getMaterials();
+    if (!mounted) return;
+    setState(() {
+      if (res is DataSuccess<List<InventoryItem>>) {
+        _availableMaterials = res.data!.map((m) => m.name).toList();
+      }
+      _loadingMaterials = false;
+    });
+  }
+
+  void _showMaterialsPicker() {
+    final selected = Set<String>.from(_supplies);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            return Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(ctx).size.height * 0.6,
+              ),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 12),
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Select Supplied Items',
+                          style: AirMenuTextStyle.normal.bold700().withColor(const Color(0xFF111827)),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() => _supplies = selected.toList());
+                            Navigator.pop(ctx);
+                          },
+                          child: Text(
+                            'Done',
+                            style: AirMenuTextStyle.normal.bold600().withColor(const Color(0xFFDC2626)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: _availableMaterials.length,
+                      itemBuilder: (_, i) {
+                        final name = _availableMaterials[i];
+                        final isChecked = selected.contains(name);
+                        return CheckboxListTile(
+                          title: Text(
+                            name,
+                            style: AirMenuTextStyle.normal.withColor(const Color(0xFF111827)),
+                          ),
+                          value: isChecked,
+                          activeColor: const Color(0xFFDC2626),
+                          onChanged: (v) {
+                            setSheetState(() {
+                              if (v == true) {
+                                selected.add(name);
+                              } else {
+                                selected.remove(name);
+                              }
+                            });
+                          },
+                          controlAffinity: ListTileControlAffinity.leading,
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      8,
+                      20,
+                      MediaQuery.of(ctx).viewInsets.bottom + 20,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          setState(() => _supplies = selected.toList());
+                          Navigator.pop(ctx);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFDC2626),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text('Confirm', style: AirMenuTextStyle.normal.bold600()),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _save() async {
     if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
+    if (_supplies.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          content: Text('Please add at least one supplied item'),
+        ),
+      );
+      return;
+    }
     final vendor = Vendor(
       id: widget.vendor?.id ?? '',
       companyName: _companyController.text.trim(),
@@ -609,7 +813,7 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
       email: _emailController.text.trim(),
       address: _addressController.text.trim(),
       gstNumber: _gstController.text.trim(),
-      paymentTerms: _termsController.text.trim(),
+      paymentTerms: widget.vendor?.paymentTerms ?? '',
       supplies: _supplies,
     );
     setState(() => _isSaving = true);
@@ -634,15 +838,6 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
           content: Text(err),
         ),
       );
-    }
-  }
-
-  void _addSupply() {
-    if (_suppliesInputController.text.isNotEmpty) {
-      setState(() {
-        _supplies.add(_suppliesInputController.text);
-        _suppliesInputController.clear();
-      });
     }
   }
 
@@ -750,7 +945,7 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildLabel('WhatsApp Number'),
+                              _buildLabel('WhatsApp Number', isRequired: true),
                               const SizedBox(height: 8),
                               _buildTextField(
                                 _whatsappController,
@@ -762,7 +957,7 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                                 ],
                                 validator: (val) {
                                   if (val == null || val.isEmpty) {
-                                    return null;
+                                    return 'WhatsApp number is required';
                                   }
                                   if (val.length != 10) {
                                     return 'Enter a valid 10-digit number';
@@ -778,11 +973,17 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildLabel('Email'),
+                              _buildLabel('Email', isRequired: true),
                               const SizedBox(height: 8),
                               _buildTextField(
                                 _emailController,
                                 'supply@farmfresh.in',
+                                validator: (val) {
+                                  if (val == null || val.trim().isEmpty) {
+                                    return 'Email is required';
+                                  }
+                                  return null;
+                                },
                               ),
                             ],
                           ),
@@ -790,69 +991,100 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                       ),
                       const SizedBox(height: 12),
 
-                      _buildLabel('Address'),
+                      _buildLabel('Address', isRequired: true),
                       const SizedBox(height: 8),
                       _buildTextField(
                         _addressController,
                         '123 Meat Market...',
                         maxLines: 3,
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'Address is required';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 12),
 
-                      _buildResponsiveRow(
-                        isMobile: isMobile,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('GST Number'),
-                              const SizedBox(height: 8),
-                              _buildTextField(_gstController, '27AABCD...'),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildLabel('Payment Terms'),
-                              const SizedBox(height: 8),
-                              _buildTextField(_termsController, 'Net 7'),
-                            ],
-                          ),
-                        ],
+                      _buildLabel('GST Number', isRequired: true),
+                      const SizedBox(height: 8),
+                      _buildTextField(
+                        _gstController,
+                        '27AABCD...',
+                        validator: (val) {
+                          if (val == null || val.trim().isEmpty) {
+                            return 'GST number is required';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 12),
 
                       _buildLabel('Supplied Items'),
                       const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              _suppliesInputController,
-                              'Add item (e.g., Paneer)',
-                              onSubmitted: (_) => _addSupply(),
+                      if (_loadingMaterials)
+                        Container(
+                          height: 50,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFFDC2626),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          InkWell(
-                            onTap: _addSupply,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: const Color(0xFFE5E7EB),
+                        )
+                      else if (_availableMaterials.isEmpty)
+                        Container(
+                          height: 50,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Text(
+                            'No materials found. Add materials first.',
+                            style: AirMenuTextStyle.normal.withColor(const Color(0xFF9CA3AF)),
+                          ),
+                        )
+                      else
+                        GestureDetector(
+                          onTap: _showMaterialsPicker,
+                          child: Container(
+                            height: 50,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE5E7EB)),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    _supplies.isEmpty
+                                        ? 'Tap to select materials...'
+                                        : '${_supplies.length} item(s) selected',
+                                    style: AirMenuTextStyle.normal.withColor(
+                                      _supplies.isEmpty
+                                          ? const Color(0xFF9CA3AF)
+                                          : const Color(0xFF111827),
+                                    ),
+                                  ),
                                 ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Color(0xFF6B7280),
-                              ),
+                                const Icon(Icons.arrow_drop_down, color: Color(0xFF6B7280)),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 8,
