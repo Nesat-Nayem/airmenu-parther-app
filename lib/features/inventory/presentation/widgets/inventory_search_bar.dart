@@ -218,12 +218,12 @@ class _InventorySearchBarState extends State<InventorySearchBar> {
                         label: 'Vendors',
                         icon: Icons.people_outline,
                       ),
-                      PremiumPopupMenuItem(
-                        value: 'shortcuts',
-                        label: 'Shortcuts',
-                        icon: Icons.keyboard_outlined,
-                        hasDivider: true,
-                      ),
+                      // PremiumPopupMenuItem(
+                      //   value: 'shortcuts',
+                      //   label: 'Shortcuts',
+                      //   icon: Icons.keyboard_outlined,
+                      //   hasDivider: true,
+                      // ),
                     ],
                     child: Container(
                       padding: const EdgeInsets.symmetric(
@@ -427,12 +427,12 @@ class _InventorySearchBarState extends State<InventorySearchBar> {
                 label: 'Vendors',
                 icon: Icons.people_outline,
               ),
-              PremiumPopupMenuItem(
-                value: 'shortcuts',
-                label: 'Shortcuts',
-                icon: Icons.keyboard_outlined,
-                hasDivider: true,
-              ),
+              // PremiumPopupMenuItem(
+              //   value: 'shortcuts',
+              //   label: 'Shortcuts',
+              //   icon: Icons.keyboard_outlined,
+              //   hasDivider: true,
+              // ),
             ],
             child: Container(
               height: 40, // Matched height
