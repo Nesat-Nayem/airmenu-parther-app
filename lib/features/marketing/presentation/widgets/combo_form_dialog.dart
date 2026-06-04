@@ -402,7 +402,9 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
       final qty = int.tryParse(item.quantityController.text) ?? 1;
       total += item.price * qty;
     }
-    _originalPriceController.text = total.toStringAsFixed(0);
+    setState(() {
+      _originalPriceController.text = total.toStringAsFixed(0);
+    });
   }
 
   Widget _buildPricingSection() {
@@ -441,12 +443,13 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
                     const SizedBox(height: 6),
                     TextFormField(
                       controller: _originalPriceController,
+                      readOnly: true,
                       decoration: _inputDecoration(
                         '0',
-                      ).copyWith(prefixText: '₹ ', fillColor: Colors.white),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      onChanged: (_) => setState(() {}),
+                      ).copyWith(
+                        prefixText: '₹ ',
+                        fillColor: const Color(0xFFF3F4F6),
+                      ),
                     ),
                   ],
                 ),

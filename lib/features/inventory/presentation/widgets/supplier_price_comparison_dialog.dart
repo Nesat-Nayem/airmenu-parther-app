@@ -281,6 +281,19 @@ class _ItemsPanel extends StatelessWidget {
         if (state.status == PriceComparisonExtStatus.loading && state.items.isEmpty) {
           return const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()));
         }
+        if (state.status == PriceComparisonExtStatus.error) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Text(
+                state.errorMessage.isNotEmpty ? state.errorMessage : 'Failed to load price comparison',
+                style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFFDC2626)),
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+        final filtered = state.filteredItems;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -293,19 +306,30 @@ class _ItemsPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            ...state.items.expand((item) => [
-              _ItemCard(
-                id: item.id,
-                name: item.name,
-                category: item.category,
-                currentVendor: item.currentVendor.isNotEmpty ? item.currentVendor : '—',
-                price: item.currentPrice.toStringAsFixed(0),
-                unit: item.unit,
-                savings: item.potentialSavings.toStringAsFixed(0),
-                vendorsAvailable: item.vendorsAvailable,
-              ),
-              const SizedBox(height: 12),
-            ]),
+            if (filtered.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Text(
+                    state.items.isEmpty ? 'No items found' : 'No items match your filters',
+                    style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFF6B7280)),
+                  ),
+                ),
+              )
+            else
+              ...filtered.expand((item) => [
+                _ItemCard(
+                  id: item.id,
+                  name: item.name,
+                  category: item.category,
+                  currentVendor: item.currentVendor.isNotEmpty ? item.currentVendor : '—',
+                  price: item.currentPrice.toStringAsFixed(0),
+                  unit: item.unit,
+                  savings: item.potentialSavings.toStringAsFixed(0),
+                  vendorsAvailable: item.vendorsAvailable,
+                ),
+                const SizedBox(height: 12),
+              ]),
           ],
         );
       },
@@ -313,125 +337,22 @@ class _ItemsPanel extends StatelessWidget {
 
     return Column(
       children: [
-        // Search Bar
+        // Search Bar + dynamic category filter
         Padding(
           padding: const EdgeInsets.all(16),
           child: Responsive.isMobile(context)
               ? Column(
-                  children: [
-                    Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      child: TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search items...',
-                          hintStyle: AirMenuTextStyle.small
-                              .medium500()
-                              .withColor(const Color(0xFF9CA3AF)),
-                          prefixIcon: const Icon(
-                            Icons.search,
-                            size: 18,
-                            color: Color(0xFF9CA3AF),
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'All Categories',
-                            style: AirMenuTextStyle.small.medium500().withColor(
-                              const Color(0xFF4B5563),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 16,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ],
-                      ),
-                    ),
+                  children: const [
+                    _SearchField(),
+                    SizedBox(height: 12),
+                    _CategoryFilter(),
                   ],
                 )
               : Row(
-                  children: [
-                    Expanded(
-                      child: Container(
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
-                        ),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search items...',
-                            hintStyle: AirMenuTextStyle.small
-                                .medium500()
-                                .withColor(const Color(0xFF9CA3AF)),
-                            prefixIcon: const Icon(
-                              Icons.search,
-                              size: 18,
-                              color: Color(0xFF9CA3AF),
-                            ),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 8,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'All Categories',
-                            style: AirMenuTextStyle.small.medium500().withColor(
-                              const Color(0xFF4B5563),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 16,
-                            color: Color(0xFF6B7280),
-                          ),
-                        ],
-                      ),
-                    ),
+                  children: const [
+                    Expanded(child: _SearchField()),
+                    SizedBox(width: 12),
+                    _CategoryFilter(),
                   ],
                 ),
         ),
@@ -455,6 +376,94 @@ class _ItemsPanel extends StatelessWidget {
                 ),
               ),
       ],
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: TextField(
+        onChanged: (value) =>
+            context.read<PriceComparisonExtCubit>().setSearchQuery(value),
+        decoration: InputDecoration(
+          hintText: 'Search items...',
+          hintStyle:
+              AirMenuTextStyle.small.medium500().withColor(const Color(0xFF9CA3AF)),
+          prefixIcon: const Icon(
+            Icons.search,
+            size: 18,
+            color: Color(0xFF9CA3AF),
+          ),
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryFilter extends StatelessWidget {
+  const _CategoryFilter();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<PriceComparisonExtCubit, PriceComparisonExtState>(
+      builder: (context, state) {
+        final options = ['All', ...state.categories];
+        final selected = options.contains(state.categoryFilter)
+            ? state.categoryFilter
+            : 'All';
+        return PopupMenuButton<String>(
+          tooltip: 'Filter by category',
+          onSelected: (value) =>
+              context.read<PriceComparisonExtCubit>().setCategoryFilter(value),
+          itemBuilder: (context) => options
+              .map((c) => PopupMenuItem<String>(
+                    value: c,
+                    child: Text(
+                      c == 'All' ? 'All Categories' : c,
+                      style: AirMenuTextStyle.small.medium500(),
+                    ),
+                  ))
+              .toList(),
+          child: Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  selected == 'All' ? 'All Categories' : selected,
+                  style: AirMenuTextStyle.small
+                      .medium500()
+                      .withColor(const Color(0xFF4B5563)),
+                ),
+                const SizedBox(width: 4),
+                const Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 16,
+                  color: Color(0xFF6B7280),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -748,36 +757,26 @@ class _DetailsPanel extends StatelessWidget {
                             rating: '—',
                             delivery: '—',
                             minOrder: '—',
-                            updated: '${e.value.transactionCount} txns',
+                            updated: '—',
                             isBestPrice: e.value.isBestPrice,
                             onSwitch: () {},
                           ),
                         )),
                       ])
                       else ...([
-                        const Center(child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Text('No vendor pricing data available', style: TextStyle(color: Color(0xFF6B7280))),
+                        Center(child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Text(
+                            detail == null
+                                ? 'Select an item to compare vendor prices'
+                                : 'No vendor supplies this item yet',
+                            style: AirMenuTextStyle.small
+                                .medium500()
+                                .withColor(const Color(0xFF6B7280)),
+                            textAlign: TextAlign.center,
+                          ),
                         )),
                       ]),
-
-                      const SizedBox(height: 32),
-                      Text(
-                        'Price Trend (6 Months)',
-                        style: AirMenuTextStyle.headingH4.withColor(const Color(0xFF111827)),
-                      ),
-                      const SizedBox(height: 16),
-                      Container(
-                        height: 180,
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFDF6E7).withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE5E7EB)),
-                        ),
-                        child: CustomPaint(painter: _MockTrendChartPainter()),
-                      ),
                     ],
                   ),
                 ),
@@ -1096,44 +1095,6 @@ class _VendorStat extends StatelessWidget {
   }
 }
 
-class _MockBarChart extends StatelessWidget {
-  final String itemId;
-  const _MockBarChart({required this.itemId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 80, top: 10, bottom: 20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _BarRow(
-            label: 'Dairy Direct',
-            widthPct: 0.8,
-            color: const Color(0xFFDC2626),
-          ), // Red for current? Wait screenshot shows Red as Current.
-          _BarRow(
-            label: 'Farm Fresh',
-            widthPct: 0.85,
-            color: const Color(0xFF10B981),
-          ), // Green for best?
-          _BarRow(
-            label: 'Fresh Dairy Co.',
-            widthPct: 0.9,
-            color: const Color(0xFFF3F4F6),
-          ),
-          _BarRow(
-            label: 'Quality Dairy',
-            widthPct: 0.95,
-            color: const Color(0xFFF3F4F6),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _BarRow extends StatelessWidget {
   final String label;
   final double widthPct;
@@ -1178,51 +1139,3 @@ class _BarRow extends StatelessWidget {
   }
 }
 
-// Simple CustomPainter to draw a nice looking curve
-class _MockTrendChartPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFEF4444)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-
-    final path = Path();
-    // Start low, go up, dip slightly, end high
-    path.moveTo(0, size.height * 0.7);
-    path.quadraticBezierTo(
-      size.width * 0.25,
-      size.height * 0.4,
-      size.width * 0.5,
-      size.height * 0.6,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.75,
-      size.height * 0.8,
-      size.width,
-      size.height * 0.3,
-    );
-
-    canvas.drawPath(path, paint);
-
-    // Draw dots
-    final dotPaint = Paint()..color = const Color(0xFFEF4444);
-    final dots = [
-      Offset(0, size.height * 0.7),
-      Offset(size.width * 0.2, size.height * 0.5), // approx
-      Offset(size.width * 0.5, size.height * 0.6),
-      Offset(size.width * 0.8, size.height * 0.4),
-      Offset(size.width, size.height * 0.3),
-    ];
-
-    for (var dot in dots) {
-      canvas.drawCircle(dot, 4, dotPaint);
-      canvas.drawCircle(dot, 2, Paint()..color = Colors.white);
-    }
-
-    // Axis labels simplified/mocked
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

@@ -238,7 +238,7 @@ class CriticalItemsAlert extends StatelessWidget {
                               ),
                               TextSpan(
                                 text:
-                                    '  ${item.currentStock.toInt()}/${item.maxStock.toInt()} ${item.unit}',
+                                    '  ${item.currentStock.toInt()}/${item.minStock.toInt()} ${item.unit}',
                                 style: AirMenuTextStyle.tiny
                                     .medium500()
                                     .withColor(InventoryColors.textQuaternary),
@@ -436,7 +436,7 @@ class InventoryItemsTable extends StatelessWidget {
                                   ),
                                   TextSpan(
                                     text:
-                                        ' / ${item.maxStock.toInt()} ${item.unit}',
+                                        ' / ${item.minStock.toInt()} ${item.unit}',
                                     style: AirMenuTextStyle.caption.withColor(
                                       Colors.grey.shade500,
                                     ),
