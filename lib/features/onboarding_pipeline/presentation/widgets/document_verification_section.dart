@@ -74,7 +74,11 @@ class _DocumentVerificationSectionState
     super.didUpdateWidget(oldWidget);
     if (oldWidget.kyc != widget.kyc) {
       _syncFromKyc(widget.kyc);
-      widget.onAllVerifiedChanged?.call(_allVerified);
+      // Defer to after the current build to avoid calling the parent's
+      // setState() while the widget tree is still building.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onAllVerifiedChanged?.call(_allVerified);
+      });
     }
   }
 

@@ -406,7 +406,7 @@ class _KycDetailModalState extends State<KycDetailModal> {
                             : 'Admin must sign the agreement before approving',
                         child: ElevatedButton.icon(
                           onPressed: _adminSigned
-                              ? () => widget.onAction('approved', widget.kyc.id, null)
+                              ? () => _handleApprove(context)
                               : null,
                           icon: Icon(
                             Icons.check,
@@ -592,6 +592,72 @@ class _KycDetailModalState extends State<KycDetailModal> {
 
   String _formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}, ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _handleApprove(BuildContext context) async {
+    final displayName = widget.kyc.restaurantName.isNotEmpty
+        ? widget.kyc.restaurantName
+        : (widget.kyc.fullName.isNotEmpty ? widget.kyc.fullName : 'this application');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.verified_outlined, color: AirMenuColors.success, size: 22),
+            const SizedBox(width: 10),
+            Text(
+              'Approve KYC',
+              style: GoogleFonts.sora(
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF111827),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to approve $displayName? This will activate the vendor account and cannot be undone.',
+          style: GoogleFonts.sora(
+            fontSize: 14,
+            color: const Color(0xFF374151),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.sora(
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF6B7280),
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            icon: const Icon(Icons.check, size: 18, color: Colors.white),
+            label: Text(
+              'Confirm Approve',
+              style: GoogleFonts.sora(
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AirMenuColors.success,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      widget.onAction('approved', widget.kyc.id, null);
+    }
   }
 
   Future<void> _handleReject(BuildContext context) async {
