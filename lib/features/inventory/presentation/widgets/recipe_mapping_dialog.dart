@@ -267,12 +267,12 @@ class _RecipeMappingDialogState extends State<RecipeMappingDialog> {
                   const SizedBox(width: 8),
                   _summaryPill('$unmappedCount Unmapped', const Color(0xFFDC2626), const Color(0xFFFEE2E2)),
                   const Spacer(),
-                  TextButton.icon(
-                    onPressed: _menuItems.isEmpty ? null : () => _startCreate(),
-                    icon: const Icon(Icons.add, size: 18),
-                    label: const Text('New'),
-                    style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
-                  ),
+                  // TextButton.icon(
+                  //   onPressed: _menuItems.isEmpty ? null : () => _startCreate(),
+                  //   icon: const Icon(Icons.add, size: 18),
+                  //   label: const Text('New'),
+                  //   style: TextButton.styleFrom(foregroundColor: const Color(0xFFEF4444)),
+                  // ),
                 ],
               ),
             ),
