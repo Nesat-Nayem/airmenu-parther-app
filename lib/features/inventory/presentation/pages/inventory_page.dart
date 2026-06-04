@@ -182,18 +182,6 @@ class InventoryPageView extends StatelessWidget {
                             InventoryItemsTable(
                               items: state.filteredItems,
                               isCompactView: state.isCompactView,
-                              onRestock: (item) {
-                                showDialog(
-                                  context: innerContext,
-                                  builder: (_) => BlocProvider.value(
-                                    value: innerContext.read<InventoryBloc>(),
-                                    child: ManualStockDialog(
-                                      isStockIn: true,
-                                      preselectedItem: item,
-                                    ),
-                                  ),
-                                );
-                              },
                             ),
                             const SizedBox(height: 20),
 

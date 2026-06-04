@@ -21,6 +21,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
   // State
   String? selectedVendorId;
   String? selectedVendorName;
+  VendorModel? selectedVendor;
   DateTime? expectedDelivery;
   bool notifyWhatsapp = true;
   bool notifyEmail = true;
@@ -83,11 +84,22 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     });
   }
 
+  // Materials this vendor supplies, paired with the vendor's configured price.
+  // Only entries with a resolvable materialId are selectable.
+  List<SuppliedItem> get _vendorSupplied =>
+      (selectedVendor?.suppliedItems ?? []).where((s) => s.materialId.isNotEmpty).toList();
+
   double get estimatedTotal {
     return items.fold(0, (sum, item) => sum + (item.unitCost * item.quantity));
   }
 
   Future<void> _submitPO() async {
+    if (selectedVendorId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a vendor')),
+      );
+      return;
+    }
     final validItems = items.where((i) => i.materialId != null && i.quantity > 0).toList();
     if (validItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -98,28 +110,33 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
 
     setState(() => _isSubmitting = true);
     final repo = locator<InventoryRepository>();
-    bool allSuccess = true;
 
-    for (final item in validItems) {
-      final res = await repo.createTransaction({
-        'materialId': item.materialId,
-        'type': 'purchase',
-        'quantity': item.quantity,
-        'unitCost': item.unitCost,
-        'note': 'PO${selectedVendorName != null ? ' from $selectedVendorName' : ''}${_notesController.text.isNotEmpty ? ' - ${_notesController.text}' : ''}',
-      });
-      if (res is! DataSuccess) allSuccess = false;
-    }
+    final res = await repo.createPurchaseOrder({
+      'vendorId': selectedVendorId,
+      'vendorName': selectedVendorName,
+      if (expectedDelivery != null) 'expectedDelivery': expectedDelivery!.toIso8601String(),
+      if (_notesController.text.trim().isNotEmpty) 'notes': _notesController.text.trim(),
+      'items': validItems
+          .map((i) => {
+                'materialId': i.materialId,
+                'materialName': i.name,
+                'unit': i.unit,
+                'quantity': i.quantity,
+                'unitPrice': i.unitCost,
+              })
+          .toList(),
+    });
 
     if (mounted) {
       setState(() => _isSubmitting = false);
-      Navigator.pop(context);
+      final ok = res is DataSuccess;
+      if (ok) Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(allSuccess
-              ? 'Purchase order created with ${validItems.length} item(s)'
-              : 'Some items failed to process'),
-          backgroundColor: allSuccess ? Colors.green : Colors.red,
+          content: Text(ok
+              ? 'Purchase order created (pending) with ${validItems.length} item(s)'
+              : (res.error?.message ?? 'Failed to create purchase order')),
+          backgroundColor: ok ? Colors.green : Colors.red,
         ),
       );
     }
@@ -369,6 +386,11 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                       setState(() {
                         selectedVendorId = vendor.id;
                         selectedVendorName = val;
+                        selectedVendor = vendor;
+                        // Item options are vendor-specific, so reset the rows.
+                        items
+                          ..clear()
+                          ..add(POItem());
                       });
                     },
                   ),
@@ -702,15 +724,16 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                   }),
                 ),
                 const SizedBox(width: 8),
-                Expanded(child: _buildInput(item.unit.isNotEmpty ? item.unit : 'unit', (val) {}, readOnly: true)),
+                Expanded(child: _buildDisplayCell(item.unit.isNotEmpty ? item.unit : '—')),
                 const SizedBox(width: 8),
                 Expanded(
                   child: _buildInput(
-                    item.unitCost > 0 ? item.unitCost.toStringAsFixed(0) : '0',
+                    item.unitCost > 0 ? _fmtNum(item.unitCost) : '0',
                     (val) {
                       final c = double.tryParse(val);
                       if (c != null) setState(() => item.unitCost = c);
                     },
+                    fieldKey: ValueKey('cost_${index}_${item.materialId ?? ''}'),
                   ),
                 ),
               ],
@@ -734,21 +757,18 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
         const SizedBox(width: 12),
         Expanded(
           flex: 1,
-          child: _buildInput(
-            item.unit.isNotEmpty ? item.unit : 'unit',
-            (val) {},
-            readOnly: true,
-          ),
+          child: _buildDisplayCell(item.unit.isNotEmpty ? item.unit : '—'),
         ),
         const SizedBox(width: 12),
         Expanded(
           flex: 1,
           child: _buildInput(
-            item.unitCost > 0 ? item.unitCost.toStringAsFixed(0) : '0',
+            item.unitCost > 0 ? _fmtNum(item.unitCost) : '0',
             (val) {
               final c = double.tryParse(val);
               if (c != null) setState(() => item.unitCost = c);
             },
+            fieldKey: ValueKey('cost_${index}_${item.materialId ?? ''}'),
           ),
         ),
         const SizedBox(width: 8),
@@ -765,7 +785,12 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
   }
 
   Widget _buildItemDropdown(POItem item) {
-    final materialNames = _materials.map((m) => m.name).toList();
+    final supplied = _vendorSupplied;
+    final hasVendor = selectedVendor != null;
+    final placeholder = !hasVendor
+        ? 'Select a vendor first'
+        : (supplied.isEmpty ? 'Vendor has no items' : 'Select item');
+    final enabled = hasVendor && supplied.isNotEmpty;
     return Container(
       height: 48,
       decoration: BoxDecoration(
@@ -781,6 +806,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
       child: Material(
         color: Colors.transparent,
         child: PopupMenuButton<String>(
+          enabled: enabled,
           offset: const Offset(0, 48),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -788,16 +814,21 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
           elevation: 4,
           shadowColor: Colors.black.withOpacity(0.1),
           color: Colors.white,
-          onSelected: (val) => setState(() {
-            final mat = _materials.firstWhere((m) => m.name == val);
-            item.name = val;
-            item.materialId = mat.id;
-            item.unit = mat.unit;
+          onSelected: (materialId) => setState(() {
+            final s = supplied.firstWhere((e) => e.materialId == materialId);
+            final mat = _materials.where((m) => m.id == materialId).firstOrNull;
+            item.materialId = materialId;
+            item.name = mat?.name ?? s.materialName;
+            item.unit = mat?.unit ?? '';
+            // Auto-fill the unit price from the vendor's configured price.
+            item.unitCost = s.price;
           }),
-          itemBuilder: (context) => materialNames.map((val) {
-            final isSelected = item.name == val;
+          itemBuilder: (context) => supplied.map((s) {
+            final mat = _materials.where((m) => m.id == s.materialId).firstOrNull;
+            final name = mat?.name ?? s.materialName;
+            final isSelected = item.materialId == s.materialId;
             return PopupMenuItem<String>(
-              value: val,
+              value: s.materialId,
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               child: Container(
@@ -822,13 +853,20 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                           size: 14,
                         ),
                       ),
+                    Expanded(
+                      child: Text(
+                        name,
+                        overflow: TextOverflow.ellipsis,
+                        style: isSelected
+                            ? AirMenuTextStyle.normal.bold600().withColor(
+                                const Color(0xFFEF4444),
+                              )
+                            : AirMenuTextStyle.normal.medium500(),
+                      ),
+                    ),
                     Text(
-                      val,
-                      style: isSelected
-                          ? AirMenuTextStyle.normal.bold600().withColor(
-                              const Color(0xFFEF4444),
-                            )
-                          : AirMenuTextStyle.normal.medium500(),
+                      '₹${_fmtNum(s.price)}',
+                      style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFF6B7280)),
                     ),
                   ],
                 ),
@@ -840,12 +878,15 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  item.name ?? 'Select item',
-                  style: AirMenuTextStyle.normal.medium500().withColor(
-                    item.name != null
-                        ? const Color(0xFF111827)
-                        : const Color(0xFF4B5563),
+                Expanded(
+                  child: Text(
+                    item.name ?? placeholder,
+                    overflow: TextOverflow.ellipsis,
+                    style: AirMenuTextStyle.normal.medium500().withColor(
+                      item.name != null
+                          ? const Color(0xFF111827)
+                          : const Color(0xFF4B5563),
+                    ),
                   ),
                 ),
                 const Icon(
@@ -861,10 +902,33 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     );
   }
 
+  static String _fmtNum(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
+  // Read-only display cell that always reflects the current value (unlike a
+  // TextFormField seeded with `initialValue`, which won't update on rebuild).
+  Widget _buildDisplayCell(String value) {
+    return Container(
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFF3F4F6)),
+      ),
+      child: Text(
+        value,
+        textAlign: TextAlign.center,
+        style: AirMenuTextStyle.normal.medium500().withColor(const Color(0xFF374151)),
+      ),
+    );
+  }
+
   Widget _buildInput(
     String value,
     Function(String) onChanged, {
     bool readOnly = false,
+    Key? fieldKey,
   }) {
     return Container(
       height: 48,
@@ -875,6 +939,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
         border: Border.all(color: const Color(0xFFF3F4F6)),
       ),
       child: TextFormField(
+        key: fieldKey,
         initialValue: value,
         textAlign: TextAlign.center,
         onChanged: onChanged,

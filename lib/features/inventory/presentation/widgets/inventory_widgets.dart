@@ -291,15 +291,20 @@ class CriticalItemsAlert extends StatelessWidget {
 /// Inventory Data Table
 class InventoryItemsTable extends StatelessWidget {
   final List<InventoryItem> items;
-  final Function(InventoryItem) onRestock;
   final bool isCompactView;
 
   const InventoryItemsTable({
     super.key,
     required this.items,
-    required this.onRestock,
     this.isCompactView = false,
   });
+
+  void _showHistoryDialog(BuildContext context, InventoryItem item) {
+    showDialog(
+      context: context,
+      builder: (_) => MaterialHistoryDialog(item: item),
+    );
+  }
 
   void _showEditDialog(BuildContext context, InventoryItem item) {
     showDialog(
@@ -532,8 +537,13 @@ class InventoryItemsTable extends StatelessWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _RestockActionButton(
-                                  onTap: () => onRestock(item),
+                                IconButton(
+                                  icon: const Icon(Icons.history, size: 16),
+                                  tooltip: 'Usage history',
+                                  color: Colors.grey.shade500,
+                                  padding: const EdgeInsets.all(4),
+                                  constraints: const BoxConstraints(),
+                                  onPressed: () => _showHistoryDialog(context, item),
                                 ),
                                 const SizedBox(width: 4),
                                 IconButton(
@@ -903,8 +913,9 @@ class InventoryDashboardSecondaryWidgets extends StatefulWidget {
 
 class _InventoryDashboardSecondaryWidgetsState
     extends State<InventoryDashboardSecondaryWidgets> {
-  List<InventoryTransaction> _purchaseOrders = [];
+  List<PurchaseOrder> _purchaseOrders = [];
   bool _loadingPO = true;
+  String? _updatingPOId;
   int _menuItemCount = 0;
 
   @override
@@ -916,14 +927,47 @@ class _InventoryDashboardSecondaryWidgetsState
 
   Future<void> _loadPurchaseOrders() async {
     final repo = locator<InventoryRepository>();
-    final res = await repo.getTransactions(type: 'purchase');
+    final res = await repo.getPurchaseOrders();
     if (mounted) {
       setState(() {
-        if (res is DataSuccess<List<InventoryTransaction>>) {
+        if (res is DataSuccess<List<PurchaseOrder>>) {
           _purchaseOrders = res.data!;
         }
         _loadingPO = false;
       });
+    }
+  }
+
+  Future<void> _updatePOStatus(PurchaseOrder po, PurchaseOrderStatus status) async {
+    if (_updatingPOId != null) return;
+    setState(() => _updatingPOId = po.id);
+    final messenger = ScaffoldMessenger.of(context);
+    final res = await locator<InventoryRepository>().updatePurchaseOrderStatus(po.id, status.name);
+    if (!mounted) return;
+    setState(() => _updatingPOId = null);
+    if (res is DataSuccess<PurchaseOrder>) {
+      await _loadPurchaseOrders();
+      if (status == PurchaseOrderStatus.received && mounted) {
+        // Stock was incremented server-side; refresh the inventory table.
+        context.read<InventoryBloc>().add(RefreshInventory());
+      }
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFF16A34A),
+          behavior: SnackBarBehavior.floating,
+          content: Text(status == PurchaseOrderStatus.received
+              ? 'Purchase order received — stock updated'
+              : 'Purchase order ${status.label.toLowerCase()}'),
+        ),
+      );
+    } else {
+      messenger.showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFDC2626),
+          behavior: SnackBarBehavior.floating,
+          content: Text(res.error?.message ?? 'Failed to update purchase order'),
+        ),
+      );
     }
   }
 
@@ -1092,11 +1136,13 @@ class _InventoryDashboardSecondaryWidgetsState
     );
   }
 
-  Widget _buildPORow(InventoryTransaction tx) {
-    final dateStr = DateFormat('dd MMM yyyy').format(tx.createdAt);
-    final name = tx.materialName.isNotEmpty ? tx.materialName : 'Item';
-    final unitLabel = tx.materialUnit.isNotEmpty ? tx.materialUnit : 'units';
-    final total = tx.totalCost > 0 ? tx.totalCost : tx.unitCost * tx.quantity;
+  Widget _buildPORow(PurchaseOrder po) {
+    final dateStr = DateFormat('dd MMM yyyy').format(po.createdAt);
+    final title = po.vendorName.isNotEmpty ? po.vendorName : 'Purchase Order';
+    final itemSummary = po.itemCount == 1
+        ? '1 item'
+        : '${po.itemCount} items';
+    final isUpdating = _updatingPOId == po.id;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -1105,132 +1151,148 @@ class _InventoryDashboardSecondaryWidgetsState
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.grey.shade100),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF2F2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(Icons.shopping_cart_outlined, size: 16, color: Color(0xFFEF4444)),
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.shopping_cart_outlined, size: 16, color: Color(0xFFEF4444)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary),
+                        overflow: TextOverflow.ellipsis),
+                    Text('$itemSummary · $dateStr',
+                        style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary)),
+                  ],
+                ),
+              ),
+              if (po.totalAmount > 0)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text('₹${po.totalAmount.toStringAsFixed(0)}',
+                      style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary)),
+                ),
+              _statusBadge(po.status),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 8),
+          // Status controls: pending POs can be received or cancelled; received
+          // and cancelled POs are terminal (shown read-only).
+          if (po.status == PurchaseOrderStatus.pending)
+            Row(
               children: [
-                Text(name,
-                    style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary),
-                    overflow: TextOverflow.ellipsis),
-                Text('${tx.quantity.toStringAsFixed(0)} $unitLabel · $dateStr',
-                    style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary)),
+                Expanded(
+                  child: _poActionButton(
+                    label: isUpdating ? 'Working…' : 'Mark Received',
+                    icon: Icons.check_circle_outline,
+                    color: const Color(0xFF16A34A),
+                    filled: true,
+                    onTap: isUpdating ? null : () => _updatePOStatus(po, PurchaseOrderStatus.received),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _poActionButton(
+                  label: 'Cancel',
+                  icon: Icons.close,
+                  color: const Color(0xFFDC2626),
+                  filled: false,
+                  onTap: isUpdating ? null : () => _confirmCancelPO(po),
+                ),
               ],
+            )
+          else
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                po.status == PurchaseOrderStatus.received
+                    ? 'Received${po.receivedAt != null ? ' · ${DateFormat('dd MMM yyyy').format(po.receivedAt!)}' : ''}'
+                    : 'Cancelled',
+                style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: total > 0
-                ? Text('₹${total.toStringAsFixed(0)}',
-                    style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary))
-                : Text('Set price',
-                    style: AirMenuTextStyle.caption.medium500().withColor(const Color(0xFFEF4444))),
-          ),
-          InkWell(
-            onTap: () => _openEditPO(tx),
-            borderRadius: BorderRadius.circular(6),
-            child: const Padding(
-              padding: EdgeInsets.all(4),
-              child: Icon(Icons.edit_outlined, size: 16, color: Color(0xFF6B7280)),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Future<void> _openEditPO(InventoryTransaction tx) async {
-    final updated = await showDialog<bool>(
-      context: context,
-      builder: (_) => _EditPurchaseOrderDialog(transaction: tx),
+  Widget _statusBadge(PurchaseOrderStatus status) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: status.color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status.label,
+        style: AirMenuTextStyle.caption.bold600().withColor(status.color),
+      ),
     );
-    if (updated == true) _loadPurchaseOrders();
   }
 
-  // ignore: unused_element
-  Widget _poTile(PurchaseOrder po) {
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
+  Widget _poActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool filled,
+    required VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 4,
-              offset: const Offset(0, 1),
-            ),
-          ],
+          color: filled ? color : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withValues(alpha: filled ? 1 : 0.4)),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    po.poNumber,
-                    style: AirMenuTextStyle.small.bold700().withColor(
-                      InventoryColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    po.vendorName,
-                    style: AirMenuTextStyle.caption.medium500().withColor(
-                      InventoryColors.textTertiary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              children: [
-                Text(
-                  '₹${po.amount.toInt()}',
-                  style: AirMenuTextStyle.small.bold700().withColor(
-                    InventoryColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: po.status.color.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    po.status.label.toLowerCase(),
-                    style: AirMenuTextStyle.caption.bold600().withColor(
-                      po.status.color,
-                    ),
-                  ),
-                ),
-              ],
+            Icon(icon, size: 14, color: filled ? Colors.white : color),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AirMenuTextStyle.caption.bold600().withColor(filled ? Colors.white : color),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmCancelPO(PurchaseOrder po) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancel purchase order'),
+        content: const Text('Cancel this pending purchase order? This cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Cancel PO'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _updatePOStatus(po, PurchaseOrderStatus.cancelled);
+    }
   }
 
   Widget _mappingStat(String value, String label, Color color) {
@@ -1262,141 +1324,68 @@ class _InventoryDashboardSecondaryWidgetsState
   }
 }
 
-class _RestockActionButton extends StatefulWidget {
-  final VoidCallback onTap;
+/// Per-material movement history: consumption (from recipe usage when orders
+/// are served) shown as outflow and received-PO inflow, sourced from the
+/// inventory transactions endpoint.
+class MaterialHistoryDialog extends StatefulWidget {
+  final InventoryItem item;
 
-  const _RestockActionButton({required this.onTap});
-
-  @override
-  State<_RestockActionButton> createState() => _RestockActionButtonState();
-}
-
-class _RestockActionButtonState extends State<_RestockActionButton> {
-  bool _isHovered = false;
+  const MaterialHistoryDialog({super.key, required this.item});
 
   @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: 200.ms,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          decoration: BoxDecoration(
-            color: _isHovered ? InventoryColors.bgRedTint : Colors.white,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(
-              color: _isHovered
-                  ? InventoryColors.primaryRed
-                  : Colors.grey.shade200,
-              width: 1.5,
-            ),
-            boxShadow: [
-              if (!_isHovered)
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-            ],
-          ),
-          child: Text(
-            'Restock',
-            style: AirMenuTextStyle.small.bold600().withColor(
-              _isHovered
-                  ? InventoryColors.textPrimary
-                  : InventoryColors.textSecondaryStrong,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  State<MaterialHistoryDialog> createState() => _MaterialHistoryDialogState();
 }
 
-class _EditPurchaseOrderDialog extends StatefulWidget {
-  final InventoryTransaction transaction;
-  const _EditPurchaseOrderDialog({required this.transaction});
-
-  @override
-  State<_EditPurchaseOrderDialog> createState() => _EditPurchaseOrderDialogState();
-}
-
-class _EditPurchaseOrderDialogState extends State<_EditPurchaseOrderDialog> {
-  late final TextEditingController _qtyController;
-  late final TextEditingController _unitCostController;
-  late final TextEditingController _noteController;
-  final _formKey = GlobalKey<FormState>();
-  bool _isSaving = false;
-
-  // Formats a double without a trailing ".0" so the input reads "10" not "10.0".
-  static String _fmt(double v) =>
-      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
-
-  double get _livePreviewTotal {
-    final qty = double.tryParse(_qtyController.text.trim()) ?? 0;
-    final cost = double.tryParse(_unitCostController.text.trim()) ?? 0;
-    return qty * cost;
-  }
+class _MaterialHistoryDialogState extends State<MaterialHistoryDialog> {
+  List<InventoryTransaction> _txns = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _qtyController = TextEditingController(text: _fmt(widget.transaction.quantity));
-    _unitCostController = TextEditingController(text: _fmt(widget.transaction.unitCost));
-    _noteController = TextEditingController(text: widget.transaction.note);
-    // Recompute the live total as the user types.
-    _qtyController.addListener(_onValuesChanged);
-    _unitCostController.addListener(_onValuesChanged);
+    _load();
   }
 
-  void _onValuesChanged() => setState(() {});
-
-  @override
-  void dispose() {
-    _qtyController.dispose();
-    _unitCostController.dispose();
-    _noteController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    if (_isSaving) return;
-    if (!_formKey.currentState!.validate()) return;
-    final qty = double.tryParse(_qtyController.text.trim()) ?? 0;
-    final unitCost = double.tryParse(_unitCostController.text.trim()) ?? 0;
-    setState(() => _isSaving = true);
-    final messenger = ScaffoldMessenger.of(context);
-    final res = await locator<InventoryRepository>().updateTransaction(
-      widget.transaction.id,
-      {
-        'quantity': qty,
-        'unitCost': unitCost,
-        'note': _noteController.text.trim(),
-      },
-    );
+  Future<void> _load() async {
+    final res = await locator<InventoryRepository>().getTransactions(materialId: widget.item.id);
     if (!mounted) return;
-    setState(() => _isSaving = false);
-    if (res is DataSuccess<InventoryTransaction>) {
-      Navigator.of(context).pop(true);
-      messenger.showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-          content: Text('Purchase order updated'),
-        ),
-      );
-    } else {
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          content: Text(res.error?.message ?? 'Failed to update purchase order'),
-        ),
-      );
+    setState(() {
+      if (res is DataSuccess<List<InventoryTransaction>>) {
+        _txns = res.data!;
+      }
+      _loading = false;
+    });
+  }
+
+  // Outflow (consumption / wastage) is shown as negative; inflow (purchase /
+  // return) as positive.
+  bool _isOutflow(String type) => type == 'consume' || type == 'wastage';
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'consume':
+        return 'Used';
+      case 'purchase':
+        return 'Received';
+      case 'wastage':
+        return 'Wastage';
+      case 'return':
+        return 'Returned';
+      default:
+        return 'Adjustment';
+    }
+  }
+
+  IconData _typeIcon(String type) {
+    switch (type) {
+      case 'consume':
+        return Icons.restaurant_outlined;
+      case 'purchase':
+        return Icons.inventory_2_outlined;
+      case 'wastage':
+        return Icons.delete_outline;
+      default:
+        return Icons.swap_vert;
     }
   }
 
@@ -1404,216 +1393,157 @@ class _EditPurchaseOrderDialogState extends State<_EditPurchaseOrderDialog> {
   Widget build(BuildContext context) {
     final isMobile = Responsive.isMobile(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    final name = widget.transaction.materialName.isNotEmpty ? widget.transaction.materialName : 'Item';
+    final totalUsed = _txns
+        .where((t) => t.type == 'consume')
+        .fold<double>(0, (s, t) => s + t.quantity);
+    final totalReceived = _txns
+        .where((t) => t.type == 'purchase')
+        .fold<double>(0, (s, t) => s + t.quantity);
 
     return Dialog(
       backgroundColor: Colors.transparent,
       child: Container(
-        width: isMobile ? screenWidth * 0.9 : 460,
-        padding: const EdgeInsets.all(20),
+        width: isMobile ? screenWidth * 0.92 : 520,
+        constraints: const BoxConstraints(maxHeight: 640),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 12),
+              child: Row(
                 children: [
-                  Text(
-                    'Edit Purchase Order',
-                    style: AirMenuTextStyle.headingH4.bold700().withColor(const Color(0xFF111827)),
-                  ),
-                  IconButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              // Item is shown read-only: changing which material a stock
-              // transaction belongs to would require reversing/re-applying
-              // stock, so edits are limited to quantity, cost and note.
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Item',
-                        style: AirMenuTextStyle.caption.medium500().withColor(const Color(0xFF9CA3AF))),
-                    const SizedBox(height: 2),
-                    Row(
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.shopping_cart_outlined, size: 16, color: Color(0xFF6B7280)),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            name,
-                            style: AirMenuTextStyle.normal.bold600().withColor(const Color(0xFF111827)),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Text('Usage History',
+                            style: AirMenuTextStyle.headingH4.bold700().withColor(const Color(0xFF111827))),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${widget.item.name} · ${widget.item.currentStock.toStringAsFixed(0)} ${widget.item.unit} in stock',
+                          style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary),
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _EditPOField(
-                label: 'Quantity',
-                controller: _qtyController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
-                  if (n == null || n <= 0) return 'Enter a valid quantity';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              _EditPOField(
-                label: 'Unit Cost',
-                prefix: '₹',
-                controller: _unitCostController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: (v) {
-                  final n = double.tryParse((v ?? '').trim());
-                  if (n == null || n < 0) return 'Enter a valid cost';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
-              _EditPOField(
-                label: 'Note',
-                controller: _noteController,
-                maxLines: 2,
-              ),
-              const SizedBox(height: 16),
-              // Live total preview so the price is visible while editing — this
-              // is why a freshly added PO with no unit cost shows no price until
-              // a cost is entered here.
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFECACA)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total',
-                      style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF374151)),
-                    ),
-                    Text(
-                      '₹${_livePreviewTotal.toStringAsFixed(0)}',
-                      style: AirMenuTextStyle.headingH4.bold700().withColor(const Color(0xFFEF4444)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-                    child: Text(
-                      'Cancel',
-                      style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF374151)),
-                    ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : _save,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFEF4444),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation(Colors.white),
-                            ),
-                          )
-                        : const Text('Save Changes'),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, size: 20),
                   ),
                 ],
               ),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Expanded(child: _summaryBox('Total Used', '${totalUsed.toStringAsFixed(0)} ${widget.item.unit}', const Color(0xFFDC2626))),
+                  const SizedBox(width: 12),
+                  Expanded(child: _summaryBox('Total Received', '${totalReceived.toStringAsFixed(0)} ${widget.item.unit}', const Color(0xFF16A34A))),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            Flexible(
+              child: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  : _txns.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Center(
+                            child: Text('No usage history yet',
+                                style: TextStyle(color: Color(0xFF9CA3AF))),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _txns.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (_, i) => _historyRow(_txns[i]),
+                        ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _summaryBox(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary)),
+          const SizedBox(height: 4),
+          Text(value, style: AirMenuTextStyle.normal.bold700().withColor(color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _historyRow(InventoryTransaction tx) {
+    final out = _isOutflow(tx.type);
+    final color = out ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
+    final unit = tx.materialUnit.isNotEmpty ? tx.materialUnit : widget.item.unit;
+    final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(tx.createdAt);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(_typeIcon(tx.type), size: 16, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_typeLabel(tx.type),
+                    style: AirMenuTextStyle.small.bold600().withColor(InventoryColors.textPrimary)),
+                Text(
+                  tx.note.isNotEmpty ? tx.note : dateStr,
+                  style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          Text(
+            '${out ? '-' : '+'}${tx.quantity.toStringAsFixed(0)} $unit',
+            style: AirMenuTextStyle.small.bold700().withColor(color),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _EditPOField extends StatelessWidget {
-  final String label;
-  final TextEditingController controller;
-  final TextInputType? keyboardType;
-  final String? Function(String?)? validator;
-  final int maxLines;
-  final String? prefix;
-
-  const _EditPOField({
-    required this.label,
-    required this.controller,
-    this.keyboardType,
-    this.validator,
-    this.maxLines = 1,
-    this.prefix,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF374151)),
-        ),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          validator: validator,
-          maxLines: maxLines,
-          decoration: InputDecoration(
-            prefixText: prefix,
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFEF4444)),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}

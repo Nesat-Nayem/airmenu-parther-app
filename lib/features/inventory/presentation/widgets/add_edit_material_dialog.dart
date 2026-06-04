@@ -1,9 +1,6 @@
-import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
-import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/bloc/inventory_bloc.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
-import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,12 +20,8 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
   late TextEditingController _nameCtrl;
   late TextEditingController _skuCtrl;
   late TextEditingController _categoryCtrl;
-  late TextEditingController _openingStockCtrl;
+  late TextEditingController _minStockCtrl;
   String _unit = 'kg';
-  String? _vendorId;
-
-  List<VendorModel> _vendors = [];
-  bool _vendorsLoading = true;
 
   final List<String> _units = ['kg', 'g', 'l', 'ml', 'pcs'];
 
@@ -41,56 +34,46 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
     _nameCtrl = TextEditingController(text: item?.name ?? '');
     _skuCtrl = TextEditingController(text: item?.sku ?? '');
     _categoryCtrl = TextEditingController(text: item?.category ?? '');
-    _openingStockCtrl = TextEditingController(text: isEditing ? item!.currentStock.toString() : '0');
+    _minStockCtrl = TextEditingController(
+      text: isEditing ? _fmt(item!.minStock) : '0',
+    );
     _unit = item?.unit ?? 'kg';
-    _vendorId = (item?.vendorId.isNotEmpty ?? false) ? item!.vendorId : null;
-    _loadVendors();
   }
 
-  Future<void> _loadVendors() async {
-    final res = await locator<InventoryRepository>().getVendors();
-    if (!mounted) return;
-    setState(() {
-      if (res is DataSuccess<List<VendorModel>>) {
-        _vendors = res.data!;
-        // Drop a stale vendor id that no longer exists in the list.
-        if (_vendorId != null && !_vendors.any((v) => v.id == _vendorId)) {
-          _vendorId = null;
-        }
-      }
-      _vendorsLoading = false;
-    });
-  }
+  static String _fmt(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
 
   @override
   void dispose() {
     _nameCtrl.dispose();
     _skuCtrl.dispose();
     _categoryCtrl.dispose();
-    _openingStockCtrl.dispose();
+    _minStockCtrl.dispose();
     super.dispose();
   }
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     final bloc = context.read<InventoryBloc>();
+    final minStock = double.tryParse(_minStockCtrl.text) ?? 0;
     if (isEditing) {
+      // Current stock is PO-driven and not editable here; only the threshold
+      // and descriptive fields can change.
       bloc.add(EditMaterial(widget.item!.id, {
         'name': _nameCtrl.text.trim(),
         if (_skuCtrl.text.trim().isNotEmpty) 'sku': _skuCtrl.text.trim(),
         if (_categoryCtrl.text.trim().isNotEmpty) 'category': _categoryCtrl.text.trim(),
         'unit': _unit,
-        'currentStock': double.tryParse(_openingStockCtrl.text) ?? 0,
-        'vendorId': _vendorId,
+        'minStock': minStock,
       }));
     } else {
+      // New materials start at 0 stock — stock is populated via received POs.
       bloc.add(AddMaterial({
         'name': _nameCtrl.text.trim(),
         if (_skuCtrl.text.trim().isNotEmpty) 'sku': _skuCtrl.text.trim(),
         if (_categoryCtrl.text.trim().isNotEmpty) 'category': _categoryCtrl.text.trim(),
         'unit': _unit,
-        'openingStock': double.tryParse(_openingStockCtrl.text) ?? 0,
-        if (_vendorId != null) 'vendorId': _vendorId,
+        'minStock': minStock,
       }));
     }
     Navigator.of(context).pop();
@@ -151,14 +134,15 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _numField(
-                        isEditing ? 'Current Stock' : 'Opening Stock',
-                        _openingStockCtrl,
-                      ),
+                      child: _numField('Minimum Stock', _minStockCtrl),
                     ),
                   ]),
-                  const SizedBox(height: 14),
-                  _buildVendorField(),
+                  const SizedBox(height: 8),
+                  Text(
+                    'When current stock is at or below the minimum, the item is '
+                    'flagged as critical. Stock is added by receiving purchase orders.',
+                    style: AirMenuTextStyle.caption.medium500().withColor(Colors.grey.shade500),
+                  ),
                   const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
@@ -180,70 +164,6 @@ class _AddEditMaterialDialogState extends State<AddEditMaterialDialog> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildVendorField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Vendor', style: AirMenuTextStyle.small.bold600()),
-        const SizedBox(height: 6),
-        if (_vendorsLoading)
-          Container(
-            height: 44,
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-              color: Colors.grey.shade50,
-            ),
-            child: Row(
-              children: [
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 12),
-                Text('Loading vendors...',
-                    style: AirMenuTextStyle.small.medium500().withColor(Colors.grey.shade500)),
-              ],
-            ),
-          )
-        else if (_vendors.isEmpty)
-          Container(
-            height: 44,
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade300),
-              color: Colors.grey.shade50,
-            ),
-            child: Text('No vendors added yet',
-                style: AirMenuTextStyle.small.medium500().withColor(Colors.grey.shade500)),
-          )
-        else
-          DropdownButtonFormField<String>(
-            initialValue: _vendorId,
-            isExpanded: true,
-            decoration: _inputDecoration(),
-            hint: const Text('Select vendor (optional)'),
-            items: [
-              const DropdownMenuItem<String>(
-                value: null,
-                child: Text('No vendor'),
-              ),
-              ..._vendors.map((v) => DropdownMenuItem(
-                    value: v.id,
-                    child: Text(v.companyName, overflow: TextOverflow.ellipsis),
-                  )),
-            ],
-            onChanged: (v) => setState(() => _vendorId = v),
-          ),
-      ],
     );
   }
 

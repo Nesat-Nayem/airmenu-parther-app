@@ -27,6 +27,14 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
   DateTime? _selectedDate;
   bool _isSubmitting = false;
 
+  // Resolved vendor + price for each material, derived from the vendors'
+  // configured supplied-item pricing. A material with no vendor that supplies
+  // it stays unassigned and cannot be ordered.
+  final Map<String, _ResolvedSupply> _supplyByMaterial = {};
+  bool _loadingVendors = true;
+
+  static const String _unassigned = 'Unassigned vendor';
+
   @override
   void initState() {
     super.initState();
@@ -35,7 +43,35 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
       selectedItems[item.id] = true;
       quantities[item.id] = item.minStock.ceil();
     }
+    _loadVendors();
   }
+
+  Future<void> _loadVendors() async {
+    final res = await locator<InventoryRepository>().getVendors();
+    if (!mounted) return;
+    if (res is DataSuccess<List<VendorModel>>) {
+      for (final vendor in res.data!) {
+        for (final s in vendor.suppliedItems) {
+          if (s.materialId.isEmpty) continue;
+          // Keep the first vendor found for each material.
+          _supplyByMaterial.putIfAbsent(
+            s.materialId,
+            () => _ResolvedSupply(
+              vendorId: vendor.id,
+              vendorName: vendor.companyName,
+              price: s.price,
+            ),
+          );
+        }
+      }
+    }
+    setState(() => _loadingVendors = false);
+  }
+
+  double _priceFor(InventoryItem item) => _supplyByMaterial[item.id]?.price ?? 0;
+
+  String _vendorNameFor(InventoryItem item) =>
+      _supplyByMaterial[item.id]?.vendorName ?? _unassigned;
 
   int get selectedCount =>
       selectedItems.values.where((selected) => selected).length;
@@ -43,7 +79,8 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
   int get totalVendors {
     final vendors = widget.criticalItems
         .where((item) => selectedItems[item.id] == true)
-        .map((item) => item.vendor)
+        .map((item) => _vendorNameFor(item))
+        .where((v) => v != _unassigned)
         .toSet();
     return vendors.length;
   }
@@ -52,7 +89,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     double total = 0;
     for (var item in widget.criticalItems) {
       if (selectedItems[item.id] == true) {
-        total += item.costPrice * (quantities[item.id] ?? 0);
+        total += _priceFor(item) * (quantities[item.id] ?? 0);
       }
     }
     return total;
@@ -62,7 +99,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     final Map<String, List<InventoryItem>> grouped = {};
     for (var item in widget.criticalItems) {
       if (selectedItems[item.id] == true) {
-        grouped.putIfAbsent(item.vendor, () => []).add(item);
+        grouped.putIfAbsent(_vendorNameFor(item), () => []).add(item);
       }
     }
     return grouped;
@@ -71,19 +108,41 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
   Future<void> _submitBulkPO() async {
     setState(() => _isSubmitting = true);
     final repo = locator<InventoryRepository>();
-    int successCount = 0;
-    int failCount = 0;
+
+    // Group selected, vendor-resolvable items into one pending PO per vendor.
+    final Map<String, List<Map<String, dynamic>>> itemsByVendorId = {};
+    final Map<String, String> vendorNames = {};
+    int skipped = 0;
 
     for (final item in widget.criticalItems) {
       if (selectedItems[item.id] != true) continue;
       final qty = quantities[item.id] ?? item.minStock.ceil();
       if (qty <= 0) continue;
-
-      final res = await repo.createTransaction({
+      final supply = _supplyByMaterial[item.id];
+      if (supply == null || supply.vendorId.isEmpty) {
+        skipped++;
+        continue;
+      }
+      vendorNames[supply.vendorId] = supply.vendorName;
+      itemsByVendorId.putIfAbsent(supply.vendorId, () => []).add({
         'materialId': item.id,
-        'type': 'purchase',
+        'materialName': item.name,
+        'unit': item.unit,
         'quantity': qty,
-        'note': 'Bulk PO for critical item: ${item.name}',
+        'unitPrice': supply.price,
+      });
+    }
+
+    int successCount = 0;
+    int failCount = 0;
+    for (final entry in itemsByVendorId.entries) {
+      final res = await repo.createPurchaseOrder({
+        'vendorId': entry.key,
+        'vendorName': vendorNames[entry.key] ?? '',
+        if (_selectedDate != null)
+          'expectedDelivery': _selectedDate!.toIso8601String(),
+        'notes': 'Bulk PO for critical items',
+        'items': entry.value,
       });
       if (res is DataSuccess) {
         successCount++;
@@ -95,12 +154,16 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     if (mounted) {
       setState(() => _isSubmitting = false);
       Navigator.pop(context);
+      final parts = <String>[];
+      if (successCount > 0) parts.add('$successCount pending PO(s) created');
+      if (failCount > 0) parts.add('$failCount failed');
+      if (skipped > 0) parts.add('$skipped item(s) skipped (no vendor)');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(failCount == 0
-              ? 'Bulk PO created: $successCount item(s) restocked'
-              : '$successCount succeeded, $failCount failed'),
-          backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
+          content: Text(parts.isEmpty ? 'No purchase orders created' : parts.join(', ')),
+          backgroundColor: failCount == 0 && successCount > 0
+              ? Colors.green
+              : Colors.orange,
         ),
       );
     }
@@ -536,7 +599,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
     // Ensure text doesn't overflow
     final isSelected = selectedItems[item.id] ?? false;
     final quantity = quantities[item.id] ?? item.minStock.ceil();
-    final total = item.costPrice * quantity;
+    final total = _priceFor(item) * quantity;
     final stockPercentage = (item.currentStock / item.minStock).clamp(0.0, 1.0);
 
     return AnimatedContainer(
@@ -707,7 +770,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
                   ),
                 ),
                 Text(
-                  '@₹${item.costPrice.toInt()}/${item.unit}',
+                  '@₹${_priceFor(item).toInt()}/${item.unit}',
                   style: AirMenuTextStyle.small.medium500().withColor(
                     const Color(0xFF9CA3AF),
                   ),
@@ -736,7 +799,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
         ...vendors.entries.map((entry) {
           final vendorTotal = entry.value.fold<double>(
             0,
-            (sum, item) => sum + (item.costPrice * (quantities[item.id] ?? 0)),
+            (sum, item) => sum + (_priceFor(item) * (quantities[item.id] ?? 0)),
           );
           return Container(
             margin: const EdgeInsets.only(bottom: 12),
@@ -884,7 +947,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
                 ],
               ),
               child: ElevatedButton.icon(
-                onPressed: selectedCount > 0 && !_isSubmitting
+                onPressed: selectedCount > 0 && !_isSubmitting && !_loadingVendors
                     ? _submitBulkPO
                     : null,
                 icon: const Icon(Icons.send_rounded, size: 18),
@@ -929,10 +992,24 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
           InventoryPrimaryButton(
             label: _isSubmitting ? 'Submitting...' : 'Create & Send PO',
             icon: Icons.send_rounded,
-            onTap: selectedCount > 0 && !_isSubmitting ? _submitBulkPO : () {},
+            onTap: selectedCount > 0 && !_isSubmitting && !_loadingVendors
+                ? _submitBulkPO
+                : () {},
           ),
         ],
       ),
     );
   }
+}
+
+class _ResolvedSupply {
+  final String vendorId;
+  final String vendorName;
+  final double price;
+
+  const _ResolvedSupply({
+    required this.vendorId,
+    required this.vendorName,
+    required this.price,
+  });
 }

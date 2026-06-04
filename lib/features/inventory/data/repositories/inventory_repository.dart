@@ -367,6 +367,75 @@ class InventoryRepository {
     }
   }
 
+  // ─── Purchase Orders ───────────────────────────────────────────────────────
+
+  Future<DataState<List<PurchaseOrder>>> getPurchaseOrders({String? status}) async {
+    try {
+      final hotelId = await _getHotelId();
+      final p = <String, String>{};
+      if (hotelId != null) p['hotelId'] = hotelId;
+      if (status != null) p['status'] = status;
+      final res = await _api.invoke(
+        urlPath: '${ApiEndpoints.inventoryPurchaseOrders}${_buildQuery(p)}',
+        type: RequestType.get,
+        fun: (data) => jsonDecode(data),
+      );
+      if (res is DataSuccess) {
+        final list = (res.data['data'] as List? ?? [])
+            .map((e) => PurchaseOrder.fromJson(e as Map<String, dynamic>))
+            .toList();
+        return DataSuccess(list);
+      }
+      return DataFailure<List<PurchaseOrder>>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to fetch purchase orders', statusCode: 0),
+      );
+    } catch (e) {
+      return _fail(e.toString());
+    }
+  }
+
+  Future<DataState<PurchaseOrder>> createPurchaseOrder(Map<String, dynamic> params) async {
+    try {
+      final hotelId = await _getHotelId();
+      final body = {...params, if (hotelId != null && !params.containsKey('hotelId')) 'hotelId': hotelId};
+      final res = await _api.invoke(
+        urlPath: ApiEndpoints.inventoryPurchaseOrders,
+        type: RequestType.post,
+        params: body,
+        fun: (data) => jsonDecode(data),
+      );
+      if (res is DataSuccess) {
+        return DataSuccess(PurchaseOrder.fromJson(res.data['data'] as Map<String, dynamic>));
+      }
+      return DataFailure<PurchaseOrder>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to create purchase order', statusCode: 0),
+      );
+    } catch (e) {
+      return _fail(e.toString());
+    }
+  }
+
+  Future<DataState<PurchaseOrder>> updatePurchaseOrderStatus(String id, String status) async {
+    try {
+      final hotelId = await _getHotelId();
+      final body = {'status': status, if (hotelId != null) 'hotelId': hotelId};
+      final res = await _api.invoke(
+        urlPath: ApiEndpoints.inventoryPurchaseOrderStatus(id),
+        type: RequestType.put,
+        params: body,
+        fun: (data) => jsonDecode(data),
+      );
+      if (res is DataSuccess) {
+        return DataSuccess(PurchaseOrder.fromJson(res.data['data'] as Map<String, dynamic>));
+      }
+      return DataFailure<PurchaseOrder>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to update purchase order', statusCode: 0),
+      );
+    } catch (e) {
+      return _fail(e.toString());
+    }
+  }
+
   // ─── Locations ─────────────────────────────────────────────────────────────
 
   Future<DataState<List<LocationModel>>> getLocations() async {

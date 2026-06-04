@@ -638,8 +638,9 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
   late TextEditingController _addressController;
   late TextEditingController _gstController;
 
-  List<String> _supplies = [];
-  List<String> _availableMaterials = [];
+  // Each supplied item pairs a material with the price this vendor charges.
+  final List<_SupplyEntry> _suppliedItems = [];
+  List<InventoryItem> _materials = [];
   bool _loadingMaterials = false;
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
@@ -659,9 +660,33 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
     _addressController = TextEditingController(text: widget.vendor?.address);
     _gstController = TextEditingController(text: widget.vendor?.gstNumber);
     if (widget.vendor != null) {
-      _supplies = List.from(widget.vendor!.supplies);
+      for (final s in widget.vendor!.suppliedItems) {
+        _suppliedItems.add(_SupplyEntry(
+          materialId: s.materialId.isNotEmpty ? s.materialId : null,
+          materialName: s.materialName,
+          priceController: TextEditingController(text: _fmtPrice(s.price)),
+        ));
+      }
     }
     _fetchMaterials();
+  }
+
+  static String _fmtPrice(double v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString();
+
+  @override
+  void dispose() {
+    _companyController.dispose();
+    _personController.dispose();
+    _phoneController.dispose();
+    _whatsappController.dispose();
+    _emailController.dispose();
+    _addressController.dispose();
+    _gstController.dispose();
+    for (final e in _suppliedItems) {
+      e.priceController.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _fetchMaterials() async {
@@ -670,131 +695,37 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
     if (!mounted) return;
     setState(() {
       if (res is DataSuccess<List<InventoryItem>>) {
-        _availableMaterials = res.data!.map((m) => m.name).toList();
+        _materials = res.data!;
+        // Backfill materialId for legacy entries stored only by name.
+        for (final e in _suppliedItems) {
+          if (e.materialId == null && e.materialName.isNotEmpty) {
+            final match = _materials.where((m) => m.name == e.materialName).firstOrNull;
+            if (match != null) e.materialId = match.id;
+          }
+        }
       }
       _loadingMaterials = false;
     });
   }
 
-  void _showMaterialsPicker() {
-    final selected = Set<String>.from(_supplies);
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setSheetState) {
-            return Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(ctx).size.height * 0.6,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    margin: const EdgeInsets.symmetric(vertical: 12),
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Select Supplied Items',
-                          style: AirMenuTextStyle.normal.bold700().withColor(const Color(0xFF111827)),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            setState(() => _supplies = selected.toList());
-                            Navigator.pop(ctx);
-                          },
-                          child: Text(
-                            'Done',
-                            style: AirMenuTextStyle.normal.bold600().withColor(const Color(0xFFDC2626)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: _availableMaterials.length,
-                      itemBuilder: (_, i) {
-                        final name = _availableMaterials[i];
-                        final isChecked = selected.contains(name);
-                        return CheckboxListTile(
-                          title: Text(
-                            name,
-                            style: AirMenuTextStyle.normal.withColor(const Color(0xFF111827)),
-                          ),
-                          value: isChecked,
-                          activeColor: const Color(0xFFDC2626),
-                          onChanged: (v) {
-                            setSheetState(() {
-                              if (v == true) {
-                                selected.add(name);
-                              } else {
-                                selected.remove(name);
-                              }
-                            });
-                          },
-                          controlAffinity: ListTileControlAffinity.leading,
-                        );
-                      },
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      20,
-                      8,
-                      20,
-                      MediaQuery.of(ctx).viewInsets.bottom + 20,
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          setState(() => _supplies = selected.toList());
-                          Navigator.pop(ctx);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC2626),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text('Confirm', style: AirMenuTextStyle.normal.bold600()),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
+  void _addSupplyEntry() {
+    setState(() {
+      _suppliedItems.add(_SupplyEntry(priceController: TextEditingController()));
+    });
+  }
+
+  void _removeSupplyEntry(int index) {
+    setState(() {
+      _suppliedItems[index].priceController.dispose();
+      _suppliedItems.removeAt(index);
+    });
   }
 
   Future<void> _save() async {
     if (_isSaving) return;
     if (!_formKey.currentState!.validate()) return;
-    if (_supplies.isEmpty) {
+    final entries = _suppliedItems.where((e) => e.materialId != null).toList();
+    if (entries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           backgroundColor: Color(0xFFDC2626),
@@ -804,6 +735,14 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
       );
       return;
     }
+    final suppliedItems = entries.map((e) {
+      final mat = _materials.where((m) => m.id == e.materialId).firstOrNull;
+      return SuppliedItem(
+        materialId: e.materialId!,
+        materialName: mat?.name ?? e.materialName,
+        price: double.tryParse(e.priceController.text.trim()) ?? 0,
+      );
+    }).toList();
     final vendor = Vendor(
       id: widget.vendor?.id ?? '',
       companyName: _companyController.text.trim(),
@@ -814,7 +753,7 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
       address: _addressController.text.trim(),
       gstNumber: _gstController.text.trim(),
       paymentTerms: widget.vendor?.paymentTerms ?? '',
-      supplies: _supplies,
+      suppliedItems: suppliedItems,
     );
     setState(() => _isSaving = true);
     final messenger = ScaffoldMessenger.of(context);
@@ -1020,7 +959,22 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                       ),
                       const SizedBox(height: 12),
 
-                      _buildLabel('Supplied Items'),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildLabel('Supplied Items & Pricing'),
+                          if (!_loadingMaterials && _materials.isNotEmpty)
+                            TextButton.icon(
+                              onPressed: _addSupplyEntry,
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('Add Item'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: const Color(0xFFDC2626),
+                                textStyle: AirMenuTextStyle.small.bold600(),
+                              ),
+                            ),
+                        ],
+                      ),
                       const SizedBox(height: 8),
                       if (_loadingMaterials)
                         Container(
@@ -1040,7 +994,7 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                             ),
                           ),
                         )
-                      else if (_availableMaterials.isEmpty)
+                      else if (_materials.isEmpty)
                         Container(
                           height: 50,
                           alignment: Alignment.centerLeft,
@@ -1055,68 +1009,32 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                             style: AirMenuTextStyle.normal.withColor(const Color(0xFF9CA3AF)),
                           ),
                         )
-                      else
-                        GestureDetector(
-                          onTap: _showMaterialsPicker,
-                          child: Container(
-                            height: 50,
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: const Color(0xFFE5E7EB)),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _supplies.isEmpty
-                                        ? 'Tap to select materials...'
-                                        : '${_supplies.length} item(s) selected',
-                                    style: AirMenuTextStyle.normal.withColor(
-                                      _supplies.isEmpty
-                                          ? const Color(0xFF9CA3AF)
-                                          : const Color(0xFF111827),
-                                    ),
-                                  ),
-                                ),
-                                const Icon(Icons.arrow_drop_down, color: Color(0xFF6B7280)),
-                              ],
-                            ),
+                      else if (_suppliedItems.isEmpty)
+                        Container(
+                          height: 50,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
                           ),
+                          child: Text(
+                            'Tap "Add Item" to add a supplied material and its price.',
+                            style: AirMenuTextStyle.normal.withColor(const Color(0xFF9CA3AF)),
+                          ),
+                        )
+                      else
+                        Column(
+                          children: _suppliedItems
+                              .asMap()
+                              .entries
+                              .map((e) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 10),
+                                    child: _buildSupplyRow(e.key, e.value),
+                                  ))
+                              .toList(),
                         ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: _supplies
-                            .map(
-                              (supply) => Chip(
-                                label: Text(supply),
-                                backgroundColor: const Color(0xFFFEF2F2),
-                                labelStyle: AirMenuTextStyle.small.withColor(
-                                  const Color(0xFF991B1B),
-                                ),
-                                deleteIcon: const Icon(
-                                  Icons.close,
-                                  size: 16,
-                                  color: Color(0xFF991B1B),
-                                ),
-                                onDeleted: () {
-                                  setState(() {
-                                    _supplies.remove(supply);
-                                  });
-                                },
-                                materialTapTargetSize:
-                                    MaterialTapTargetSize.shrinkWrap,
-                                side: BorderSide.none,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
                       const SizedBox(height: 16),
                       _buildLabel('Notes'),
                       const SizedBox(height: 8),
@@ -1155,6 +1073,84 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSupplyRow(int index, _SupplyEntry entry) {
+    final selectedIds = _suppliedItems
+        .asMap()
+        .entries
+        .where((e) => e.key != index)
+        .map((e) => e.value.materialId)
+        .whereType<String>()
+        .toSet();
+    final value = _materials.any((m) => m.id == entry.materialId) ? entry.materialId : null;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          flex: 5,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: DropdownButtonFormField<String>(
+              initialValue: value,
+              isExpanded: true,
+              hint: Text('Select material',
+                  style: AirMenuTextStyle.small.withColor(const Color(0xFF9CA3AF))),
+              decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+              items: _materials
+                  // Hide materials already picked in another row.
+                  .where((m) => m.id == entry.materialId || !selectedIds.contains(m.id))
+                  .map((m) => DropdownMenuItem(
+                        value: m.id,
+                        child: Text('${m.name} (${m.unit})',
+                            overflow: TextOverflow.ellipsis,
+                            style: AirMenuTextStyle.small.medium500()),
+                      ))
+                  .toList(),
+              onChanged: (val) => setState(() {
+                final m = _materials.where((m) => m.id == val).firstOrNull;
+                entry.materialId = val;
+                entry.materialName = m?.name ?? '';
+              }),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 3,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: TextFormField(
+              controller: entry.priceController,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
+              decoration: const InputDecoration(
+                prefixText: '₹',
+                hintText: 'Price',
+                border: InputBorder.none,
+                isDense: true,
+              ),
+              style: AirMenuTextStyle.small.medium500(),
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: () => _removeSupplyEntry(index),
+          icon: const Icon(Icons.close, size: 18, color: Color(0xFFDC2626)),
+          splashRadius: 18,
+        ),
+      ],
     );
   }
 
@@ -1239,6 +1235,19 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
           .toList(),
     );
   }
+}
+
+// Mutable form-row model for a vendor's supplied item + price.
+class _SupplyEntry {
+  String? materialId;
+  String materialName;
+  final TextEditingController priceController;
+
+  _SupplyEntry({
+    this.materialId,
+    this.materialName = '',
+    required this.priceController,
+  });
 }
 
 class RemoveVendorDialog extends StatelessWidget {

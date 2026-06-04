@@ -77,14 +77,24 @@ class InventoryItem {
   String get vendorId => _vendorId ?? '';
   String get vendorName => _vendorName ?? '';
 
+  // Stock status is driven by the minimum-stock threshold: at or below minimum
+  // stock is treated as critical, with a small warning band just above it.
   StockStatus get status {
     if (currentStock <= 0) return StockStatus.critical;
-    if (reorderLevel > 0 && currentStock <= reorderLevel) return StockStatus.low;
+    if (minStock > 0) {
+      if (currentStock <= minStock) return StockStatus.critical;
+      if (currentStock <= minStock * 1.5) return StockStatus.low;
+    }
     return StockStatus.healthy;
   }
 
-  // Legacy compat: maxStock used for progress bar — treat reorderLevel * 3 or openingStock
-  double get maxStock => openingStock > 0 ? openingStock : (reorderLevel * 3).clamp(1, double.infinity);
+  // maxStock is only used to scale the progress bar. With stock now driven by
+  // POs, derive a sensible ceiling from the minimum-stock threshold.
+  double get maxStock {
+    if (minStock > 0) return (minStock * 2).clamp(1, double.infinity);
+    if (currentStock > 0) return currentStock;
+    return 1;
+  }
 
   double get stockPercentage => (currentStock / maxStock).clamp(0.0, 1.0);
 
@@ -125,15 +135,14 @@ class InventoryItem {
     );
   }
 
+  // Stock is now populated via received purchase orders, so creation no longer
+  // sends an opening/current stock or a vendor association.
   Map<String, dynamic> toCreateJson() => {
     'name': name,
     if (sku.isNotEmpty) 'sku': sku,
     if (category.isNotEmpty) 'category': category,
     'unit': unit,
-    'openingStock': openingStock,
-    'reorderLevel': reorderLevel,
     'minStock': minStock,
-    if (vendorId.isNotEmpty) 'vendorId': vendorId,
   };
 
   Map<String, dynamic> toUpdateJson() => {
@@ -141,10 +150,7 @@ class InventoryItem {
     if (sku.isNotEmpty) 'sku': sku,
     if (category.isNotEmpty) 'category': category,
     'unit': unit,
-    'currentStock': currentStock,
-    'reorderLevel': reorderLevel,
     'minStock': minStock,
-    if (vendorId.isNotEmpty) 'vendorId': vendorId,
   };
 
   InventoryItem copyWith({
@@ -383,42 +389,158 @@ class ChartDataPoint {
   const ChartDataPoint(this.label, this.value);
 }
 
-// ─── Purchase Order (kept for UI compat, not from backend) ────────────────────
+// ─── Purchase Order ───────────────────────────────────────────────────────────
 enum PurchaseOrderStatus {
   pending,
-  ordered,
-  received;
+  received,
+  cancelled;
 
   Color get color {
     switch (this) {
       case PurchaseOrderStatus.pending:
         return const Color(0xFFF59E0B);
-      case PurchaseOrderStatus.ordered:
-        return const Color(0xFF3B82F6);
       case PurchaseOrderStatus.received:
         return const Color(0xFF10B981);
+      case PurchaseOrderStatus.cancelled:
+        return const Color(0xFF6B7280);
     }
   }
 
   String get label => name[0].toUpperCase() + name.substring(1);
+
+  static PurchaseOrderStatus fromString(String? s) {
+    switch (s) {
+      case 'received':
+        return PurchaseOrderStatus.received;
+      case 'cancelled':
+        return PurchaseOrderStatus.cancelled;
+      default:
+        return PurchaseOrderStatus.pending;
+    }
+  }
+}
+
+class PurchaseOrderItem {
+  final String materialId;
+  final String materialName;
+  final String unit;
+  final double quantity;
+  final double unitPrice;
+  final double lineTotal;
+
+  const PurchaseOrderItem({
+    required this.materialId,
+    this.materialName = '',
+    this.unit = '',
+    this.quantity = 0,
+    this.unitPrice = 0,
+    this.lineTotal = 0,
+  });
+
+  factory PurchaseOrderItem.fromJson(Map<String, dynamic> json) {
+    final rawMat = json['materialId'];
+    final matId = rawMat is Map ? (rawMat['_id'] ?? '').toString() : (rawMat ?? '').toString();
+    final qty = (json['quantity'] ?? 0).toDouble();
+    final price = (json['unitPrice'] ?? 0).toDouble();
+    return PurchaseOrderItem(
+      materialId: matId,
+      materialName: (json['materialName'] ?? '').toString(),
+      unit: (json['unit'] ?? '').toString(),
+      quantity: qty,
+      unitPrice: price,
+      lineTotal: (json['lineTotal'] ?? (qty * price)).toDouble(),
+    );
+  }
 }
 
 class PurchaseOrder {
   final String id;
-  final String poNumber;
+  final String vendorId;
   final String vendorName;
-  final double amount;
+  final List<PurchaseOrderItem> items;
   final PurchaseOrderStatus status;
-  final DateTime date;
+  final double totalAmount;
+  final DateTime createdAt;
+  final DateTime? expectedDelivery;
+  final DateTime? receivedAt;
+  final String notes;
 
   const PurchaseOrder({
     required this.id,
-    required this.poNumber,
-    required this.vendorName,
-    required this.amount,
-    required this.status,
-    required this.date,
+    this.vendorId = '',
+    this.vendorName = '',
+    this.items = const [],
+    this.status = PurchaseOrderStatus.pending,
+    this.totalAmount = 0,
+    required this.createdAt,
+    this.expectedDelivery,
+    this.receivedAt,
+    this.notes = '',
   });
+
+  int get itemCount => items.length;
+  double get totalQuantity => items.fold(0, (sum, i) => sum + i.quantity);
+
+  static DateTime? _tryDate(dynamic v) {
+    if (v == null) return null;
+    return DateTime.tryParse(v.toString());
+  }
+
+  factory PurchaseOrder.fromJson(Map<String, dynamic> json) {
+    final rawVendor = json['vendorId'];
+    final vId = rawVendor is Map ? (rawVendor['_id'] ?? '').toString() : (rawVendor ?? '').toString();
+    return PurchaseOrder(
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      vendorId: vId,
+      vendorName: (json['vendorName'] ?? '').toString(),
+      items: (json['items'] as List? ?? [])
+          .map((e) => PurchaseOrderItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      status: PurchaseOrderStatus.fromString(json['status']?.toString()),
+      totalAmount: (json['totalAmount'] ?? 0).toDouble(),
+      createdAt: _tryDate(json['createdAt']) ?? DateTime.now(),
+      expectedDelivery: _tryDate(json['expectedDelivery']),
+      receivedAt: _tryDate(json['receivedAt']),
+      notes: (json['notes'] ?? '').toString(),
+    );
+  }
+}
+
+// ─── Vendor Supplied Item (material + the vendor's price) ─────────────────────
+class SuppliedItem {
+  final String materialId;
+  final String materialName;
+  final double price;
+
+  const SuppliedItem({
+    required this.materialId,
+    this.materialName = '',
+    this.price = 0,
+  });
+
+  factory SuppliedItem.fromJson(Map<String, dynamic> json) {
+    final rawMat = json['materialId'];
+    final matId = rawMat is Map ? (rawMat['_id'] ?? '').toString() : (rawMat ?? '').toString();
+    return SuppliedItem(
+      materialId: matId,
+      materialName: (json['materialName'] ?? '').toString(),
+      price: (json['price'] ?? 0).toDouble(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'materialId': materialId,
+    'materialName': materialName,
+    'price': price,
+  };
+
+  SuppliedItem copyWith({String? materialId, String? materialName, double? price}) {
+    return SuppliedItem(
+      materialId: materialId ?? this.materialId,
+      materialName: materialName ?? this.materialName,
+      price: price ?? this.price,
+    );
+  }
 }
 
 // ─── Vendor ───────────────────────────────────────────────────────────────────
@@ -432,7 +554,7 @@ class VendorModel {
   final String address;
   final String gstNumber;
   final String paymentTerms;
-  final List<String> supplies;
+  final List<SuppliedItem> suppliedItems;
   final String notes;
 
   const VendorModel({
@@ -445,11 +567,25 @@ class VendorModel {
     this.address = '',
     this.gstNumber = '',
     this.paymentTerms = '',
-    this.supplies = const [],
+    this.suppliedItems = const [],
     this.notes = '',
   });
 
+  // Convenience for legacy UI that only needs the supplied material names.
+  List<String> get supplies => suppliedItems.map((e) => e.materialName).where((n) => n.isNotEmpty).toList();
+
   factory VendorModel.fromJson(Map<String, dynamic> json) {
+    // Prefer the new priced `suppliedItems`; fall back to the legacy list of
+    // plain material-name strings so older vendor records keep working.
+    final rawSupplied = json['suppliedItems'];
+    List<SuppliedItem> supplied;
+    if (rawSupplied is List && rawSupplied.isNotEmpty) {
+      supplied = rawSupplied.map((e) => SuppliedItem.fromJson(e as Map<String, dynamic>)).toList();
+    } else {
+      supplied = List<String>.from(json['supplies'] ?? [])
+          .map((name) => SuppliedItem(materialId: '', materialName: name))
+          .toList();
+    }
     return VendorModel(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       companyName: json['companyName'] ?? '',
@@ -460,7 +596,7 @@ class VendorModel {
       address: json['address'] ?? '',
       gstNumber: json['gstNumber'] ?? '',
       paymentTerms: json['paymentTerms'] ?? '',
-      supplies: List<String>.from(json['supplies'] ?? []),
+      suppliedItems: supplied,
       notes: json['notes'] ?? '',
     );
   }
@@ -474,6 +610,8 @@ class VendorModel {
     'address': address,
     'gstNumber': gstNumber,
     'paymentTerms': paymentTerms,
+    'suppliedItems': suppliedItems.map((e) => e.toJson()).toList(),
+    // Keep the legacy `supplies` name list populated for backward compatibility.
     'supplies': supplies,
     'notes': notes,
   };
