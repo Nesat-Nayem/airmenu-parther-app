@@ -262,6 +262,61 @@ class ApiService implements DataService {
     }
   }
 
+  /// Authenticated GET that returns the raw response bytes (for binary file
+  /// downloads such as PDF/Excel exports). Avoids JSON-decoding the body so the
+  /// binary payload is preserved.
+  Future<DataState<Uint8List>> invokeBytes({
+    String urlBase = EnvConfig.apiUrl,
+    required String urlPath,
+    Map<String, String>? headers,
+  }) async {
+    final token = await locator<AuthService>().getAccessToken();
+    headers ??= {};
+
+    if (token != null && token.isNotEmpty) {
+      headers["Authorization"] = "Bearer $token";
+    }
+
+    final url = urlPath.startsWith('/') ? "$urlBase$urlPath" : "$urlBase/$urlPath";
+
+    Log.info("apiCall Bytes Initiated GET $url");
+
+    try {
+      const durationTimeout = Duration(minutes: 2);
+      final response = await http
+          .get(Uri.parse(url), headers: headers)
+          .timeout(durationTimeout);
+      Log.info("apiResponse Bytes GET $url ${response.statusCode}");
+
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        return DataSuccess<Uint8List>(response.bodyBytes);
+      }
+
+      String message = "Export failed";
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map && decoded['message'] != null) {
+          message = decoded['message'].toString();
+        }
+      } catch (_) {}
+      return DataFailure<Uint8List>(
+        DataError(message: message, statusCode: response.statusCode),
+      );
+    } on TimeoutException catch (e, s) {
+      Log.error("Timeout - $urlPath: ${e.toString()}\\nStack trace: $s");
+      return DataFailure<Uint8List>(
+        DataError(message: "Request timeout", statusCode: 0),
+      );
+    } catch (e, s) {
+      Log.error(
+        "Unexpected error in ApiService bytes - $urlPath: ${e.toString()}\\nStack trace: $s",
+      );
+      return DataFailure<Uint8List>(
+        DataError(message: "Unexpected error: ${e.toString()}", statusCode: 0),
+      );
+    }
+  }
+
   /// Multipart request with bytes (for Flutter Web compatibility)
   Future<dynamic> invokeMultipartWithBytes<T>({
     String urlBase = EnvConfig.apiUrl,

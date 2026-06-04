@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:airmenuai_partner_app/core/constants/api_endpoints.dart';
 import 'package:airmenuai_partner_app/core/network/api_service.dart';
 import 'package:airmenuai_partner_app/core/network/data_error.dart';
@@ -548,18 +549,17 @@ class InventoryRepository {
 
   // ─── Export ────────────────────────────────────────────────────────────────
 
-  Future<DataState<Map<String, dynamic>>> exportData(List<String> types) async {
+  Future<DataState<Uint8List>> exportData(List<String> types, String format) async {
     try {
-      final q = types.join(',');
-      final res = await _api.invoke(
-        urlPath: '${ApiEndpoints.inventoryExport}?types=${Uri.encodeComponent(q)}',
-        type: RequestType.get,
-        fun: (data) => jsonDecode(data),
+      final hotelId = await _getHotelId();
+      final p = <String, String>{
+        'types': types.join(','),
+        'format': format,
+      };
+      if (hotelId != null) p['hotelId'] = hotelId;
+      return await _api.invokeBytes(
+        urlPath: '${ApiEndpoints.inventoryExport}${_buildQuery(p)}',
       );
-      if (res is DataSuccess) {
-        return DataSuccess(res.data['data'] as Map<String, dynamic>? ?? {});
-      }
-      return _fail('Failed to export data');
     } catch (e) {
       return _fail(e.toString());
     }

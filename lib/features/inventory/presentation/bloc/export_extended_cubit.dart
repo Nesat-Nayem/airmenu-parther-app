@@ -1,7 +1,13 @@
+import 'dart:typed_data';
+
 import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'export_download_helper_stub.dart'
+    if (dart.library.html) 'export_download_helper_web.dart'
+    as download_helper;
 
 enum ExportFormat { excel, pdf }
 enum ExportDataType { inventoryItems, purchaseOrders, analytics }
@@ -74,11 +80,27 @@ class ExportExtCubit extends Cubit<ExportExtState> {
       }
     }).toList();
 
-    final result = await _repo.exportData(types);
-    if (result is DataSuccess) {
+    final isPdf = state.selectedFormat == ExportFormat.pdf;
+    final format = isPdf ? 'pdf' : 'excel';
+
+    final result = await _repo.exportData(types, format);
+    if (result is DataSuccess<Uint8List> && result.data != null) {
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final extension = isPdf ? 'pdf' : 'xlsx';
+      final mimeType = isPdf
+          ? 'application/pdf'
+          : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      download_helper.downloadFileBytes(
+        result.data!,
+        'inventory_export_$timestamp.$extension',
+        mimeType,
+      );
       emit(state.copyWith(status: ExportExtStatus.success));
     } else {
-      emit(state.copyWith(status: ExportExtStatus.error, errorMessage: 'Export failed'));
+      emit(state.copyWith(
+        status: ExportExtStatus.error,
+        errorMessage: result.error?.message ?? 'Export failed',
+      ));
     }
   }
 }
