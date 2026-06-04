@@ -31,7 +31,7 @@ class KycDetailModal extends StatefulWidget {
 class _KycDetailModalState extends State<KycDetailModal> {
   late bool _vendorSigned;
   late bool _adminSigned;
-  String _ifscStatus = 'pending';
+  bool _allDocsVerified = false;
 
   @override
   void initState() {
@@ -305,14 +305,12 @@ class _KycDetailModalState extends State<KycDetailModal> {
                   const SizedBox(height: 12),
                   DocumentVerificationSection(
                     kyc: widget.kyc,
-                    onVerified: () {
-                      // Notify parent to reload the KYC list/detail
-                      // The BLoC listener above handles Adobe sync;
-                      // for doc verification we just show updated status locally.
+                    onAllVerifiedChanged: (allVerified) {
+                      if (allVerified != _allDocsVerified) {
+                        setState(() => _allDocsVerified = allVerified);
+                      }
                     },
                   ),
-                  const SizedBox(height: 12),
-                  _buildIfscVerificationCard(),
 
                   const SizedBox(height: 24),
 
@@ -327,7 +325,10 @@ class _KycDetailModalState extends State<KycDetailModal> {
                   // Adobe Agreement & Admin Signing
                   _buildSectionTitle('Adobe Agreement'),
                   const SizedBox(height: 12),
-                  AdminAdobeSigningSection(kyc: widget.kyc),
+                  AdminAdobeSigningSection(
+                    kyc: widget.kyc,
+                    docsVerified: _allDocsVerified,
+                  ),
 
                   const SizedBox(height: 24),
 
@@ -472,135 +473,6 @@ class _KycDetailModalState extends State<KycDetailModal> {
         ],
       ),
     ),
-    );
-  }
-
-  Widget _buildIfscVerificationCard() {
-    final isVerified = _ifscStatus == 'verified';
-
-    final Color statusColor =
-        isVerified ? const Color(0xFF10B981) : const Color(0xFF6B7280);
-    final Color statusBg =
-        isVerified ? const Color(0xFFECFDF5) : const Color(0xFFF3F4F6);
-    final IconData statusIcon =
-        isVerified ? Icons.check_circle_outline : Icons.help_outline;
-    final String statusLabel = isVerified ? 'Verified' : 'Not Verified';
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isVerified
-              ? const Color(0xFF10B981).withValues(alpha: 0.3)
-              : const Color(0xFFE5E7EB),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row: icon + title + status badge
-          Row(
-            children: [
-              const Icon(Icons.account_balance_outlined,
-                  size: 18, color: Color(0xFF6B7280)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'IFSC Verification',
-                  style: GoogleFonts.sora(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF111827),
-                  ),
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusBg,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(statusIcon, size: 12, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      statusLabel,
-                      style: GoogleFonts.sora(
-                        fontSize: 12,
-                        color: statusColor,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // IFSC code value row
-          Text(
-            widget.kyc.ifscCode?.isNotEmpty == true
-                ? widget.kyc.ifscCode!
-                : 'Not provided',
-            style: GoogleFonts.sora(
-              fontSize: 13,
-              color: const Color(0xFF374151),
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Status dropdown
-          Row(
-            children: [
-              Text(
-                'Set Status:',
-                style: GoogleFonts.sora(
-                  fontSize: 13,
-                  color: const Color(0xFF6B7280),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _ifscStatus,
-                    isDense: true,
-                    style: GoogleFonts.sora(
-                      fontSize: 13,
-                      color: const Color(0xFF111827),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'pending',
-                        child: Text('Pending'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'verified',
-                        child: Text('Verified'),
-                      ),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _ifscStatus = val);
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 

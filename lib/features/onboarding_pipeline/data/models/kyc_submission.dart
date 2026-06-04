@@ -53,6 +53,7 @@ class KycSubmission extends Equatable {
   final String? gstVerificationStatus;
   final String? gstVerifiedBusinessName;
   final String? gstVerifiedStatus; // 'active' / 'inactive'
+  final String? ifscVerificationStatus; // 'verified' / 'pending'
 
   // Bank Details
   final String? accountHolderName;
@@ -121,6 +122,7 @@ class KycSubmission extends Equatable {
     this.gstVerificationStatus,
     this.gstVerifiedBusinessName,
     this.gstVerifiedStatus,
+    this.ifscVerificationStatus,
     this.accountHolderName,
     this.bankAccountNumber,
     this.ifscCode,
@@ -235,6 +237,9 @@ class KycSubmission extends Equatable {
       gstVerifiedStatus: (json['gstVerification'] is Map && json['gstVerification']['details'] is Map)
           ? (json['gstVerification']['details'] as Map)['gstStatus']?.toString()
           : null,
+      ifscVerificationStatus: (json['ifscVerification'] is Map)
+          ? (json['ifscVerification'] as Map)['status']?.toString()
+          : null,
 
       // Bank Details
       accountHolderName: json['accountHolderName']?.toString(),
@@ -334,6 +339,7 @@ class KycSubmission extends Equatable {
     gstVerificationStatus,
     gstVerifiedBusinessName,
     gstVerifiedStatus,
+    ifscVerificationStatus,
     accountHolderName,
     bankAccountNumber,
     ifscCode,

@@ -16,7 +16,16 @@ import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 class AdminAdobeSigningSection extends StatefulWidget {
   final KycSubmission kyc;
 
-  const AdminAdobeSigningSection({super.key, required this.kyc});
+  /// When false, the admin signing button is disabled until all KYC documents
+  /// (Aadhaar, Bank, GST, IFSC) have been verified. Defaults to true so callers
+  /// that don't gate on document verification keep their existing behaviour.
+  final bool docsVerified;
+
+  const AdminAdobeSigningSection({
+    super.key,
+    required this.kyc,
+    this.docsVerified = true,
+  });
 
   @override
   State<AdminAdobeSigningSection> createState() => _AdminAdobeSigningSectionState();
@@ -205,25 +214,72 @@ class _AdminAdobeSigningSectionState extends State<AdminAdobeSigningSection> {
           ]),
         ),
 
-      // Admin Sign button — show only if admin hasn't signed yet
+      // Admin Sign button — show only if admin hasn't signed yet.
+      // Gated on document verification: enabled only once all docs are verified.
       if (!_adminSigned)
         SizedBox(
           width: double.infinity,
           height: 44,
-          child: ElevatedButton.icon(
-            onPressed: () {
-              context.read<OnboardingPipelineBloc>().add(FetchAdminSigningUrl(kycId: widget.kyc.id));
-            },
-            icon: const Icon(Icons.draw, size: 18, color: Colors.white),
-            label: Text('Sign Agreement as Admin',
-                style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AirMenuColors.primary,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          child: Tooltip(
+            message: widget.docsVerified
+                ? ''
+                : 'Verify Aadhaar, Bank, GST & IFSC before signing',
+            child: ElevatedButton.icon(
+              onPressed: widget.docsVerified
+                  ? () {
+                      context
+                          .read<OnboardingPipelineBloc>()
+                          .add(FetchAdminSigningUrl(kycId: widget.kyc.id));
+                    }
+                  : null,
+              icon: Icon(Icons.draw,
+                  size: 18,
+                  color: widget.docsVerified ? Colors.white : Colors.white70),
+              label: Text('Sign Agreement as Admin',
+                  style: GoogleFonts.sora(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: widget.docsVerified ? Colors.white : Colors.white70)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.docsVerified
+                    ? AirMenuColors.primary
+                    : AirMenuColors.primary.withValues(alpha: 0.4),
+                disabledBackgroundColor:
+                    AirMenuColors.primary.withValues(alpha: 0.4),
+                elevation: 0,
+                shape:
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
             ),
           ),
         ),
+
+      // Hint shown while documents are still pending verification
+      if (!_adminSigned && !widget.docsVerified) ...[
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.amber.shade200),
+          ),
+          child: Row(children: [
+            Icon(Icons.info_outline, size: 16, color: Colors.amber.shade700),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Mark Aadhaar, Bank, GST and IFSC as Verified to enable admin signing.',
+                style: GoogleFonts.sora(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.amber.shade800),
+              ),
+            ),
+          ]),
+        ),
+      ],
 
       // Admin already signed — show disabled indicator
       if (_adminSigned && !_vendorSigned)

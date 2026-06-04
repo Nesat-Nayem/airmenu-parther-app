@@ -196,4 +196,7 @@ class ApiEndpoints {
   static String kycAdminVerifyBank(String id) => '/kyc/$id/verify-bank';
   static String kycAdminVerifyGst(String id) => '/kyc/$id/verify-gst';
   static String kycAdminUpdateDocument(String id) => '/kyc/$id/document';
+  // Manual verification status update (no sandbox/third-party call)
+  static String kycAdminSetVerificationStatus(String id) =>
+      '/kyc/$id/verification-status';
 }
