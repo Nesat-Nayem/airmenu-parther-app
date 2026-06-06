@@ -163,6 +163,7 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
                   padding: const EdgeInsets.all(24),
                   child: Form(
                     key: _formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -413,10 +414,13 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
     final comboPrice = double.tryParse(value!) ?? 0;
     final originalPrice = double.tryParse(_originalPriceController.text) ?? 0;
     if (originalPrice > 0 && comboPrice >= originalPrice) {
-      return 'Must be less than original price';
+      return 'Must be less than total price (₹${originalPrice.toStringAsFixed(0)})';
     }
     return null;
   }
+
+  int get _originalPriceInt =>
+      int.tryParse(_originalPriceController.text) ?? 0;
 
   Widget _buildPricingSection() {
     final price = double.tryParse(_priceController.text) ?? 0;
@@ -481,9 +485,15 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
                         '0',
                       ).copyWith(prefixText: '₹ ', fillColor: Colors.white),
                       keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                        _MaxComboPriceFormatter(_originalPriceInt),
+                      ],
                       validator: _validateComboPrice,
-                      onChanged: (_) => setState(() {}),
+                      onChanged: (_) {
+                        setState(() {});
+                        _formKey.currentState?.validate();
+                      },
                     ),
                   ],
                 ),
@@ -660,6 +670,36 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
     });
 
     Navigator.pop(context);
+  }
+}
+
+class _MaxComboPriceFormatter extends TextInputFormatter {
+  final int maxTotalPrice;
+
+  const _MaxComboPriceFormatter(this.maxTotalPrice);
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty || maxTotalPrice <= 0) return newValue;
+
+    final entered = int.tryParse(newValue.text);
+    if (entered == null) return oldValue;
+
+    if (entered >= maxTotalPrice) {
+      final maxAllowed = maxTotalPrice - 1;
+      if (maxAllowed <= 0) return oldValue;
+
+      final text = maxAllowed.toString();
+      return TextEditingValue(
+        text: text,
+        selection: TextSelection.collapsed(offset: text.length),
+      );
+    }
+
+    return newValue;
   }
 }
 
