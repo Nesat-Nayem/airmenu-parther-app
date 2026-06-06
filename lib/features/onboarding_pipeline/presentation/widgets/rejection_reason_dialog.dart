@@ -40,12 +40,24 @@ class _RejectionReasonDialogState extends State<RejectionReasonDialog> {
   final Map<String, TextEditingController> _fieldNotes = {};
   final TextEditingController _generalCtrl = TextEditingController();
 
+  bool get _canSubmit {
+    if (_selected.isEmpty) return false;
+    for (final key in _selected) {
+      if ((_fieldNotes[key]?.text.trim() ?? '').isEmpty) return false;
+    }
+    return true;
+  }
+
+  void _onFormChanged() => setState(() {});
+
   @override
   void initState() {
     super.initState();
     for (final f in _fields) {
-      _fieldNotes[f.key] = TextEditingController();
+      _fieldNotes[f.key] = TextEditingController()
+        ..addListener(_onFormChanged);
     }
+    _generalCtrl.addListener(_onFormChanged);
   }
 
   @override
@@ -58,22 +70,24 @@ class _RejectionReasonDialogState extends State<RejectionReasonDialog> {
   }
 
   void _submit() {
-    final out = <String, String>{};
-    for (final key in _selected) {
-      final note = _fieldNotes[key]?.text.trim() ?? '';
-      out[key] = note.isEmpty ? 'Please correct this information.' : note;
-    }
-    final general = _generalCtrl.text.trim();
-    if (general.isNotEmpty) out['general'] = general;
-
-    if (out.isEmpty) {
+    if (!_canSubmit) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select at least one field or provide a reason.'),
+          content: Text(
+            'Select at least one field and provide a reason for each selected field.',
+          ),
         ),
       );
       return;
     }
+
+    final out = <String, String>{};
+    for (final key in _selected) {
+      out[key] = _fieldNotes[key]!.text.trim();
+    }
+    final general = _generalCtrl.text.trim();
+    if (general.isNotEmpty) out['general'] = general;
+
     Navigator.of(context).pop(out);
   }
 
@@ -112,8 +126,8 @@ class _RejectionReasonDialogState extends State<RejectionReasonDialog> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Tell the vendor what needs to be corrected. They will be able '
-                'to resubmit after updating the selected details.',
+                'Select at least one field and explain why each selected field '
+                'needs correction. The vendor can only edit those fields when resubmitting.',
                 style: GoogleFonts.sora(
                   fontSize: 13,
                   color: Colors.grey.shade600,
@@ -126,7 +140,7 @@ class _RejectionReasonDialogState extends State<RejectionReasonDialog> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Fields that need correction',
+                        'Fields that need correction *',
                         style: GoogleFonts.sora(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -175,7 +189,7 @@ class _RejectionReasonDialogState extends State<RejectionReasonDialog> {
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
-                    onPressed: _submit,
+                    onPressed: _canSubmit ? _submit : null,
                     icon: const Icon(Icons.send_rounded, size: 18),
                     label: const Text('Send Rejection'),
                     style: ElevatedButton.styleFrom(
@@ -249,9 +263,13 @@ class _RejectionReasonDialogState extends State<RejectionReasonDialog> {
               padding: const EdgeInsets.only(left: 40, right: 4, bottom: 6),
               child: TextField(
                 controller: _fieldNotes[field.key],
+                onChanged: (_) => setState(() {}),
                 decoration: InputDecoration(
-                  hintText: 'Why is this incorrect? (optional)',
+                  hintText: 'Why is this incorrect? *',
                   isDense: true,
+                  errorText: (_fieldNotes[field.key]?.text.trim().isEmpty ?? true)
+                      ? 'Reason is required'
+                      : null,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),

@@ -94,49 +94,74 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
     super.dispose();
   }
 
-  bool _flagged(String key) => widget.kyc.adminComments.containsKey(key);
+  bool _flagged(String key) =>
+      key != 'general' && widget.kyc.adminComments.containsKey(key);
+
+  Set<String> get _flaggedKeys => widget.kyc.adminComments.keys
+      .where((k) => k != 'general')
+      .toSet();
 
   String? _req(String? v) =>
       (v == null || v.trim().isEmpty) ? 'Required' : null;
 
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
-    final k = widget.kyc;
+    if (_flaggedKeys.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No rejected fields to correct. Please contact support.'),
+        ),
+      );
+      return;
+    }
 
+    final k = widget.kyc;
     final updates = <String, dynamic>{};
 
-    // Only send fields that actually changed so the backend request stays
-    // minimal and avoids re-encrypting unchanged document numbers.
     void putIfChanged(String key, String newVal, String? oldVal) {
       final n = newVal.trim();
       if (n.isEmpty) return;
       if (n != (oldVal ?? '').trim()) updates[key] = n;
     }
 
-    putIfChanged('restaurantName', _restaurantName.text, k.restaurantName);
-    putIfChanged('fullName', _fullName.text, k.fullName);
-    putIfChanged('phone', _phone.text, k.phone);
-    putIfChanged('addressLine1', _addressLine1.text, k.addressLine1);
-    putIfChanged('addressLine2', _addressLine2.text, k.addressLine2);
-    putIfChanged('city', _city.text, k.city);
-    putIfChanged('state', _stateCtrl.text, k.state);
-    putIfChanged('pinCode', _pinCode.text, k.pinCode);
-    putIfChanged('aadhaarNumber', _aadhaar.text, k.aadhaarNumber);
-    putIfChanged('gstNumber', _gst.text, k.gstNumber);
-    if (_gst.text.trim().isNotEmpty) {
-      updates['gstRegistered'] = 'yes';
-      updates['gstNotApplicable'] = false;
+    if (_flagged('restaurant')) {
+      putIfChanged('restaurantName', _restaurantName.text, k.restaurantName);
+      putIfChanged('fullName', _fullName.text, k.fullName);
+      putIfChanged('phone', _phone.text, k.phone);
     }
-    putIfChanged('fssaiNumber', _fssai.text, k.fssaiNumber);
-    putIfChanged('accountHolderName', _accountHolder.text, k.accountHolderName);
-    putIfChanged('bankAccountNumber', _bankAccount.text, k.bankAccountNumber);
-    putIfChanged('ifscCode', _ifsc.text.toUpperCase(), k.ifscCode);
-    putIfChanged('bankName', _bankName.text, k.bankName);
+    if (_flagged('address')) {
+      putIfChanged('addressLine1', _addressLine1.text, k.addressLine1);
+      putIfChanged('addressLine2', _addressLine2.text, k.addressLine2);
+      putIfChanged('city', _city.text, k.city);
+      putIfChanged('state', _stateCtrl.text, k.state);
+      putIfChanged('pinCode', _pinCode.text, k.pinCode);
+    }
+    if (_flagged('aadhaar')) {
+      putIfChanged('aadhaarNumber', _aadhaar.text, k.aadhaarNumber);
+    }
+    if (_flagged('gst')) {
+      putIfChanged('gstNumber', _gst.text, k.gstNumber);
+      if (_gst.text.trim().isNotEmpty) {
+        updates['gstRegistered'] = 'yes';
+        updates['gstNotApplicable'] = false;
+      }
+    }
+    if (_flagged('fssai')) {
+      putIfChanged('fssaiNumber', _fssai.text, k.fssaiNumber);
+    }
+    if (_flagged('bank')) {
+      putIfChanged('accountHolderName', _accountHolder.text, k.accountHolderName);
+      putIfChanged('bankAccountNumber', _bankAccount.text, k.bankAccountNumber);
+      putIfChanged('ifscCode', _ifsc.text.toUpperCase(), k.ifscCode);
+      putIfChanged('bankName', _bankName.text, k.bankName);
+    }
 
     if (updates.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please edit at least one field before resubmitting.'),
+          content: Text(
+            'Please update at least one rejected field before resubmitting.',
+          ),
         ),
       );
       return;
@@ -192,8 +217,8 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Correct the flagged fields below and submit again. Your '
-                  'application will go back to "Under Review" once resubmitted.',
+                  'Only the fields flagged by admin can be edited. Correct them '
+                  'and submit again — your application will go back to "Under Review".',
                   style: GoogleFonts.sora(
                     fontSize: 13,
                     color: Colors.grey.shade600,
@@ -214,46 +239,74 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
                           _field(
                             label: 'Restaurant Name',
                             controller: _restaurantName,
-                            validator: _req,
+                            enabled: _flagged('restaurant'),
+                            validator: _flagged('restaurant') ? _req : null,
                           ),
                           _field(
                             label: 'Owner Full Name',
                             controller: _fullName,
-                            validator: _req,
+                            enabled: _flagged('restaurant'),
+                            validator: _flagged('restaurant') ? _req : null,
                           ),
                         ),
                         _field(
                           label: 'Phone',
                           controller: _phone,
+                          enabled: _flagged('restaurant'),
                           keyboardType: TextInputType.phone,
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'Required';
-                            final clean = v.replaceAll(RegExp(r'^(\+91|0)'), '').trim();
-                            if (!RegExp(r'^[6-9]\d{9}$').hasMatch(clean)) {
-                              return 'Invalid Indian mobile number';
-                            }
-                            return null;
-                          },
+                          validator: _flagged('restaurant')
+                              ? (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Required';
+                                  }
+                                  final clean = v
+                                      .replaceAll(RegExp(r'^(\+91|0)'), '')
+                                      .trim();
+                                  if (!RegExp(r'^[6-9]\d{9}$').hasMatch(clean)) {
+                                    return 'Invalid Indian mobile number';
+                                  }
+                                  return null;
+                                }
+                              : null,
                         ),
                         _sectionHeader(
                           'Address',
                           flagged: _flagged('address'),
                           note: comments['address'],
                         ),
-                        _field(label: 'Address Line 1', controller: _addressLine1),
-                        _field(label: 'Address Line 2', controller: _addressLine2),
+                        _field(
+                          label: 'Address Line 1',
+                          controller: _addressLine1,
+                          enabled: _flagged('address'),
+                        ),
+                        _field(
+                          label: 'Address Line 2',
+                          controller: _addressLine2,
+                          enabled: _flagged('address'),
+                        ),
                         _twoCol(
-                          _field(label: 'City', controller: _city),
-                          _field(label: 'State', controller: _stateCtrl),
+                          _field(
+                            label: 'City',
+                            controller: _city,
+                            enabled: _flagged('address'),
+                          ),
+                          _field(
+                            label: 'State',
+                            controller: _stateCtrl,
+                            enabled: _flagged('address'),
+                          ),
                         ),
                         _field(
                           label: 'PIN Code',
                           controller: _pinCode,
+                          enabled: _flagged('address'),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(6),
-                          ],
+                          inputFormatters: _flagged('address')
+                              ? [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(6),
+                                ]
+                              : null,
                         ),
                         _sectionHeader(
                           'Aadhaar',
@@ -263,18 +316,25 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
                         _field(
                           label: 'Aadhaar Number (12 digits)',
                           controller: _aadhaar,
+                          enabled: _flagged('aadhaar'),
                           keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(12),
-                          ],
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return null;
-                            if (!RegExp(r'^\d{12}$').hasMatch(v.trim())) {
-                              return 'Aadhaar must be exactly 12 digits';
-                            }
-                            return null;
-                          },
+                          inputFormatters: _flagged('aadhaar')
+                              ? [
+                                  FilteringTextInputFormatter.digitsOnly,
+                                  LengthLimitingTextInputFormatter(12),
+                                ]
+                              : null,
+                          validator: _flagged('aadhaar')
+                              ? (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Required';
+                                  }
+                                  if (!RegExp(r'^\d{12}$').hasMatch(v.trim())) {
+                                    return 'Aadhaar must be exactly 12 digits';
+                                  }
+                                  return null;
+                                }
+                              : null,
                         ),
                         _sectionHeader(
                           'GST',
@@ -284,6 +344,7 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
                         _field(
                           label: 'GST Number',
                           controller: _gst,
+                          enabled: _flagged('gst'),
                           textCapitalization: TextCapitalization.characters,
                         ),
                         _sectionHeader(
@@ -291,7 +352,11 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
                           flagged: _flagged('fssai'),
                           note: comments['fssai'],
                         ),
-                        _field(label: 'FSSAI Number', controller: _fssai),
+                        _field(
+                          label: 'FSSAI Number',
+                          controller: _fssai,
+                          enabled: _flagged('fssai'),
+                        ),
                         _sectionHeader(
                           'Bank Details',
                           flagged: _flagged('bank'),
@@ -300,20 +365,27 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
                         _field(
                           label: 'Account Holder Name',
                           controller: _accountHolder,
+                          enabled: _flagged('bank'),
                         ),
                         _twoCol(
                           _field(
                             label: 'Account Number',
                             controller: _bankAccount,
+                            enabled: _flagged('bank'),
                             keyboardType: TextInputType.number,
                           ),
                           _field(
                             label: 'IFSC Code',
                             controller: _ifsc,
+                            enabled: _flagged('bank'),
                             textCapitalization: TextCapitalization.characters,
                           ),
                         ),
-                        _field(label: 'Bank Name', controller: _bankName),
+                        _field(
+                          label: 'Bank Name',
+                          controller: _bankName,
+                          enabled: _flagged('bank'),
+                        ),
                       ],
                     ),
                   ),
@@ -437,6 +509,7 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
   Widget _field({
     required String label,
     required TextEditingController controller,
+    bool enabled = true,
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     TextCapitalization textCapitalization = TextCapitalization.none,
@@ -446,15 +519,32 @@ class _ResubmitKycDialogState extends State<ResubmitKycDialog> {
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: controller,
+        readOnly: !enabled,
+        enabled: enabled,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
         textCapitalization: textCapitalization,
-        validator: validator,
+        validator: enabled ? validator : null,
+        style: TextStyle(
+          color: enabled ? const Color(0xFF111827) : Colors.grey.shade600,
+        ),
         decoration: InputDecoration(
           labelText: label,
           isDense: true,
+          filled: !enabled,
+          fillColor: enabled ? null : Colors.grey.shade100,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(
+              color: enabled ? Colors.grey.shade400 : Colors.grey.shade300,
+            ),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide(color: Colors.grey.shade300),
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
