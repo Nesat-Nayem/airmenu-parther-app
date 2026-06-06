@@ -1,4 +1,5 @@
 import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
+import 'package:airmenuai_partner_app/features/common_shell/app_scaffold_shell.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/presentation/bloc/vendor_kyc_bloc.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/presentation/widgets/resubmit_kyc_dialog.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/data/models/kyc_submission.dart';
@@ -45,7 +46,7 @@ class _MyKycViewState extends State<_MyKycView> {
           curr is VendorKycResubmitted ||
           curr is VendorKycApproved ||
           curr is VendorKycError,
-      listener: (context, state) {
+      listener: (context, state) async {
         if (state is VendorKycApproved) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -54,11 +55,11 @@ class _MyKycViewState extends State<_MyKycView> {
                   'Your application is approved. Redirecting to your dashboard...'),
             ),
           );
-          // Profile is already refreshed in the bloc, so the dashboard and
-          // vendor screens now have a valid hotelId/status to work with.
-          Future.delayed(const Duration(milliseconds: 600), () {
-            if (context.mounted) context.go(AppRoutes.dashboard.path);
-          });
+          // Rebuild the shell nav for approved vendor access before routing away
+          // from the KYC gate — avoids a blank sidebar until browser refresh.
+          await AppScaffoldShell.refreshNavigation();
+          if (!context.mounted) return;
+          context.go(AppRoutes.dashboard.path);
         } else if (state is VendorKycResubmitted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -128,6 +129,7 @@ class _MyKycViewState extends State<_MyKycView> {
       },
     );
   }
+
 
   Future<void> _openResubmitDialog(BuildContext context, KycSubmission kyc) async {
     final updates = await ResubmitKycDialog.show(context, kyc: kyc);

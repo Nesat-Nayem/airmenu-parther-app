@@ -52,7 +52,6 @@ import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/de
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/edit_staff_page.dart';
 import 'package:airmenuai_partner_app/features/restaurants/presentation/pages/details/add_webhook_page.dart';
 import 'package:airmenuai_partner_app/features/marketing/presentation/pages/marketing_page.dart';
-import 'package:airmenuai_partner_app/utils/keys/airmenu_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/features/admin_orders/presentation/pages/admin_orders_page.dart';
 import 'package:airmenuai_partner_app/features/external_integrations/presentation/pages/external_integrations_page.dart';
@@ -140,7 +139,7 @@ class AppRouter {
             navigatorKey: _sectionNavigatorKey,
             builder: (context, state, child) {
               return AppScaffoldShell(
-                key: AirMenuKey.appScaffoldShell,
+                key: AppScaffoldShell.shellKey,
                 selectedNavMenuItem: selectedNavMenuItem,
                 child: child,
               );

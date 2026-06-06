@@ -76,6 +76,7 @@ const List<NavMenuItem> sideNavRoutes = [
   NavMenuItem.hotel,
 
   // Vendor features (in order: Dashboard, Live Orders, Menu, Inventory, Purchase Order, Kitchen Panel, Tables & QR, Hotel Rooms, Staff Management, Offers, Feedback & Rating, Report, Settings)
+  NavMenuItem.myKyc,
   NavMenuItem.dashboard,
   NavMenuItem.orders,
   NavMenuItem.menu,

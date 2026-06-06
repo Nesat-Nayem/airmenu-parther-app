@@ -16,6 +16,14 @@ import 'package:go_router/go_router.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
 class AppScaffoldShell extends StatefulWidget {
+  /// Global key so other screens (e.g. My KYC after approval) can refresh nav.
+  static final GlobalKey<AppScaffoldShellState> shellKey =
+      GlobalKey<AppScaffoldShellState>();
+
+  static Future<void> refreshNavigation() async {
+    await shellKey.currentState?.refreshNavigation();
+  }
+
   final Widget child;
   final List<NavMenuItem>? navMenuItemList;
   final NavMenuItem selectedNavMenuItem;
@@ -28,10 +36,10 @@ class AppScaffoldShell extends StatefulWidget {
   });
 
   @override
-  State<AppScaffoldShell> createState() => _AppScaffoldShellState();
+  State<AppScaffoldShell> createState() => AppScaffoldShellState();
 }
 
-class _AppScaffoldShellState extends State<AppScaffoldShell> {
+class AppScaffoldShellState extends State<AppScaffoldShell> {
   static const Color _backgroundColor = Colors.white;
 
   // Initialize with empty lists to prevent late initialization error
@@ -41,11 +49,23 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
   @override
   void initState() {
     super.initState();
-    // Call async method without awaiting in initState
     _updateMenuConfig();
   }
 
-  void _updateMenuConfig() async {
+  @override
+  void didUpdateWidget(covariant AppScaffoldShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Rebuild nav when leaving the KYC gate (e.g. after admin approval).
+    if (oldWidget.selectedNavMenuItem == NavMenuItem.myKyc &&
+        widget.selectedNavMenuItem != NavMenuItem.myKyc) {
+      _updateMenuConfig();
+    }
+  }
+
+  /// Re-fetch role/KYC and rebuild the side nav (callable from My KYC reload).
+  Future<void> refreshNavigation() => _updateMenuConfig();
+
+  Future<void> _updateMenuConfig() async {
     // Get current user's role
     final userRole = await RoleService.getUserRole();
     final user = await RoleService.getCurrentUser();
@@ -103,6 +123,8 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
         hasPermission: hasPermission,
       );
     }).toList();
+
+    if (!mounted) return;
 
     setState(() {
       _navMenuItemConfigList = filteredRoutes
@@ -162,6 +184,8 @@ class _AppScaffoldShellState extends State<AppScaffoldShell> {
 
     if (isVendor) {
       switch (item) {
+        case NavMenuItem.myKyc:
+          return false;
         case NavMenuItem.dashboard:
           return true;
         case NavMenuItem.orders:
