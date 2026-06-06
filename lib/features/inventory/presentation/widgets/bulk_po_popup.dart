@@ -153,7 +153,7 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
 
     if (mounted) {
       setState(() => _isSubmitting = false);
-      Navigator.pop(context);
+      Navigator.pop(context, successCount > 0);
       final parts = <String>[];
       if (successCount > 0) parts.add('$successCount pending PO(s) created');
       if (failCount > 0) parts.add('$failCount failed');

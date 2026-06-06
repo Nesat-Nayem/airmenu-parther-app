@@ -922,7 +922,7 @@ class InventoryAnalyticsSection extends StatelessWidget {
 
 /// Purchase Orders & Recipe Mapping (Compact Sidebar/Grid widgets)
 class InventoryDashboardSecondaryWidgets extends StatefulWidget {
-  final VoidCallback onNewPO;
+  final Future<bool?> Function() onNewPO;
 
   const InventoryDashboardSecondaryWidgets({
     super.key,
@@ -931,10 +931,10 @@ class InventoryDashboardSecondaryWidgets extends StatefulWidget {
 
   @override
   State<InventoryDashboardSecondaryWidgets> createState() =>
-      _InventoryDashboardSecondaryWidgetsState();
+      InventoryDashboardSecondaryWidgetsState();
 }
 
-class _InventoryDashboardSecondaryWidgetsState
+class InventoryDashboardSecondaryWidgetsState
     extends State<InventoryDashboardSecondaryWidgets> {
   List<PurchaseOrder> _purchaseOrders = [];
   bool _loadingPO = true;
@@ -946,6 +946,17 @@ class _InventoryDashboardSecondaryWidgetsState
     super.initState();
     _loadPurchaseOrders();
     _loadMenuItemCount();
+  }
+
+  Future<void> reloadPurchaseOrders() => _loadPurchaseOrders();
+
+  Future<void> _openCreatePO() async {
+    final created = await widget.onNewPO();
+    if (!mounted) return;
+    if (created == true) {
+      await _loadPurchaseOrders();
+      if (mounted) context.read<InventoryBloc>().add(RefreshInventory());
+    }
   }
 
   Future<void> _loadPurchaseOrders() async {
@@ -1011,20 +1022,21 @@ class _InventoryDashboardSecondaryWidgetsState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Purchase Orders',
-                style: TextStyle(fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  const Text(
+                    'Purchase Orders',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const Spacer(),
+                  _iconButton(Icons.refresh, 'Reload', () async {
+                    setState(() => _loadingPO = true);
+                    await _loadPurchaseOrders();
+                  }),
+                  const SizedBox(width: 8),
+                  _iconButton(Icons.add, 'New', _openCreatePO),
+                ],
               ),
-              _iconButton(Icons.add, 'New', () {
-                widget.onNewPO();
-                // Reload after dialog closes
-                Future.delayed(const Duration(milliseconds: 500), _loadPurchaseOrders);
-              }),
-            ],
-          ),
           const SizedBox(height: 16),
           if (_loadingPO)
             const Center(

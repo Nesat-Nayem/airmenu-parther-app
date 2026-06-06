@@ -251,61 +251,58 @@ class _VendorDialogContentState extends State<_VendorDialogContent> {
                       ? Center(child: Text(vendorState.errorMessage))
                       : filteredVendors.isEmpty
                           ? const Center(child: Text('No vendors found'))
-                          : SingleChildScrollView(
-                              padding: const EdgeInsets.symmetric(horizontal: 20),
-                              child: Wrap(
-                                spacing: 20,
-                                runSpacing: 20,
-                                children: filteredVendors
-                                    .map(
-                                      (vendor) => VendorCard(
-                                        vendor: vendor,
-                                        onEdit: () {
-                                          final cubit = context.read<VendorCubit>();
-                                          showDialog(
-                                            context: context,
-                                            barrierDismissible: false,
-                                            builder: (_) => BlocProvider.value(
-                                              value: cubit,
-                                              child: AddEditVendorDialog(
-                                                vendor: vendor,
-                                                onSave: (v) => cubit.updateVendor(v.id, v.toJson()),
+                          : ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                              itemCount: filteredVendors.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 16),
+                              itemBuilder: (context, index) {
+                                final vendor = filteredVendors[index];
+                                return VendorTableCard(
+                                  vendor: vendor,
+                                  onEdit: () {
+                                    final cubit = context.read<VendorCubit>();
+                                    showDialog(
+                                      context: context,
+                                      barrierDismissible: false,
+                                      builder: (_) => BlocProvider.value(
+                                        value: cubit,
+                                        child: AddEditVendorDialog(
+                                          vendor: vendor,
+                                          onSave: (v) => cubit.updateVendor(v.id, v.toJson()),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  onDelete: () {
+                                    final cubit = context.read<VendorCubit>();
+                                    final rootMessenger = ScaffoldMessenger.of(context);
+                                    showDialog(
+                                      context: context,
+                                      builder: (_) => RemoveVendorDialog(
+                                        vendorName: vendor.companyName,
+                                        onConfirm: () async {
+                                          final err = await cubit.removeVendor(vendor.id);
+                                          if (err == null) {
+                                            rootMessenger.showSnackBar(
+                                              const SnackBar(
+                                                backgroundColor: Color(0xFF16A34A),
+                                                content: Text('Vendor removed'),
                                               ),
-                                            ),
-                                          );
-                                        },
-                                        onDelete: () {
-                                          final cubit = context.read<VendorCubit>();
-                                          final rootMessenger = ScaffoldMessenger.of(context);
-                                          showDialog(
-                                            context: context,
-                                            builder: (_) => RemoveVendorDialog(
-                                              vendorName: vendor.companyName,
-                                              onConfirm: () async {
-                                                final err = await cubit.removeVendor(vendor.id);
-                                                if (err == null) {
-                                                  rootMessenger.showSnackBar(
-                                                    const SnackBar(
-                                                      backgroundColor: Color(0xFF16A34A),
-                                                      content: Text('Vendor removed'),
-                                                    ),
-                                                  );
-                                                } else {
-                                                  rootMessenger.showSnackBar(
-                                                    SnackBar(
-                                                      backgroundColor: const Color(0xFFDC2626),
-                                                      content: Text(err),
-                                                    ),
-                                                  );
-                                                }
-                                              },
-                                            ),
-                                          );
+                                            );
+                                          } else {
+                                            rootMessenger.showSnackBar(
+                                              SnackBar(
+                                                backgroundColor: const Color(0xFFDC2626),
+                                                content: Text(err),
+                                              ),
+                                            );
+                                          }
                                         },
                                       ),
-                                    )
-                                    .toList(),
-                              ),
+                                    );
+                                  },
+                                );
+                              },
                             ),
             ),
             const SizedBox(height: 24),
@@ -318,306 +315,169 @@ class _VendorDialogContentState extends State<_VendorDialogContent> {
   }
 }
 
-class VendorCard extends StatelessWidget {
+class VendorTableCard extends StatelessWidget {
   final Vendor vendor;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const VendorCard({
+  const VendorTableCard({
     super.key,
     required this.vendor,
     required this.onEdit,
     required this.onDelete,
   });
 
+  String _formatUpdated(DateTime? date) {
+    if (date == null) return '—';
+    return '${date.day.toString().padLeft(2, '0')} ${_month(date.month)} ${date.year}';
+  }
+
+  String _month(int m) => const [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ][m - 1];
+
   @override
   Widget build(BuildContext context) {
+    final items = vendor.suppliedItems.where((s) => s.materialName.isNotEmpty || s.materialId.isNotEmpty).toList();
+
     return Container(
-      width: 290,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border(
-          left: BorderSide(color: const Color(0xFFDC2626), width: 3),
-        ),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.07),
-            blurRadius: 20,
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
             offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 12, 0),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFAFAFA),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border(bottom: BorderSide(color: Color(0xFFF3F4F6))),
+            ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: InventoryColors.bgRedTint,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.store_mall_directory_outlined,
-                    color: InventoryColors.primaryRed,
-                    size: 20,
-                  ),
+                  child: const Icon(Icons.store_mall_directory_outlined, color: InventoryColors.primaryRed, size: 22),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         vendor.companyName,
-                        style: AirMenuTextStyle.normal
-                            .bold700()
-                            .withColor(InventoryColors.textPrimary)
-                            .copyWith(fontSize: 15),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        style: AirMenuTextStyle.normal.bold700().withColor(InventoryColors.textPrimary),
                       ),
-                      const SizedBox(height: 2),
-                      Row(
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 6,
                         children: [
-                          Icon(
-                            Icons.person_outline,
-                            size: 12,
-                            color: InventoryColors.textQuaternary,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              vendor.contactPerson,
-                              style: AirMenuTextStyle.small.withColor(
-                                InventoryColors.textTertiary,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          _meta(Icons.person_outline, vendor.contactPerson),
+                          _meta(Icons.phone_outlined, vendor.phone),
+                          if (vendor.email.isNotEmpty) _meta(Icons.email_outlined, vendor.email),
+                          if (vendor.gstNumber.isNotEmpty) _meta(Icons.receipt_long_outlined, 'GST ${vendor.gstNumber}'),
                         ],
                       ),
+                      if (vendor.address.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        _meta(Icons.location_on_outlined, vendor.address),
+                      ],
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: onEdit,
-                  icon: const Icon(
-                    Icons.edit_outlined,
-                    size: 16,
-                    color: InventoryColors.textTertiary,
-                  ),
-                  style: IconButton.styleFrom(
-                    minimumSize: const Size(32, 32),
-                    padding: EdgeInsets.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                ),
+                IconButton(onPressed: onEdit, icon: const Icon(Icons.edit_outlined, size: 18), tooltip: 'Edit'),
                 IconButton(
                   onPressed: onDelete,
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    size: 16,
-                    color: InventoryColors.primaryRed,
-                  ),
-                  style: IconButton.styleFrom(
-                    minimumSize: const Size(32, 32),
-                    padding: EdgeInsets.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
+                  icon: const Icon(Icons.delete_outline, size: 18, color: InventoryColors.primaryRed),
+                  tooltip: 'Delete',
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Divider
-          const Divider(height: 1, thickness: 1, color: Color(0xFFF3F4F6)),
-          const SizedBox(height: 12),
-
-          // Contact Info
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                _buildInfoRow(Icons.phone_outlined, vendor.phone, muted: false),
-                const SizedBox(height: 6),
-                _buildInfoRow(Icons.email_outlined, vendor.email),
-                const SizedBox(height: 6),
-                _buildInfoRow(Icons.location_on_outlined, vendor.address),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // GST
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.receipt_long_outlined,
-                  size: 12,
-                  color: InventoryColors.textQuaternary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'GST: ${vendor.gstNumber}',
-                  style: AirMenuTextStyle.tiny.withColor(
-                    InventoryColors.textQuaternary,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Supplies
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Supplies',
-                  style: AirMenuTextStyle.tiny.bold600().withColor(
-                    InventoryColors.textTertiary,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    ...vendor.supplies.take(3).map((item) => _buildChip(item)),
-                    if (vendor.supplies.length > 3)
-                      _buildChip(
-                        '+${vendor.supplies.length - 3} more',
-                        isMore: true,
-                      ),
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Text(
+                'No supplied items configured',
+                style: AirMenuTextStyle.small.medium500().withColor(InventoryColors.textTertiary),
+              ),
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width * 0.85),
+                child: DataTable(
+                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF9FAFB)),
+                  columnSpacing: 24,
+                  horizontalMargin: 16,
+                  dataRowMinHeight: 44,
+                  dataRowMaxHeight: 52,
+                  headingTextStyle: AirMenuTextStyle.caption.bold700().withColor(const Color(0xFF6B7280)),
+                  columns: const [
+                    DataColumn(label: Text('Material')),
+                    DataColumn(label: Text('Price')),
+                    DataColumn(label: Text('Min Order')),
+                    DataColumn(label: Text('Delivery')),
+                    DataColumn(label: Text('Updated')),
                   ],
+                  rows: items.map((item) {
+                    final deliveryLabel = item.deliveryDays <= 1 ? '1 day' : '${item.deliveryDays} days';
+                    return DataRow(
+                      cells: [
+                        DataCell(Text(item.materialName.isNotEmpty ? item.materialName : '—',
+                            style: AirMenuTextStyle.small.medium500())),
+                        DataCell(Text('₹${item.price == item.price.roundToDouble() ? item.price.toStringAsFixed(0) : item.price.toStringAsFixed(2)}',
+                            style: AirMenuTextStyle.small.bold600())),
+                        DataCell(Text(item.minOrderQty == item.minOrderQty.roundToDouble()
+                            ? item.minOrderQty.toStringAsFixed(0)
+                            : item.minOrderQty.toStringAsFixed(1))),
+                        DataCell(Text(deliveryLabel)),
+                        DataCell(Text(_formatUpdated(item.priceUpdatedAt),
+                            style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary))),
+                      ],
+                    );
+                  }).toList(),
                 ),
-              ],
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-
-          // Action buttons
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 14),
-            child: Row(
-              children: [
-                Expanded(child: _buildActionButton('WhatsApp', Icons.message_outlined, isWhatsApp: true)),
-                const SizedBox(width: 10),
-                Expanded(child: _buildActionButton('Email', Icons.email_outlined, isEmail: true)),
-              ],
-            ),
-          ),
         ],
-      ).animate().fadeIn(duration: 300.ms),
-    );
+      ),
+    ).animate().fadeIn(duration: 250.ms);
   }
 
-  Widget _buildInfoRow(IconData icon, String text, {bool muted = true}) {
+  Widget _meta(IconData icon, String text) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 13,
-          color: muted
-              ? InventoryColors.textQuaternary
-              : InventoryColors.textTertiary,
-        ),
-        const SizedBox(width: 7),
-        Expanded(
-          child: Text(
-            text,
-            style: AirMenuTextStyle.small.withColor(
-              InventoryColors.textSecondary,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        Icon(icon, size: 13, color: InventoryColors.textQuaternary),
+        const SizedBox(width: 5),
+        Text(text, style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textSecondary)),
       ],
     );
   }
-
-  Widget _buildChip(String label, {bool isMore = false}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: isMore ? const Color(0xFFF3F4F6) : InventoryColors.bgRedTint,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isMore
-              ? const Color(0xFFE5E7EB)
-              : const Color(0xFFDC2626).withOpacity(0.15),
-          width: 0.5,
-        ),
-      ),
-      child: Text(
-        label,
-        style: AirMenuTextStyle.tiny.medium500().withColor(
-          isMore
-              ? InventoryColors.textTertiary
-              : InventoryColors.primaryDarkRed,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButton(
-    String label,
-    IconData icon, {
-    bool isWhatsApp = false,
-    bool isEmail = false,
-  }) {
-    final Color bgColor = isWhatsApp
-        ? const Color(0xFFDCFCE7)
-        : isEmail
-            ? const Color(0xFFEFF6FF)
-            : const Color(0xFFF3F4F6);
-    final Color fgColor = isWhatsApp
-        ? const Color(0xFF16A34A)
-        : isEmail
-            ? const Color(0xFF2563EB)
-            : InventoryColors.textTertiary;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 14, color: fgColor),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: AirMenuTextStyle.small.bold600().withColor(fgColor),
-          ),
-        ],
-      ),
-    );
-  }
 }
+
+// Legacy alias kept for any external references.
+typedef VendorCard = VendorTableCard;
 
 class AddEditVendorDialog extends StatefulWidget {
   final Vendor? vendor;
@@ -1036,17 +896,35 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                             style: AirMenuTextStyle.normal.withColor(const Color(0xFF9CA3AF)),
                           ),
                         )
-                      else
-                        Column(
-                          children: _suppliedItems
-                              .asMap()
-                              .entries
-                              .map((e) => Padding(
+                      else ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF9FAFB),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(flex: 4, child: _supplyHeader('Material')),
+                              const SizedBox(width: 8),
+                              Expanded(child: _supplyHeader('Price (₹)')),
+                              const SizedBox(width: 8),
+                              Expanded(child: _supplyHeader('Min Order')),
+                              const SizedBox(width: 8),
+                              Expanded(child: _supplyHeader('Delivery')),
+                              const SizedBox(width: 36),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ..._suppliedItems.asMap().entries.map(
+                              (e) => Padding(
                                     padding: const EdgeInsets.only(bottom: 10),
                                     child: _buildSupplyRow(e.key, e.value),
-                                  ))
-                              .toList(),
-                        ),
+                                  ),
+                            ),
+                      ],
                       const SizedBox(height: 16),
                       _buildLabel('Notes'),
                       const SizedBox(height: 8),
@@ -1088,6 +966,13 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
     );
   }
 
+  Widget _supplyHeader(String label) {
+    return Text(
+      label,
+      style: AirMenuTextStyle.caption.bold700().withColor(const Color(0xFF6B7280)),
+    );
+  }
+
   Widget _buildSupplyRow(int index, _SupplyEntry entry) {
     final selectedIds = _suppliedItems
         .asMap()
@@ -1097,79 +982,67 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
         .whereType<String>()
         .toSet();
     final value = _materials.any((m) => m.id == entry.materialId) ? entry.materialId : null;
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                  ),
-                  child: DropdownButtonFormField<String>(
-                    initialValue: value,
-                    isExpanded: true,
-                    hint: Text('Select material',
-                        style: AirMenuTextStyle.small.withColor(const Color(0xFF9CA3AF))),
-                    decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-                    items: _materials
-                        .where((m) => m.id == entry.materialId || !selectedIds.contains(m.id))
-                        .map((m) => DropdownMenuItem(
-                              value: m.id,
-                              child: Text('${m.name} (${m.unit})',
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AirMenuTextStyle.small.medium500()),
-                            ))
-                        .toList(),
-                    onChanged: (val) => setState(() {
-                      final m = _materials.where((m) => m.id == val).firstOrNull;
-                      entry.materialId = val;
-                      entry.materialName = m?.name ?? '';
-                    }),
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () => _removeSupplyEntry(index),
-                icon: const Icon(Icons.close, size: 18, color: Color(0xFFDC2626)),
-                splashRadius: 18,
-              ),
-            ],
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          flex: 4,
+          child: _supplyFieldBox(
+            child: DropdownButtonFormField<String>(
+              initialValue: value,
+              isExpanded: true,
+              hint: Text('Select material',
+                  style: AirMenuTextStyle.small.withColor(const Color(0xFF9CA3AF))),
+              decoration: const InputDecoration(border: InputBorder.none, isDense: true, contentPadding: EdgeInsets.zero),
+              items: _materials
+                  .where((m) => m.id == entry.materialId || !selectedIds.contains(m.id))
+                  .map((m) => DropdownMenuItem(
+                        value: m.id,
+                        child: Text('${m.name} (${m.unit})',
+                            overflow: TextOverflow.ellipsis,
+                            style: AirMenuTextStyle.small.medium500()),
+                      ))
+                  .toList(),
+              onChanged: (val) => setState(() {
+                final m = _materials.where((m) => m.id == val).firstOrNull;
+                entry.materialId = val;
+                entry.materialName = m?.name ?? '';
+              }),
+            ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _buildSupplyField(entry.priceController, 'Price (₹)', isNumber: true)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildSupplyField(entry.minOrderController, 'Min Order Qty', isNumber: true)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildSupplyField(entry.deliveryController, 'Delivery (days)', isNumber: true)),
-            ],
-          ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: _buildSupplyField(entry.priceController, '0')),
+        const SizedBox(width: 8),
+        Expanded(child: _buildSupplyField(entry.minOrderController, '1')),
+        const SizedBox(width: 8),
+        Expanded(child: _buildSupplyField(entry.deliveryController, '1')),
+        IconButton(
+          onPressed: () => _removeSupplyEntry(index),
+          icon: const Icon(Icons.close, size: 18, color: Color(0xFFDC2626)),
+          splashRadius: 18,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+        ),
+      ],
     );
   }
 
-  Widget _buildSupplyField(TextEditingController controller, String hint, {bool isNumber = false}) {
+  Widget _supplyFieldBox({required Widget child}) {
     return Container(
+      height: 48,
       padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.centerLeft,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE5E7EB)),
       ),
+      child: child,
+    );
+  }
+
+  Widget _buildSupplyField(TextEditingController controller, String hint, {bool isNumber = true}) {
+    return _supplyFieldBox(
       child: TextFormField(
         controller: controller,
         keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
@@ -1178,7 +1051,8 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
           hintText: hint,
           border: InputBorder.none,
           isDense: true,
-          hintStyle: AirMenuTextStyle.tiny.withColor(const Color(0xFF9CA3AF)),
+          contentPadding: EdgeInsets.zero,
+          hintStyle: AirMenuTextStyle.small.withColor(const Color(0xFF9CA3AF)),
         ),
         style: AirMenuTextStyle.small.medium500(),
       ),

@@ -35,8 +35,28 @@ class InventoryPage extends StatelessWidget {
   }
 }
 
-class InventoryPageView extends StatelessWidget {
+class InventoryPageView extends StatefulWidget {
   const InventoryPageView({super.key});
+
+  @override
+  State<InventoryPageView> createState() => _InventoryPageViewState();
+}
+
+class _InventoryPageViewState extends State<InventoryPageView> {
+  final _secondaryWidgetsKey = GlobalKey<InventoryDashboardSecondaryWidgetsState>();
+
+  Future<bool?> _openCreatePODialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (_) => const CreatePurchaseOrderDialog(),
+    );
+  }
+
+  Future<void> _afterPOCreated(bool? created) async {
+    if (created != true || !mounted) return;
+    context.read<InventoryBloc>().add(RefreshInventory());
+    await _secondaryWidgetsKey.currentState?.reloadPurchaseOrders();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -99,8 +119,8 @@ class InventoryPageView extends StatelessWidget {
                               criticalItems: state.items
                                   .where((i) => i.status == StockStatus.critical)
                                   .toList(),
-                              onCreatePO: () {
-                                showDialog(
+                              onCreatePO: () async {
+                                final result = await showDialog<bool>(
                                   context: innerContext,
                                   builder: (context) => BulkPurchaseOrderDialog(
                                     criticalItems: state.items
@@ -109,13 +129,16 @@ class InventoryPageView extends StatelessWidget {
                                         )
                                         .toList(),
                                   ),
-                                ).then((_) {
-                                  if (innerContext.mounted) {
-                                    innerContext
-                                        .read<InventoryBloc>()
-                                        .add(RefreshInventory());
+                                );
+                                if (innerContext.mounted) {
+                                  innerContext
+                                      .read<InventoryBloc>()
+                                      .add(RefreshInventory());
+                                  if (result == true) {
+                                    await _secondaryWidgetsKey.currentState
+                                        ?.reloadPurchaseOrders();
                                   }
-                                });
+                                }
                               },
                             ),
 
@@ -187,19 +210,8 @@ class InventoryPageView extends StatelessWidget {
 
                             // Secondary Widgets (Recipe Mapping)
                             InventoryDashboardSecondaryWidgets(
-                              onNewPO: () {
-                                showDialog(
-                                  context: innerContext,
-                                  builder: (_) =>
-                                      const CreatePurchaseOrderDialog(),
-                                ).then((_) {
-                                  if (innerContext.mounted) {
-                                    innerContext
-                                        .read<InventoryBloc>()
-                                        .add(RefreshInventory());
-                                  }
-                                });
-                              },
+                              key: _secondaryWidgetsKey,
+                              onNewPO: () => _openCreatePODialog(innerContext),
                             ),
                             const SizedBox(height: 32),
                           ]),
@@ -235,15 +247,9 @@ class InventoryPageView extends StatelessWidget {
                 ),
               );
             },
-            onCreatePO: () {
-              showDialog(
-                context: context,
-                builder: (_) => const CreatePurchaseOrderDialog(),
-              ).then((_) {
-                if (context.mounted) {
-                  context.read<InventoryBloc>().add(RefreshInventory());
-                }
-              });
+            onCreatePO: () async {
+              final created = await _openCreatePODialog(context);
+              await _afterPOCreated(created);
             },
             onStockOut: () {
               showDialog(

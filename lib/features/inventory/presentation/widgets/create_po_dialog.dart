@@ -144,7 +144,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     if (mounted) {
       setState(() => _isSubmitting = false);
       final ok = res is DataSuccess;
-      if (ok) Navigator.pop(context);
+      if (ok) Navigator.pop(context, true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(ok
