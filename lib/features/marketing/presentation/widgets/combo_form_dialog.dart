@@ -405,6 +405,17 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
     setState(() {
       _originalPriceController.text = total.toStringAsFixed(0);
     });
+    _formKey.currentState?.validate();
+  }
+
+  String? _validateComboPrice(String? value) {
+    if (value?.isEmpty ?? true) return 'Required';
+    final comboPrice = double.tryParse(value!) ?? 0;
+    final originalPrice = double.tryParse(_originalPriceController.text) ?? 0;
+    if (originalPrice > 0 && comboPrice >= originalPrice) {
+      return 'Must be less than original price';
+    }
+    return null;
   }
 
   Widget _buildPricingSection() {
@@ -471,7 +482,7 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
                       ).copyWith(prefixText: '₹ ', fillColor: Colors.white),
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      validator: (v) => v?.isEmpty ?? true ? 'Required' : null,
+                      validator: _validateComboPrice,
                       onChanged: (_) => setState(() {}),
                     ),
                   ],
@@ -624,6 +635,7 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
       _items[index].quantityController.dispose();
       _items.removeAt(index);
     });
+    _recalculateOriginalPrice();
   }
 
   void _handleSave() {

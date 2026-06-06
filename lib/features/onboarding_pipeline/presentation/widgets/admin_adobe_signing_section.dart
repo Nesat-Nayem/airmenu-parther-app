@@ -56,6 +56,18 @@ class _AdminAdobeSigningSectionState extends State<AdminAdobeSigningSection> {
     }
   }
 
+  bool get _canAdminSign => widget.docsVerified && _vendorSigned;
+
+  String get _adminSignBlockedReason {
+    if (!widget.docsVerified) {
+      return 'Verify Aadhaar, Bank, GST & IFSC before signing';
+    }
+    if (!_vendorSigned) {
+      return 'Vendor must sign the agreement before admin can sign';
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.kyc.agreementId == null || widget.kyc.agreementId!.isEmpty) {
@@ -214,18 +226,15 @@ class _AdminAdobeSigningSectionState extends State<AdminAdobeSigningSection> {
           ]),
         ),
 
-      // Admin Sign button — show only if admin hasn't signed yet.
-      // Gated on document verification: enabled only once all docs are verified.
+      // Admin Sign button — enabled once all docs are verified AND vendor has signed.
       if (!_adminSigned)
         SizedBox(
           width: double.infinity,
           height: 44,
           child: Tooltip(
-            message: widget.docsVerified
-                ? ''
-                : 'Verify Aadhaar, Bank, GST & IFSC before signing',
+            message: _adminSignBlockedReason,
             child: ElevatedButton.icon(
-              onPressed: widget.docsVerified
+              onPressed: _canAdminSign
                   ? () {
                       context
                           .read<OnboardingPipelineBloc>()
@@ -234,14 +243,14 @@ class _AdminAdobeSigningSectionState extends State<AdminAdobeSigningSection> {
                   : null,
               icon: Icon(Icons.draw,
                   size: 18,
-                  color: widget.docsVerified ? Colors.white : Colors.white70),
+                  color: _canAdminSign ? Colors.white : Colors.white70),
               label: Text('Sign Agreement as Admin',
                   style: GoogleFonts.sora(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: widget.docsVerified ? Colors.white : Colors.white70)),
+                      color: _canAdminSign ? Colors.white : Colors.white70)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: widget.docsVerified
+                backgroundColor: _canAdminSign
                     ? AirMenuColors.primary
                     : AirMenuColors.primary.withValues(alpha: 0.4),
                 disabledBackgroundColor:
@@ -254,8 +263,8 @@ class _AdminAdobeSigningSectionState extends State<AdminAdobeSigningSection> {
           ),
         ),
 
-      // Hint shown while documents are still pending verification
-      if (!_adminSigned && !widget.docsVerified) ...[
+      // Hint shown while admin signing is blocked
+      if (!_adminSigned && !_canAdminSign) ...[
         const SizedBox(height: 8),
         Container(
           width: double.infinity,
@@ -270,7 +279,9 @@ class _AdminAdobeSigningSectionState extends State<AdminAdobeSigningSection> {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                'Mark Aadhaar, Bank, GST and IFSC as Verified to enable admin signing.',
+                _adminSignBlockedReason.isEmpty
+                    ? 'Complete document verification and vendor signing first.'
+                    : _adminSignBlockedReason,
                 style: GoogleFonts.sora(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
