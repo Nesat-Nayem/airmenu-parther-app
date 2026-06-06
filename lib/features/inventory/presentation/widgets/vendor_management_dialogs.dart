@@ -665,6 +665,8 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
           materialId: s.materialId.isNotEmpty ? s.materialId : null,
           materialName: s.materialName,
           priceController: TextEditingController(text: _fmtPrice(s.price)),
+          minOrderController: TextEditingController(text: _fmtPrice(s.minOrderQty)),
+          deliveryController: TextEditingController(text: '${s.deliveryDays}'),
         ));
       }
     }
@@ -685,6 +687,8 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
     _gstController.dispose();
     for (final e in _suppliedItems) {
       e.priceController.dispose();
+      e.minOrderController.dispose();
+      e.deliveryController.dispose();
     }
     super.dispose();
   }
@@ -710,13 +714,19 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
 
   void _addSupplyEntry() {
     setState(() {
-      _suppliedItems.add(_SupplyEntry(priceController: TextEditingController()));
+      _suppliedItems.add(_SupplyEntry(
+        priceController: TextEditingController(),
+        minOrderController: TextEditingController(text: '1'),
+        deliveryController: TextEditingController(text: '1'),
+      ));
     });
   }
 
   void _removeSupplyEntry(int index) {
     setState(() {
       _suppliedItems[index].priceController.dispose();
+      _suppliedItems[index].minOrderController.dispose();
+      _suppliedItems[index].deliveryController.dispose();
       _suppliedItems.removeAt(index);
     });
   }
@@ -741,6 +751,8 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
         materialId: e.materialId!,
         materialName: mat?.name ?? e.materialName,
         price: double.tryParse(e.priceController.text.trim()) ?? 0,
+        minOrderQty: double.tryParse(e.minOrderController.text.trim()) ?? 1,
+        deliveryDays: int.tryParse(e.deliveryController.text.trim()) ?? 1,
       );
     }).toList();
     final vendor = Vendor(
@@ -1085,72 +1097,91 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
         .whereType<String>()
         .toSet();
     final value = _materials.any((m) => m.id == entry.materialId) ? entry.materialId : null;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 5,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: DropdownButtonFormField<String>(
-              initialValue: value,
-              isExpanded: true,
-              hint: Text('Select material',
-                  style: AirMenuTextStyle.small.withColor(const Color(0xFF9CA3AF))),
-              decoration: const InputDecoration(border: InputBorder.none, isDense: true),
-              items: _materials
-                  // Hide materials already picked in another row.
-                  .where((m) => m.id == entry.materialId || !selectedIds.contains(m.id))
-                  .map((m) => DropdownMenuItem(
-                        value: m.id,
-                        child: Text('${m.name} (${m.unit})',
-                            overflow: TextOverflow.ellipsis,
-                            style: AirMenuTextStyle.small.medium500()),
-                      ))
-                  .toList(),
-              onChanged: (val) => setState(() {
-                final m = _materials.where((m) => m.id == val).firstOrNull;
-                entry.materialId = val;
-                entry.materialName = m?.name ?? '';
-              }),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          flex: 3,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: TextFormField(
-              controller: entry.priceController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))],
-              decoration: const InputDecoration(
-                prefixText: '₹',
-                hintText: 'Price',
-                border: InputBorder.none,
-                isDense: true,
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: value,
+                    isExpanded: true,
+                    hint: Text('Select material',
+                        style: AirMenuTextStyle.small.withColor(const Color(0xFF9CA3AF))),
+                    decoration: const InputDecoration(border: InputBorder.none, isDense: true),
+                    items: _materials
+                        .where((m) => m.id == entry.materialId || !selectedIds.contains(m.id))
+                        .map((m) => DropdownMenuItem(
+                              value: m.id,
+                              child: Text('${m.name} (${m.unit})',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AirMenuTextStyle.small.medium500()),
+                            ))
+                        .toList(),
+                    onChanged: (val) => setState(() {
+                      final m = _materials.where((m) => m.id == val).firstOrNull;
+                      entry.materialId = val;
+                      entry.materialName = m?.name ?? '';
+                    }),
+                  ),
+                ),
               ),
-              style: AirMenuTextStyle.small.medium500(),
-            ),
+              IconButton(
+                onPressed: () => _removeSupplyEntry(index),
+                icon: const Icon(Icons.close, size: 18, color: Color(0xFFDC2626)),
+                splashRadius: 18,
+              ),
+            ],
           ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(child: _buildSupplyField(entry.priceController, 'Price (₹)', isNumber: true)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildSupplyField(entry.minOrderController, 'Min Order Qty', isNumber: true)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildSupplyField(entry.deliveryController, 'Delivery (days)', isNumber: true)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSupplyField(TextEditingController controller, String hint, {bool isNumber = false}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: isNumber ? const TextInputType.numberWithOptions(decimal: true) : TextInputType.text,
+        inputFormatters: isNumber ? [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*'))] : null,
+        decoration: InputDecoration(
+          hintText: hint,
+          border: InputBorder.none,
+          isDense: true,
+          hintStyle: AirMenuTextStyle.tiny.withColor(const Color(0xFF9CA3AF)),
         ),
-        IconButton(
-          onPressed: () => _removeSupplyEntry(index),
-          icon: const Icon(Icons.close, size: 18, color: Color(0xFFDC2626)),
-          splashRadius: 18,
-        ),
-      ],
+        style: AirMenuTextStyle.small.medium500(),
+      ),
     );
   }
 
@@ -1242,11 +1273,15 @@ class _SupplyEntry {
   String? materialId;
   String materialName;
   final TextEditingController priceController;
+  final TextEditingController minOrderController;
+  final TextEditingController deliveryController;
 
   _SupplyEntry({
     this.materialId,
     this.materialName = '',
     required this.priceController,
+    required this.minOrderController,
+    required this.deliveryController,
   });
 }
 

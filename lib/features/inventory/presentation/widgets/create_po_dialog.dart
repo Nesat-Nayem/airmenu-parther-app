@@ -108,6 +108,20 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
       return;
     }
 
+    for (final item in validItems) {
+      final supplied = _vendorSupplied.where((s) => s.materialId == item.materialId).firstOrNull;
+      if (supplied != null && item.quantity < supplied.minOrderQty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '${item.name ?? 'Item'} minimum order is ${supplied.minOrderQty.toStringAsFixed(0)} ${item.unit}',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     setState(() => _isSubmitting = true);
     final repo = locator<InventoryRepository>();
 
@@ -387,7 +401,10 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                         selectedVendorId = vendor.id;
                         selectedVendorName = val;
                         selectedVendor = vendor;
-                        // Item options are vendor-specific, so reset the rows.
+                        final maxDays = vendor.suppliedItems
+                            .map((s) => s.deliveryDays)
+                            .fold<int>(1, (a, b) => a > b ? a : b);
+                        expectedDelivery = DateTime.now().add(Duration(days: maxDays));
                         items
                           ..clear()
                           ..add(POItem());
@@ -820,8 +837,8 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
             item.materialId = materialId;
             item.name = mat?.name ?? s.materialName;
             item.unit = mat?.unit ?? '';
-            // Auto-fill the unit price from the vendor's configured price.
             item.unitCost = s.price;
+            item.quantity = s.minOrderQty.ceil().clamp(1, 999999);
           }),
           itemBuilder: (context) => supplied.map((s) {
             final mat = _materials.where((m) => m.id == s.materialId).firstOrNull;
@@ -865,7 +882,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                       ),
                     ),
                     Text(
-                      '₹${_fmtNum(s.price)}',
+                      '₹${_fmtNum(s.price)} · min ${s.minOrderQty.toStringAsFixed(0)}',
                       style: AirMenuTextStyle.small.medium500().withColor(const Color(0xFF6B7280)),
                     ),
                   ],

@@ -10,6 +10,7 @@ import 'package:airmenuai_partner_app/features/reports/presentation/widgets/repo
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/recipe_mapping_dialog.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/receive_po_dialog.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/repositories/menu_repository.dart';
 import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
@@ -306,6 +307,13 @@ class InventoryItemsTable extends StatelessWidget {
     );
   }
 
+  void _showExpiryDialog(BuildContext context, InventoryItem item) {
+    showDialog(
+      context: context,
+      builder: (_) => MaterialExpiryDialog(item: item),
+    );
+  }
+
   void _showEditDialog(BuildContext context, InventoryItem item) {
     showDialog(
       context: context,
@@ -375,6 +383,7 @@ class InventoryItemsTable extends StatelessWidget {
               children: [
                 Expanded(flex: 3, child: _headerCell('ITEM')),
                 Expanded(flex: 2, child: _headerCell('STOCK')),
+                Expanded(flex: 2, child: _headerCell('EXPIRY')),
                 Expanded(flex: 2, child: _headerCell('STATUS')),
                 if (!isCompactView) ...[
                   Expanded(flex: 2, child: _headerCell('CONSUMPTION')),
@@ -460,6 +469,20 @@ class InventoryItemsTable extends StatelessWidget {
                               ),
                             ),
                           ],
+                        ),
+                      ),
+                      // Expiry
+                      Expanded(
+                        flex: 2,
+                        child: TextButton.icon(
+                          onPressed: () => _showExpiryDialog(context, item),
+                          icon: const Icon(Icons.event_outlined, size: 14),
+                          label: const Text('View'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: const Color(0xFF3B82F6),
+                            padding: EdgeInsets.zero,
+                            visualDensity: VisualDensity.compact,
+                          ),
                         ),
                       ),
                       // Status
@@ -582,8 +605,8 @@ class InventoryItemsTable extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: ConstrainedBox(
           constraints: const BoxConstraints(
-            minWidth: 1000,
-            maxWidth: 1000,
+            minWidth: 1100,
+            maxWidth: 1100,
           ), // Fixed width to prevent infinite width error with Expanded
           child: table,
         ),
@@ -938,36 +961,17 @@ class _InventoryDashboardSecondaryWidgetsState
     }
   }
 
-  Future<void> _updatePOStatus(PurchaseOrder po, PurchaseOrderStatus status) async {
+  Future<void> _openReceiveDialog(PurchaseOrder po) async {
     if (_updatingPOId != null) return;
-    setState(() => _updatingPOId = po.id);
-    final messenger = ScaffoldMessenger.of(context);
-    final res = await locator<InventoryRepository>().updatePurchaseOrderStatus(po.id, status.name);
-    if (!mounted) return;
-    setState(() => _updatingPOId = null);
-    if (res is DataSuccess<PurchaseOrder>) {
+    final received = await ReceivePurchaseOrderDialog.show(
+      context,
+      order: po,
+      onReceived: () {
+        if (mounted) context.read<InventoryBloc>().add(RefreshInventory());
+      },
+    );
+    if (received == true && mounted) {
       await _loadPurchaseOrders();
-      if (status == PurchaseOrderStatus.received && mounted) {
-        // Stock was incremented server-side; refresh the inventory table.
-        context.read<InventoryBloc>().add(RefreshInventory());
-      }
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-          content: Text(status == PurchaseOrderStatus.received
-              ? 'Purchase order received — stock updated'
-              : 'Purchase order ${status.label.toLowerCase()}'),
-        ),
-      );
-    } else {
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          content: Text(res.error?.message ?? 'Failed to update purchase order'),
-        ),
-      );
     }
   }
 
@@ -1190,26 +1194,27 @@ class _InventoryDashboardSecondaryWidgetsState
           const SizedBox(height: 8),
           // Status controls: pending POs can be received or cancelled; received
           // and cancelled POs are terminal (shown read-only).
-          if (po.status == PurchaseOrderStatus.pending)
+          if (po.status == PurchaseOrderStatus.pending || po.status == PurchaseOrderStatus.partiallyReceived)
             Row(
               children: [
                 Expanded(
                   child: _poActionButton(
-                    label: isUpdating ? 'Working…' : 'Mark Received',
+                    label: isUpdating ? 'Working…' : (po.status == PurchaseOrderStatus.partiallyReceived ? 'Receive More' : 'Receive'),
                     icon: Icons.check_circle_outline,
                     color: const Color(0xFF16A34A),
                     filled: true,
-                    onTap: isUpdating ? null : () => _updatePOStatus(po, PurchaseOrderStatus.received),
+                    onTap: isUpdating ? null : () => _openReceiveDialog(po),
                   ),
                 ),
                 const SizedBox(width: 8),
-                _poActionButton(
-                  label: 'Cancel',
-                  icon: Icons.close,
-                  color: const Color(0xFFDC2626),
-                  filled: false,
-                  onTap: isUpdating ? null : () => _confirmCancelPO(po),
-                ),
+                if (po.status == PurchaseOrderStatus.pending)
+                  _poActionButton(
+                    label: 'Cancel',
+                    icon: Icons.close,
+                    color: const Color(0xFFDC2626),
+                    filled: false,
+                    onTap: isUpdating ? null : () => _confirmCancelPO(po),
+                  ),
               ],
             )
           else
@@ -1291,7 +1296,32 @@ class _InventoryDashboardSecondaryWidgetsState
       ),
     );
     if (confirmed == true) {
-      await _updatePOStatus(po, PurchaseOrderStatus.cancelled);
+      setState(() => _updatingPOId = po.id);
+      final messenger = ScaffoldMessenger.of(context);
+      final res = await locator<InventoryRepository>().updatePurchaseOrderStatus(
+        po.id,
+        PurchaseOrderStatus.cancelled.apiValue,
+      );
+      if (!mounted) return;
+      setState(() => _updatingPOId = null);
+      if (res is DataSuccess<PurchaseOrder>) {
+        await _loadPurchaseOrders();
+        messenger.showSnackBar(
+          const SnackBar(
+            backgroundColor: Color(0xFF16A34A),
+            behavior: SnackBarBehavior.floating,
+            content: Text('Purchase order cancelled'),
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFDC2626),
+            behavior: SnackBarBehavior.floating,
+            content: Text(res.error?.message ?? 'Failed to cancel purchase order'),
+          ),
+        );
+      }
     }
   }
 
@@ -1547,6 +1577,133 @@ class _MaterialHistoryDialogState extends State<MaterialHistoryDialog> {
             style: AirMenuTextStyle.small.bold700().withColor(color),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class MaterialExpiryDialog extends StatefulWidget {
+  final InventoryItem item;
+
+  const MaterialExpiryDialog({super.key, required this.item});
+
+  @override
+  State<MaterialExpiryDialog> createState() => _MaterialExpiryDialogState();
+}
+
+class _MaterialExpiryDialogState extends State<MaterialExpiryDialog> {
+  List<StockBatch> _batches = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final res = await locator<InventoryRepository>().getStockBatches(materialId: widget.item.id);
+    if (!mounted) return;
+    setState(() {
+      if (res is DataSuccess<List<StockBatch>>) {
+        _batches = res.data!;
+      }
+      _loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: Container(
+        width: 520,
+        constraints: const BoxConstraints(maxHeight: 560),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 20, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Expiry Batches', style: AirMenuTextStyle.headingH4.bold700()),
+                        Text(
+                          widget.item.name,
+                          style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close, size: 20)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Flexible(
+              child: _loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  : _batches.isEmpty
+                      ? const Padding(
+                          padding: EdgeInsets.all(40),
+                          child: Center(child: Text('No expiry batches recorded yet')),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _batches.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            final batch = _batches[i];
+                            final daysLeft = batch.expiryDate.difference(DateTime.now()).inDays;
+                            final urgent = daysLeft <= 7;
+                            return Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: urgent ? const Color(0xFFFEF2F2) : Colors.grey.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: urgent ? const Color(0xFFFECACA) : Colors.grey.shade100,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          '${batch.remainingQuantity.toStringAsFixed(0)} ${widget.item.unit} remaining',
+                                          style: AirMenuTextStyle.small.bold600(),
+                                        ),
+                                        Text(
+                                          'Expires ${DateFormat('dd MMM yyyy').format(batch.expiryDate)} · $daysLeft days left',
+                                          style: AirMenuTextStyle.caption.medium500().withColor(
+                                            urgent ? const Color(0xFFDC2626) : InventoryColors.textTertiary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${batch.unitCost.toStringAsFixed(0)}',
+                                    style: AirMenuTextStyle.small.bold600().withColor(const Color(0xFF6B7280)),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }

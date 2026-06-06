@@ -180,6 +180,8 @@ class ApiEndpoints {
   static const String inventoryVendors = '/inventory/vendors';  static String inventoryVendor(String id) => '/inventory/vendors/$id';
   static const String inventoryPurchaseOrders = '/inventory/purchase-orders';
   static String inventoryPurchaseOrderStatus(String id) => '/inventory/purchase-orders/$id/status';
+  static String inventoryPurchaseOrderReceive(String id) => '/inventory/purchase-orders/$id/receive';
+  static const String inventoryStockBatches = '/inventory/stock-batches';
   static const String inventoryLocations = '/inventory/locations';
   static String inventoryLocation(String id) => '/inventory/locations/$id';
   static const String inventoryTransfers = '/inventory/transfers';

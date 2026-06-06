@@ -395,6 +395,7 @@ class ChartDataPoint {
 // ─── Purchase Order ───────────────────────────────────────────────────────────
 enum PurchaseOrderStatus {
   pending,
+  partiallyReceived,
   received,
   cancelled;
 
@@ -402,6 +403,8 @@ enum PurchaseOrderStatus {
     switch (this) {
       case PurchaseOrderStatus.pending:
         return const Color(0xFFF59E0B);
+      case PurchaseOrderStatus.partiallyReceived:
+        return const Color(0xFF3B82F6);
       case PurchaseOrderStatus.received:
         return const Color(0xFF10B981);
       case PurchaseOrderStatus.cancelled:
@@ -409,16 +412,34 @@ enum PurchaseOrderStatus {
     }
   }
 
-  String get label => name[0].toUpperCase() + name.substring(1);
+  String get label {
+    switch (this) {
+      case PurchaseOrderStatus.partiallyReceived:
+        return 'Partial';
+      default:
+        return name[0].toUpperCase() + name.substring(1);
+    }
+  }
 
   static PurchaseOrderStatus fromString(String? s) {
     switch (s) {
       case 'received':
         return PurchaseOrderStatus.received;
+      case 'partially_received':
+        return PurchaseOrderStatus.partiallyReceived;
       case 'cancelled':
         return PurchaseOrderStatus.cancelled;
       default:
         return PurchaseOrderStatus.pending;
+    }
+  }
+
+  String get apiValue {
+    switch (this) {
+      case PurchaseOrderStatus.partiallyReceived:
+        return 'partially_received';
+      default:
+        return name;
     }
   }
 }
@@ -430,6 +451,8 @@ class PurchaseOrderItem {
   final double quantity;
   final double unitPrice;
   final double lineTotal;
+  final double receivedQuantity;
+  final double? receivedUnitPrice;
 
   const PurchaseOrderItem({
     required this.materialId,
@@ -438,7 +461,11 @@ class PurchaseOrderItem {
     this.quantity = 0,
     this.unitPrice = 0,
     this.lineTotal = 0,
+    this.receivedQuantity = 0,
+    this.receivedUnitPrice,
   });
+
+  double get remainingQuantity => (quantity - receivedQuantity).clamp(0, quantity);
 
   factory PurchaseOrderItem.fromJson(Map<String, dynamic> json) {
     final rawMat = json['materialId'];
@@ -452,6 +479,8 @@ class PurchaseOrderItem {
       quantity: qty,
       unitPrice: price,
       lineTotal: (json['lineTotal'] ?? (qty * price)).toDouble(),
+      receivedQuantity: (json['receivedQuantity'] ?? 0).toDouble(),
+      receivedUnitPrice: json['receivedUnitPrice'] == null ? null : (json['receivedUnitPrice'] as num).toDouble(),
     );
   }
 }
@@ -514,11 +543,17 @@ class SuppliedItem {
   final String materialId;
   final String materialName;
   final double price;
+  final double minOrderQty;
+  final int deliveryDays;
+  final DateTime? priceUpdatedAt;
 
   const SuppliedItem({
     required this.materialId,
     this.materialName = '',
     this.price = 0,
+    this.minOrderQty = 1,
+    this.deliveryDays = 1,
+    this.priceUpdatedAt,
   });
 
   factory SuppliedItem.fromJson(Map<String, dynamic> json) {
@@ -528,6 +563,9 @@ class SuppliedItem {
       materialId: matId,
       materialName: (json['materialName'] ?? '').toString(),
       price: (json['price'] ?? 0).toDouble(),
+      minOrderQty: (json['minOrderQty'] ?? 1).toDouble(),
+      deliveryDays: (json['deliveryDays'] ?? 1) as int? ?? int.tryParse('${json['deliveryDays'] ?? 1}') ?? 1,
+      priceUpdatedAt: json['priceUpdatedAt'] != null ? DateTime.tryParse(json['priceUpdatedAt'].toString()) : null,
     );
   }
 
@@ -535,13 +573,26 @@ class SuppliedItem {
     'materialId': materialId,
     'materialName': materialName,
     'price': price,
+    'minOrderQty': minOrderQty,
+    'deliveryDays': deliveryDays,
+    if (priceUpdatedAt != null) 'priceUpdatedAt': priceUpdatedAt!.toIso8601String(),
   };
 
-  SuppliedItem copyWith({String? materialId, String? materialName, double? price}) {
+  SuppliedItem copyWith({
+    String? materialId,
+    String? materialName,
+    double? price,
+    double? minOrderQty,
+    int? deliveryDays,
+    DateTime? priceUpdatedAt,
+  }) {
     return SuppliedItem(
       materialId: materialId ?? this.materialId,
       materialName: materialName ?? this.materialName,
       price: price ?? this.price,
+      minOrderQty: minOrderQty ?? this.minOrderQty,
+      deliveryDays: deliveryDays ?? this.deliveryDays,
+      priceUpdatedAt: priceUpdatedAt ?? this.priceUpdatedAt,
     );
   }
 }
@@ -747,12 +798,22 @@ class VendorPriceEntry {
   final double avgUnitCost;
   final int transactionCount;
   final bool isBestPrice;
+  final double minOrderQty;
+  final int deliveryDays;
+  final String delivery;
+  final String minOrder;
+  final String updated;
 
   const VendorPriceEntry({
     required this.vendorName,
     required this.avgUnitCost,
     this.transactionCount = 0,
     this.isBestPrice = false,
+    this.minOrderQty = 1,
+    this.deliveryDays = 1,
+    this.delivery = '—',
+    this.minOrder = '—',
+    this.updated = '—',
   });
 
   factory VendorPriceEntry.fromJson(Map<String, dynamic> json, {bool isBestPrice = false}) {
@@ -761,6 +822,49 @@ class VendorPriceEntry {
       avgUnitCost: (json['avgUnitCost'] ?? 0).toDouble(),
       transactionCount: (json['transactionCount'] ?? 0) as int,
       isBestPrice: isBestPrice,
+      minOrderQty: (json['minOrderQty'] ?? 1).toDouble(),
+      deliveryDays: (json['deliveryDays'] ?? 1) as int? ?? int.tryParse('${json['deliveryDays'] ?? 1}') ?? 1,
+      delivery: (json['delivery'] ?? '—').toString(),
+      minOrder: (json['minOrder'] ?? '—').toString(),
+      updated: (json['updated'] ?? '—').toString(),
+    );
+  }
+}
+
+class StockBatch {
+  final String id;
+  final String materialId;
+  final String? purchaseOrderId;
+  final double quantity;
+  final double remainingQuantity;
+  final double unitCost;
+  final DateTime expiryDate;
+  final DateTime receivedAt;
+  final String note;
+
+  const StockBatch({
+    required this.id,
+    required this.materialId,
+    this.purchaseOrderId,
+    required this.quantity,
+    required this.remainingQuantity,
+    this.unitCost = 0,
+    required this.expiryDate,
+    required this.receivedAt,
+    this.note = '',
+  });
+
+  factory StockBatch.fromJson(Map<String, dynamic> json) {
+    return StockBatch(
+      id: (json['_id'] ?? json['id'] ?? '').toString(),
+      materialId: (json['materialId'] ?? '').toString(),
+      purchaseOrderId: json['purchaseOrderId']?.toString(),
+      quantity: (json['quantity'] ?? 0).toDouble(),
+      remainingQuantity: (json['remainingQuantity'] ?? 0).toDouble(),
+      unitCost: (json['unitCost'] ?? 0).toDouble(),
+      expiryDate: DateTime.tryParse(json['expiryDate']?.toString() ?? '') ?? DateTime.now(),
+      receivedAt: DateTime.tryParse(json['receivedAt']?.toString() ?? '') ?? DateTime.now(),
+      note: (json['note'] ?? '').toString(),
     );
   }
 }

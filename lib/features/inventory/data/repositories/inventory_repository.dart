@@ -436,6 +436,92 @@ class InventoryRepository {
     }
   }
 
+  Future<DataState<PurchaseOrder>> receivePurchaseOrder(String id, Map<String, dynamic> params) async {
+    try {
+      final hotelId = await _getHotelId();
+      final body = {...params, if (hotelId != null && !params.containsKey('hotelId')) 'hotelId': hotelId};
+      final res = await _api.invoke(
+        urlPath: ApiEndpoints.inventoryPurchaseOrderReceive(id),
+        type: RequestType.put,
+        params: body,
+        fun: (data) => jsonDecode(data),
+      );
+      if (res is DataSuccess) {
+        return DataSuccess(PurchaseOrder.fromJson(res.data['data'] as Map<String, dynamic>));
+      }
+      return DataFailure<PurchaseOrder>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to receive purchase order', statusCode: 0),
+      );
+    } catch (e) {
+      return _fail(e.toString());
+    }
+  }
+
+  Future<DataState<List<StockBatch>>> getStockBatches({String? materialId}) async {
+    try {
+      final hotelId = await _getHotelId();
+      final p = <String, String>{};
+      if (hotelId != null) p['hotelId'] = hotelId;
+      if (materialId != null) p['materialId'] = materialId;
+      final res = await _api.invoke(
+        urlPath: '${ApiEndpoints.inventoryStockBatches}${_buildQuery(p)}',
+        type: RequestType.get,
+        fun: (data) => jsonDecode(data),
+      );
+      if (res is DataSuccess) {
+        final list = (res.data['data'] as List? ?? [])
+            .map((e) => StockBatch.fromJson(e as Map<String, dynamic>))
+            .toList();
+        return DataSuccess(list);
+      }
+      return DataFailure<List<StockBatch>>(
+        (res as DataFailure).error ?? DataError(message: 'Failed to fetch stock batches', statusCode: 0),
+      );
+    } catch (e) {
+      return _fail(e.toString());
+    }
+  }
+
+  Future<DataState<String>> uploadFile({
+    String? filePath,
+    List<int>? bytes,
+    String? fileName,
+  }) async {
+    try {
+      if (filePath == null && bytes == null) {
+        return _fail('No file selected');
+      }
+      final dynamic res;
+      if (bytes != null) {
+        res = await _api.invokeMultipartWithBytes(
+          urlPath: '/uploads/single',
+          type: RequestType.post,
+          fields: const {},
+          fileBytes: {'image': Uint8List.fromList(bytes)},
+          fun: (data) => jsonDecode(data),
+        );
+      } else {
+        res = await _api.invokeMultipart(
+          urlPath: '/uploads/single',
+          type: RequestType.post,
+          fields: const {},
+          files: {'image': filePath!},
+          fun: (data) => jsonDecode(data),
+        );
+      }
+      if (res is DataSuccess) {
+        final url = (res.data['data']?['url'] ?? '').toString();
+        if (url.isEmpty) return _fail('Upload failed');
+        return DataSuccess(url);
+      }
+      return DataFailure<String>(
+        (res as DataFailure).error ?? DataError(message: 'Upload failed', statusCode: 0),
+      );
+    } catch (e) {
+      return _fail(e.toString());
+    }
+  }
+
   // ─── Locations ─────────────────────────────────────────────────────────────
 
   Future<DataState<List<LocationModel>>> getLocations() async {
