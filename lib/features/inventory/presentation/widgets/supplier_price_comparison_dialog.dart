@@ -983,12 +983,12 @@ class _VendorCard extends StatelessWidget {
               spacing: 16,
               runSpacing: 16,
               children: [
-                _VendorStat(
-                  label: 'Rating',
-                  value: rating,
-                  icon: Icons.star,
-                  iconColor: const Color(0xFFF59E0B),
-                ),
+                // _VendorStat(
+                //   label: 'Rating',
+                //   value: rating,
+                //   icon: Icons.star,
+                //   iconColor: const Color(0xFFF59E0B),
+                // ),
                 _VendorStat(label: 'Delivery', value: delivery),
                 _VendorStat(label: 'Min Order', value: minOrder),
                 _VendorStat(label: 'Updated', value: updated),
@@ -998,12 +998,12 @@ class _VendorCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _VendorStat(
-                  label: 'Rating',
-                  value: rating,
-                  icon: Icons.star,
-                  iconColor: const Color(0xFFF59E0B),
-                ),
+                // _VendorStat(
+                //   label: 'Rating',
+                //   value: rating,
+                //   icon: Icons.star,
+                //   iconColor: const Color(0xFFF59E0B),
+                // ),
                 _VendorStat(label: 'Delivery', value: delivery),
                 _VendorStat(label: 'Min Order', value: minOrder),
                 _VendorStat(label: 'Updated', value: updated),
