@@ -1357,9 +1357,13 @@ class _MaterialHistoryDialogState extends State<MaterialHistoryDialog> {
     });
   }
 
-  // Outflow (consumption / wastage) is shown as negative; inflow (purchase /
-  // return) as positive.
-  bool _isOutflow(String type) => type == 'consume' || type == 'wastage';
+  // Outflow (consumption / wastage / stock-out adjustments) is negative;
+  // inflow (purchase / return / stock-in adjustments) is positive.
+  bool _isOutflow(InventoryTransaction tx) {
+    if (tx.direction == 'out') return true;
+    if (tx.direction == 'in') return false;
+    return tx.type == 'consume' || tx.type == 'wastage';
+  }
 
   String _typeLabel(String type) {
     switch (type) {
@@ -1499,10 +1503,11 @@ class _MaterialHistoryDialogState extends State<MaterialHistoryDialog> {
   }
 
   Widget _historyRow(InventoryTransaction tx) {
-    final out = _isOutflow(tx.type);
+    final out = _isOutflow(tx);
     final color = out ? const Color(0xFFDC2626) : const Color(0xFF16A34A);
     final unit = tx.materialUnit.isNotEmpty ? tx.materialUnit : widget.item.unit;
     final dateStr = DateFormat('dd MMM yyyy, hh:mm a').format(tx.createdAt);
+    final sign = out ? '−' : '+';
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -1538,7 +1543,7 @@ class _MaterialHistoryDialogState extends State<MaterialHistoryDialog> {
             ),
           ),
           Text(
-            '${out ? '-' : '+'}${tx.quantity.toStringAsFixed(0)} $unit',
+            '$sign${tx.quantity.toStringAsFixed(0)} $unit',
             style: AirMenuTextStyle.small.bold700().withColor(color),
           ),
         ],

@@ -46,7 +46,7 @@ class _ManualStockDialogState extends State<ManualStockDialog> {
     final body = <String, dynamic>{
       'materialId': selectedIngredient!.id,
       'type': widget.isStockIn ? 'purchase' : 'adjustment',
-      if (!widget.isStockIn) 'direction': 'out',
+      'direction': widget.isStockIn ? 'in' : 'out',
       'quantity': qty,
       if (_notesController.text.trim().isNotEmpty) 'note': _notesController.text.trim(),
     };

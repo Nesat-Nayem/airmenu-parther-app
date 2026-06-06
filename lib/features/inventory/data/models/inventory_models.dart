@@ -191,6 +191,7 @@ class InventoryTransaction {
   final String materialName;
   final String materialUnit;
   final String type; // purchase | adjustment | consume | wastage | return
+  final String? direction; // in | out — set for adjustments and inferred for other types
   final double quantity;
   final double unitCost;
   final double totalCost;
@@ -203,6 +204,7 @@ class InventoryTransaction {
     this.materialName = '',
     this.materialUnit = '',
     required this.type,
+    this.direction,
     required this.quantity,
     this.unitCost = 0,
     this.totalCost = 0,
@@ -229,6 +231,7 @@ class InventoryTransaction {
       materialName: matName,
       materialUnit: matUnit,
       type: json['type'] ?? 'adjustment',
+      direction: json['direction']?.toString(),
       quantity: (json['quantity'] ?? 0).toDouble(),
       unitCost: (json['unitCost'] ?? 0).toDouble(),
       totalCost: (json['totalCost'] ?? 0).toDouble(),
