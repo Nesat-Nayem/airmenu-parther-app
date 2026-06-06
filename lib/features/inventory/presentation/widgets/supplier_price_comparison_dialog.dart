@@ -1010,42 +1010,48 @@ class _VendorCard extends StatelessWidget {
               ],
             ),
           const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: onSwitch,
-              style: OutlinedButton.styleFrom(
-                backgroundColor: isBestPrice ? Colors.white : Colors.white,
-                side: BorderSide(
-                  color: isBestPrice
-                      ? const Color(0xFFEF4444)
-                      : const Color(0xFFE5E7EB),
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Switch to this vendor',
-                    style: AirMenuTextStyle.normal.bold600().withColor(
-                      const Color(0xFF111827),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.arrow_forward,
-                    size: 16,
-                    color: Color(0xFF111827),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // SizedBox(
+          //   width: double.infinity,
+          //   child: OutlinedButton(
+          //     onPressed: onSwitch,
+          //     style: OutlinedButton.styleFrom(
+          //       backgroundColor: isBestPrice ? Colors.white : Colors.white,
+          //       side: BorderSide(
+          //         color: isBestPrice
+          //             ? const Color(0xFFEF4444)
+          //             : const Color(0xFFE5E7EB),
+          //       ),
+          //       shape: RoundedRectangleBorder(
+          //         borderRadius: BorderRadius.circular(12),
+          //       ),
+          //       padding: const EdgeInsets.symmetric(vertical: 16),
+          //     ),
+          //     child: Row(
+          //       mainAxisAlignment: MainAxisAlignment.center,
+          //       children: [
+          //         Text(
+          //           'Switch to this vendor',
+          //           style: AirMenuTextStyle.normal.bold600().withColor(
+          //             const Color(0xFF111827),
+          //           ),
+          //         ),
+          //         const SizedBox(width: 8),
+          //         const Icon(
+          //           Icons.arrow_forward,
+          //           size: 16,
+          //           color: Color(0xFF111827),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          // ),
+
+
+
+
         ],
+
+
       ),
     );
   }
