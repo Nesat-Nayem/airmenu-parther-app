@@ -195,16 +195,66 @@ class MarketingMobileView extends StatelessWidget {
             onAnalyticsTap: () =>
                 CampaignAnalyticsDialog.show(context, campaign),
             onEditTap: () {
-              CampaignFormDialog.show(
-                context,
-                campaign: campaign,
-                onSave: (data) {
-                  context.read<MarketingBloc>().add(
-                    UpdateCampaign(campaignId: campaign.id, campaignData: data),
-                  );
-                },
-              );
+              if (state.isAdmin) {
+                CampaignFormDialog.show(
+                  context,
+                  campaign: campaign,
+                  onSave: (data) {
+                    context.read<MarketingBloc>().add(
+                      UpdateCampaign(
+                        campaignId: campaign.id,
+                        campaignData: data,
+                      ),
+                    );
+                  },
+                );
+              } else {
+                OfferFormDialog.show(
+                  context,
+                  campaign: campaign,
+                  onSave: (data) {
+                    context.read<MarketingBloc>().add(
+                      UpdateCampaign(
+                        campaignId: campaign.id,
+                        campaignData: data,
+                      ),
+                    );
+                  },
+                );
+              }
             },
+            onDeleteTap: !state.isAdmin
+                ? () {
+                    final bloc = context.read<MarketingBloc>();
+                    showDialog(
+                      context: context,
+                      useRootNavigator: true,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Delete Offer'),
+                        content: Text(
+                          'Are you sure you want to delete "${campaign.name}"?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFDC2626),
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
+                              bloc.add(DeleteCampaign(campaign.id));
+                            },
+                            child: const Text('Delete'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                : null,
           ),
         );
       }).toList(),
@@ -278,16 +328,18 @@ class MarketingMobileView extends StatelessWidget {
               );
             },
             onDelete: () {
+              final bloc = context.read<MarketingBloc>();
               showDialog(
                 context: context,
-                builder: (_) => AlertDialog(
+                useRootNavigator: true,
+                builder: (dialogContext) => AlertDialog(
                   title: const Text('Delete Combo'),
                   content: Text(
                     'Are you sure you want to delete "${combo.name}"?',
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => Navigator.of(dialogContext).pop(),
                       child: const Text('Cancel'),
                     ),
                     ElevatedButton(
@@ -296,10 +348,8 @@ class MarketingMobileView extends StatelessWidget {
                         foregroundColor: Colors.white,
                       ),
                       onPressed: () {
-                        Navigator.pop(context);
-                        context.read<MarketingBloc>().add(
-                          DeleteCombo(combo.id),
-                        );
+                        Navigator.of(dialogContext).pop();
+                        bloc.add(DeleteCombo(combo.id));
                       },
                       child: const Text('Delete'),
                     ),

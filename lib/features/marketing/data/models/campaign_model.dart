@@ -19,6 +19,7 @@ class CampaignModel {
   final double minOrderValue;
   final double? maxDiscount;
   final String offerType; // 'restaurant' or 'item'
+  final List<String> targetItems; // menu item ids for item-specific offers
   final List<String> validDays;
   final String validTimeStart;
   final String validTimeEnd;
@@ -42,6 +43,7 @@ class CampaignModel {
     this.minOrderValue = 0,
     this.maxDiscount,
     this.offerType = 'restaurant',
+    this.targetItems = const [],
     this.validDays = const [
       'monday',
       'tuesday',
@@ -169,6 +171,19 @@ class CampaignModel {
           .toList();
     }
 
+    // Parse targetItems (item-specific offers)
+    List<String> parsedTargetItems = const [];
+    if (json['targetItems'] != null && json['targetItems'] is List) {
+      parsedTargetItems = (json['targetItems'] as List)
+          .map((e) => e.toString())
+          .toList();
+    }
+
+    // Backend stores flat discounts as 'fixed' — normalise to 'flat' for the UI.
+    final normalizedDiscountType = discountType == 'fixed'
+        ? 'flat'
+        : (discountType.isNotEmpty ? discountType : 'percentage');
+
     return CampaignModel(
       id: (json['_id'] as String?) ?? (json['id'] as String?) ?? '',
       name: (json['title'] as String?) ?? 'Unnamed Offer',
@@ -184,11 +199,12 @@ class CampaignModel {
       restaurantCount: 1, // Single restaurant
       // Offer-specific fields
       description: json['description'] as String?,
-      discountType: discountType.isNotEmpty ? discountType : 'percentage',
+      discountType: normalizedDiscountType,
       discountValue: (json['discountValue'] as num?)?.toDouble() ?? 0,
       minOrderValue: (json['minimumOrderValue'] as num?)?.toDouble() ?? 0,
       maxDiscount: (json['maximumDiscountAmount'] as num?)?.toDouble(),
       offerType: (json['offerType'] as String?) ?? 'restaurant',
+      targetItems: parsedTargetItems,
       validDays: parsedDays,
       validTimeStart: (json['validTimeStart'] as String?) ?? '00:00',
       validTimeEnd: (json['validTimeEnd'] as String?) ?? '23:59',
@@ -198,12 +214,15 @@ class CampaignModel {
 
   /// Convert to hotel-offers API format for create/update
   Map<String, dynamic> toOfferJson(String? hotelId) {
+    // Backend enum only knows 'percentage' | 'fixed'.
+    final apiDiscountType = discountType == 'flat' ? 'fixed' : discountType;
     return {
       'title': name,
       'description': description ?? name,
-      'discountType': discountType,
+      'discountType': apiDiscountType,
       'discountValue': discountValue,
       'offerType': offerType,
+      'targetItems': offerType == 'item' ? targetItems : <String>[],
       'validDays': validDays,
       'validTimeStart': validTimeStart,
       'validTimeEnd': validTimeEnd,
@@ -335,6 +354,7 @@ class CampaignModel {
     double? minOrderValue,
     double? maxDiscount,
     String? offerType,
+    List<String>? targetItems,
     List<String>? validDays,
     String? validTimeStart,
     String? validTimeEnd,
@@ -358,6 +378,7 @@ class CampaignModel {
       minOrderValue: minOrderValue ?? this.minOrderValue,
       maxDiscount: maxDiscount ?? this.maxDiscount,
       offerType: offerType ?? this.offerType,
+      targetItems: targetItems ?? this.targetItems,
       validDays: validDays ?? this.validDays,
       validTimeStart: validTimeStart ?? this.validTimeStart,
       validTimeEnd: validTimeEnd ?? this.validTimeEnd,

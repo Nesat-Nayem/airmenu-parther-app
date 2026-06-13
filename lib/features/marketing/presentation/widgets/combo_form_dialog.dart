@@ -72,7 +72,12 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
     );
     _items =
         widget.combo?.items
-            .map((e) => _ComboItemEntry(name: e.name, quantity: e.quantity, price: e.originalPrice))
+            .map((e) => _ComboItemEntry(
+                  name: e.name,
+                  quantity: e.quantity,
+                  price: e.originalPrice,
+                  selectedItemId: e.menuItemId.isNotEmpty ? e.menuItemId : null,
+                ))
             .toList() ??
         [_ComboItemEntry()];
     _loadMenuItems();
@@ -709,9 +714,13 @@ class _ComboItemEntry {
   double price;
   String? selectedItemId;
 
-  _ComboItemEntry({String name = '', int quantity = 1, this.price = 0})
-    : nameController = TextEditingController(text: name),
-      quantityController = TextEditingController(text: quantity.toString());
+  _ComboItemEntry({
+    String name = '',
+    int quantity = 1,
+    this.price = 0,
+    this.selectedItemId,
+  })  : nameController = TextEditingController(text: name),
+        quantityController = TextEditingController(text: quantity.toString());
 }
 
 class _MenuItem {

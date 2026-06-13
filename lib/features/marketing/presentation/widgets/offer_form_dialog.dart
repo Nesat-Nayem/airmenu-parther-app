@@ -1,7 +1,13 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:airmenuai_partner_app/core/network/api_service.dart';
+import 'package:airmenuai_partner_app/core/network/data_state.dart';
+import 'package:airmenuai_partner_app/core/network/request_type.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/campaign_model.dart';
 import 'package:airmenuai_partner_app/features/marketing/data/models/promo_code_model.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
+import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
 /// Premium dialog for creating/editing offers with animations
@@ -55,8 +61,13 @@ class _OfferFormDialogState extends State<OfferFormDialog>
   late TextEditingController _usageLimitController;
 
   String _discountType = 'percentage';
+  String _offerType = 'restaurant'; // 'restaurant' (whole menu) or 'item'
+  final Set<String> _selectedItemIds = {};
   DateTime? _expiryDate;
   bool _isLoading = false;
+
+  bool _isLoadingMenu = true;
+  List<_MenuItemOption> _menuItems = [];
 
   bool get isEditing => widget.offer != null || widget.campaign != null;
 
@@ -81,7 +92,9 @@ class _OfferFormDialogState extends State<OfferFormDialog>
       _usageLimitController = TextEditingController(
         text: c.usageLimit != null ? c.usageLimit.toString() : '',
       );
-      _discountType = c.discountType;
+      _discountType = c.discountType == 'fixed' ? 'flat' : c.discountType;
+      _offerType = c.offerType == 'item' ? 'item' : 'restaurant';
+      _selectedItemIds.addAll(c.targetItems);
       _expiryDate = c.endDate;
     } else {
       // PromoCodeModel editing or new offer
@@ -97,6 +110,52 @@ class _OfferFormDialogState extends State<OfferFormDialog>
       _usageLimitController = TextEditingController();
       _discountType = widget.offer?.discountType ?? 'percentage';
       _expiryDate = widget.offer?.expiresAt;
+    }
+    _loadMenuItems();
+  }
+
+  Future<void> _loadMenuItems() async {
+    final hotelId = await locator<LocalStorage>().getString(
+      localStorageKey: 'hotelId',
+    );
+    if (hotelId == null || hotelId.isEmpty) {
+      if (mounted) setState(() => _isLoadingMenu = false);
+      return;
+    }
+
+    final response = await locator<ApiService>().invoke(
+      urlPath: '/hotels/$hotelId/menu',
+      type: RequestType.get,
+      fun: (data) => jsonDecode(data),
+    );
+
+    if (!mounted) return;
+
+    if (response is DataSuccess && response.data != null) {
+      final categories = (response.data['data'] as List?) ?? [];
+      final items = <_MenuItemOption>[];
+      for (final category in categories) {
+        final foodItems = (category['items'] as List?) ?? [];
+        for (final item in foodItems) {
+          final itemId = (item['id'] ?? item['_id'] ?? '').toString();
+          final itemName = (item['title'] ?? item['name'] ?? '').toString();
+          if (itemId.isNotEmpty && itemName.isNotEmpty) {
+            items.add(
+              _MenuItemOption(
+                id: itemId,
+                name: itemName,
+                price: (item['price'] as num?)?.toDouble() ?? 0,
+              ),
+            );
+          }
+        }
+      }
+      setState(() {
+        _menuItems = items;
+        _isLoadingMenu = false;
+      });
+    } else {
+      setState(() => _isLoadingMenu = false);
     }
   }
 
@@ -150,6 +209,12 @@ class _OfferFormDialogState extends State<OfferFormDialog>
                         _buildCodeField(),
                         const SizedBox(height: 20),
                         _buildDiscountTypeSelector(),
+                        const SizedBox(height: 20),
+                        _buildScopeSelector(),
+                        if (_offerType == 'item') ...[
+                          const SizedBox(height: 20),
+                          _buildItemPicker(),
+                        ],
                         const SizedBox(height: 20),
                         Row(
                           children: [
@@ -290,9 +355,141 @@ class _OfferFormDialogState extends State<OfferFormDialog>
           _buildTypeOption('percentage', 'Percentage (%)', Icons.percent),
           const SizedBox(width: 12),
           _buildTypeOption('flat', 'Flat Amount (₹)', Icons.currency_rupee),
-          const SizedBox(width: 12),
-          _buildTypeOption('bogo', 'Buy 1 Get 1', Icons.card_giftcard),
         ],
+      ),
+    );
+  }
+
+  Widget _buildScopeSelector() {
+    return _buildField(
+      label: 'Applies To',
+      required: true,
+      child: Row(
+        children: [
+          _buildScopeOption(
+            'restaurant',
+            'Entire Restaurant',
+            Icons.storefront,
+          ),
+          const SizedBox(width: 12),
+          _buildScopeOption('item', 'Specific Items', Icons.restaurant_menu),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScopeOption(String value, String label, IconData icon) {
+    final isSelected = _offerType == value;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => setState(() => _offerType = value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFFC52031)
+                : const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFFC52031)
+                  : const Color(0xFFE5E7EB),
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected ? Colors.white : const Color(0xFF6B7280),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: isSelected ? Colors.white : const Color(0xFF6B7280),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildItemPicker() {
+    return _buildField(
+      label: 'Select Items',
+      required: true,
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 200),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
+        child: _isLoadingMenu
+            ? const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            : _menuItems.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'No menu items found for this restaurant.',
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                ),
+              )
+            : Scrollbar(
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: _menuItems.length,
+                  itemBuilder: (context, index) {
+                    final item = _menuItems[index];
+                    final selected = _selectedItemIds.contains(item.id);
+                    return CheckboxListTile(
+                      dense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                      controlAffinity: ListTileControlAffinity.leading,
+                      activeColor: const Color(0xFFC52031),
+                      value: selected,
+                      onChanged: (v) {
+                        setState(() {
+                          if (v == true) {
+                            _selectedItemIds.add(item.id);
+                          } else {
+                            _selectedItemIds.remove(item.id);
+                          }
+                        });
+                      },
+                      title: Text(
+                        item.name,
+                        style: const TextStyle(fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      secondary: Text(
+                        '₹${item.price.toStringAsFixed(0)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
       ),
     );
   }
@@ -574,11 +771,19 @@ class _OfferFormDialogState extends State<OfferFormDialog>
 
   void _generateCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final code = List.generate(8, (i) {
-      final index = DateTime.now().microsecond % chars.length;
-      return chars[(index + i * 7) % chars.length];
+    final rand = DateTime.now().microsecondsSinceEpoch;
+    // Use the offer name as a prefix when available for readable codes.
+    final namePrefix = _nameController.text
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '')
+        .padRight(3, 'X')
+        .substring(0, 3);
+    final suffix = List.generate(5, (i) {
+      return chars[(rand ~/ (i + 1) + i * 13) % chars.length];
     }).join();
-    _codeController.text = code;
+    setState(() {
+      _codeController.text = '$namePrefix$suffix';
+    });
   }
 
   Future<void> _pickDate() async {
@@ -604,6 +809,16 @@ class _OfferFormDialogState extends State<OfferFormDialog>
   void _handleSave() {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_offerType == 'item' && _selectedItemIds.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select at least one item for this offer'),
+          backgroundColor: Color(0xFFDC2626),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     widget.onSave({
@@ -614,9 +829,23 @@ class _OfferFormDialogState extends State<OfferFormDialog>
       'minOrder': double.tryParse(_minOrderController.text) ?? 0,
       'maxDiscount': double.tryParse(_maxDiscountController.text),
       'usageLimit': int.tryParse(_usageLimitController.text),
+      'offerType': _offerType,
+      'targetItems': _offerType == 'item' ? _selectedItemIds.toList() : <String>[],
       'expiresAt': _expiryDate?.toIso8601String(),
     });
 
     Navigator.pop(context);
   }
+}
+
+class _MenuItemOption {
+  final String id;
+  final String name;
+  final double price;
+
+  const _MenuItemOption({
+    required this.id,
+    required this.name,
+    required this.price,
+  });
 }

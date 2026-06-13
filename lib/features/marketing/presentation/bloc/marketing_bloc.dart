@@ -325,6 +325,9 @@ class MarketingBloc extends Bloc<MarketingEvent, MarketingState> {
       minOrderValue: (data['minOrder'] as num?)?.toDouble() ?? 0,
       maxDiscount: (data['maxDiscount'] as num?)?.toDouble(),
       offerType: data['offerType'] ?? 'restaurant',
+      targetItems:
+          (data['targetItems'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
       usageLimit: data['usageLimit'] as int?,
     );
 
@@ -353,12 +356,29 @@ class MarketingBloc extends Bloc<MarketingEvent, MarketingState> {
     final oldCampaign = state.campaigns.firstWhere(
       (c) => c.id == event.campaignId,
     );
+    final data = event.campaignData;
+
+    // Offer form sends the expiry via 'expiresAt'; campaign form via 'endDate'.
+    DateTime? endDate = DateTime.tryParse(data['endDate'] ?? '');
+    if (endDate == null && data['expiresAt'] != null) {
+      endDate = DateTime.tryParse(data['expiresAt']);
+    }
+
     final campaign = oldCampaign.copyWith(
-      name: event.campaignData['name'],
-      type: event.campaignData['type'],
-      status: event.campaignData['status'],
-      startDate: DateTime.tryParse(event.campaignData['startDate'] ?? ''),
-      endDate: DateTime.tryParse(event.campaignData['endDate'] ?? ''),
+      name: data['name'] ?? data['code'],
+      type: data['type'],
+      status: data['status'],
+      startDate: DateTime.tryParse(data['startDate'] ?? ''),
+      endDate: endDate,
+      description: data['description'] as String?,
+      discountType: data['discountType'] as String?,
+      discountValue: (data['discountValue'] as num?)?.toDouble(),
+      minOrderValue: (data['minOrder'] as num?)?.toDouble(),
+      maxDiscount: (data['maxDiscount'] as num?)?.toDouble(),
+      offerType: data['offerType'] as String?,
+      targetItems:
+          (data['targetItems'] as List?)?.map((e) => e.toString()).toList(),
+      usageLimit: data['usageLimit'] as int?,
     );
 
     final result = await _repository.updateCampaign(campaign);

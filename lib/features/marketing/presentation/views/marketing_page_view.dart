@@ -290,16 +290,19 @@ class MarketingPageView extends StatelessWidget {
                 },
                 onDeleteTap: !state.isAdmin
                     ? () {
+                        final bloc = context.read<MarketingBloc>();
                         showDialog(
                           context: context,
-                          builder: (_) => AlertDialog(
+                          useRootNavigator: true,
+                          builder: (dialogContext) => AlertDialog(
                             title: const Text('Delete Offer'),
                             content: Text(
                               'Are you sure you want to delete "${campaign.name}"?',
                             ),
                             actions: [
                               TextButton(
-                                onPressed: () => Navigator.pop(context),
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(),
                                 child: const Text('Cancel'),
                               ),
                               ElevatedButton(
@@ -308,10 +311,8 @@ class MarketingPageView extends StatelessWidget {
                                   foregroundColor: Colors.white,
                                 ),
                                 onPressed: () {
-                                  Navigator.pop(context);
-                                  context.read<MarketingBloc>().add(
-                                    DeleteCampaign(campaign.id),
-                                  );
+                                  Navigator.of(dialogContext).pop();
+                                  bloc.add(DeleteCampaign(campaign.id));
                                 },
                                 child: const Text('Delete'),
                               ),
@@ -590,16 +591,18 @@ class MarketingPageView extends StatelessWidget {
                   );
                 },
                 onDelete: () {
+                  final bloc = context.read<MarketingBloc>();
                   showDialog(
                     context: context,
-                    builder: (_) => AlertDialog(
+                    useRootNavigator: true,
+                    builder: (dialogContext) => AlertDialog(
                       title: const Text('Delete Combo'),
                       content: Text(
                         'Are you sure you want to delete "${combo.name}"?',
                       ),
                       actions: [
                         TextButton(
-                          onPressed: () => Navigator.pop(context),
+                          onPressed: () => Navigator.of(dialogContext).pop(),
                           child: const Text('Cancel'),
                         ),
                         ElevatedButton(
@@ -608,10 +611,8 @@ class MarketingPageView extends StatelessWidget {
                             foregroundColor: Colors.white,
                           ),
                           onPressed: () {
-                            Navigator.pop(context);
-                            context.read<MarketingBloc>().add(
-                              DeleteCombo(combo.id),
-                            );
+                            Navigator.of(dialogContext).pop();
+                            bloc.add(DeleteCombo(combo.id));
                           },
                           child: const Text('Delete'),
                         ),
