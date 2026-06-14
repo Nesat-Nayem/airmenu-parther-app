@@ -656,6 +656,19 @@ class _ComboFormDialogState extends State<ComboFormDialog> {
   void _handleSave() {
     if (!_formKey.currentState!.validate()) return;
 
+    // A combo must bundle at least two items — a single item is not a combo.
+    final selectedItems =
+        _items.where((e) => (e.selectedItemId ?? '').isNotEmpty).toList();
+    if (selectedItems.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A combo must include at least 2 items.'),
+          backgroundColor: Color(0xFFEF4444),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     widget.onSave({
