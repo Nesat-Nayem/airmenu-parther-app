@@ -53,7 +53,7 @@ class _PricingAdminContent extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        'Manage subscription plans shown on the public pricing page.',
+                        'Manage monthly or yearly subscription plans shown on the public pricing page.',
                         style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade600),
                       ),
                     ),
@@ -68,9 +68,34 @@ class _PricingAdminContent extends StatelessWidget {
                 if (state.status == PricingStatus.loading)
                   const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator()))
                 else if (state.status == PricingStatus.error)
-                  Center(child: Text(state.errorMessage ?? 'Failed to load plans'))
+                  Center(
+                    child: Column(
+                      children: [
+                        Text(state.errorMessage ?? 'Failed to load plans'),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: () => context.read<PricingBloc>().add(const LoadPricingPlans()),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  )
                 else if (state.plans.isEmpty)
-                  const Center(child: Text('No pricing plans yet'))
+                  Center(
+                    child: Column(
+                      children: [
+                        const Icon(Icons.price_change_outlined, size: 48, color: Colors.grey),
+                        const SizedBox(height: 12),
+                        const Text('No pricing plans yet'),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: () => _openForm(context),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Create first plan'),
+                        ),
+                      ],
+                    ),
+                  )
                 else
                   LayoutBuilder(
                     builder: (context, constraints) {

@@ -69,6 +69,12 @@ class _PurchasePackagePageState extends State<PurchasePackagePage> {
     final hasAccess = access['hasAccess'] == true;
     final accessType = (access['accessType'] ?? 'none').toString();
     final planName = (access['planName'] ?? subscription['planName'] ?? '—').toString();
+    final planPrice = (access['planPrice'] ?? subscription['planPrice'] ?? '').toString();
+    final billingPeriod = (access['billingPeriod'] ?? subscription['billingPeriod'] ?? 'monthly').toString();
+    final billingLabel = billingPeriod == 'yearly' ? 'Yearly plan' : 'Monthly plan';
+    final priceLabel = planPrice.isNotEmpty
+        ? '$planPrice ${billingPeriod == 'yearly' ? 'per year' : 'per month'}'
+        : '—';
     final daysRemaining = access['daysRemaining'];
     final trialCode = (_profile?['trialCode'] ?? '').toString();
     final trialEndsAt = access['trialEndsAt'] ?? _profile?['trialEndsAt'];
@@ -86,6 +92,8 @@ class _PurchasePackagePageState extends State<PurchasePackagePage> {
             hasAccess: hasAccess,
             accessType: accessType,
             planName: planName,
+            planPrice: priceLabel,
+            billingLabel: billingLabel,
             daysRemaining: daysRemaining,
             trialCode: trialCode,
             trialEndsAt: trialEndsAt?.toString(),
@@ -129,6 +137,8 @@ class _StatusCard extends StatelessWidget {
   final bool hasAccess;
   final String accessType;
   final String planName;
+  final String planPrice;
+  final String billingLabel;
   final dynamic daysRemaining;
   final String trialCode;
   final String? trialEndsAt;
@@ -138,6 +148,8 @@ class _StatusCard extends StatelessWidget {
     required this.hasAccess,
     required this.accessType,
     required this.planName,
+    required this.planPrice,
+    required this.billingLabel,
     required this.daysRemaining,
     required this.trialCode,
     this.trialEndsAt,
@@ -173,6 +185,10 @@ class _StatusCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _row('Plan', planName),
+          if (accessType == 'subscription') ...[
+            _row('Billing', billingLabel),
+            if (planPrice != '—') _row('Price', planPrice),
+          ],
           if (accessType == 'trial' && trialCode.isNotEmpty) _row('Trial Code', trialCode),
           if (daysRemaining != null) _row('Days Remaining', daysRemaining.toString()),
           if (trialEndsAt != null && trialEndsAt!.isNotEmpty) _row('Trial Ends', _fmt(trialEndsAt!)),
