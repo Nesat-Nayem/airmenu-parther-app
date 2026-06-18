@@ -162,6 +162,8 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
         case NavMenuItem.restaurants:
         case NavMenuItem.adminOrders:
         case NavMenuItem.payments:
+        case NavMenuItem.pricing:
+        case NavMenuItem.trialCodes:
         case NavMenuItem.marketing:
         case NavMenuItem.adminSettings:
         case NavMenuItem.externalIntegrations:
@@ -207,6 +209,8 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
         case NavMenuItem.feedbackRating:
           return true;
         case NavMenuItem.reports:
+          return true;
+        case NavMenuItem.purchasePackage:
           return true;
         case NavMenuItem.settings:
           return true;

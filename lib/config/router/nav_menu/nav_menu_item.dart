@@ -66,6 +66,8 @@ const List<NavMenuItem> sideNavRoutes = [
   NavMenuItem.restaurants,
   NavMenuItem.adminOrders,
   NavMenuItem.payments,
+  NavMenuItem.pricing,
+  NavMenuItem.trialCodes,
   NavMenuItem.marketing,
   NavMenuItem.adminSettings,
   NavMenuItem.externalIntegrations,
@@ -88,6 +90,7 @@ const List<NavMenuItem> sideNavRoutes = [
   NavMenuItem.coupons,
   NavMenuItem.feedbackRating,
   NavMenuItem.reports,
+  NavMenuItem.purchasePackage,
   NavMenuItem.settings,
 ];
 
@@ -285,7 +288,7 @@ extension NavMenuItemExtension on NavMenuItem {
       case NavMenuItem.myKyc:
         return 'My KYC';
       case NavMenuItem.purchasePackage:
-        return 'Purchase Package';
+        return 'My Plan';
       case NavMenuItem.platformActivity:
         return 'Platform Activity';
       case NavMenuItem.aiPredictions:

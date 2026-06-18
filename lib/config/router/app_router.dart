@@ -29,6 +29,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:airmenuai_partner_app/features/platform_activity/presentation/pages/platform_activity_page.dart';
 import 'package:airmenuai_partner_app/features/privacy_policy/presentation/pages/privacy_policy_page.dart';
 import 'package:airmenuai_partner_app/features/pricing/presentation/views/pricing_page.dart';
+import 'package:airmenuai_partner_app/features/trial_codes/presentation/pages/trial_codes_page.dart';
 import 'package:airmenuai_partner_app/features/purchase_package/presentation/views/purchase_package_page.dart';
 import 'package:airmenuai_partner_app/features/qr_codes/presentation/views/qr_codes_page.dart';
 import 'package:airmenuai_partner_app/features/refund_policy/presentation/pages/refund_policy_page.dart';
@@ -349,6 +350,14 @@ class AppRouter {
                 pageBuilder: (context, state) => const PricingPage(),
                 redirect: (context, state) {
                   selectedNavMenuItem = NavMenuItem.pricing;
+                  return null;
+                },
+              ),
+              transitionGoRoute(
+                path: AppRoutes.trialCodes.path,
+                pageBuilder: (context, state) => const TrialCodesPage(),
+                redirect: (context, state) {
+                  selectedNavMenuItem = NavMenuItem.trialCodes;
                   return null;
                 },
               ),
