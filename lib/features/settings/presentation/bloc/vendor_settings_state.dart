@@ -13,6 +13,8 @@ class VendorSettingsState extends Equatable {
   final List<Map<String, dynamic>> locationSuggestions;
   final bool isSearchingLocation;
   final bool isUploadingImage;
+  final bool isUploadingGallery;
+  final String? removingGalleryImageUrl;
 
   const VendorSettingsState({
     this.status = VendorSettingsStatus.initial,
@@ -25,6 +27,8 @@ class VendorSettingsState extends Equatable {
     this.locationSuggestions = const [],
     this.isSearchingLocation = false,
     this.isUploadingImage = false,
+    this.isUploadingGallery = false,
+    this.removingGalleryImageUrl,
   });
 
   VendorSettingsState copyWith({
@@ -38,6 +42,9 @@ class VendorSettingsState extends Equatable {
     List<Map<String, dynamic>>? locationSuggestions,
     bool? isSearchingLocation,
     bool? isUploadingImage,
+    bool? isUploadingGallery,
+    String? removingGalleryImageUrl,
+    bool clearRemovingGalleryImageUrl = false,
   }) {
     return VendorSettingsState(
       status: status ?? this.status,
@@ -50,9 +57,26 @@ class VendorSettingsState extends Equatable {
       locationSuggestions: locationSuggestions ?? this.locationSuggestions,
       isSearchingLocation: isSearchingLocation ?? this.isSearchingLocation,
       isUploadingImage: isUploadingImage ?? this.isUploadingImage,
+      isUploadingGallery: isUploadingGallery ?? this.isUploadingGallery,
+      removingGalleryImageUrl: clearRemovingGalleryImageUrl
+          ? null
+          : (removingGalleryImageUrl ?? this.removingGalleryImageUrl),
     );
   }
 
   @override
-  List<Object?> get props => [status, currentTabIndex, data, errorMessage, hotelId, isSaving, successMessage, locationSuggestions, isSearchingLocation, isUploadingImage];
+  List<Object?> get props => [
+    status,
+    currentTabIndex,
+    data,
+    errorMessage,
+    hotelId,
+    isSaving,
+    successMessage,
+    locationSuggestions,
+    isSearchingLocation,
+    isUploadingImage,
+    isUploadingGallery,
+    removingGalleryImageUrl,
+  ];
 }

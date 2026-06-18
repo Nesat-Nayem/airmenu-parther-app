@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
@@ -206,6 +207,200 @@ class RestaurantRatingDisplay extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Gallery grid with upload + remove for vendor restaurant settings.
+class RestaurantGallerySection extends StatelessWidget {
+  final List<Map<String, dynamic>> galleryImages;
+  final bool isUploading;
+  final String? removingImageUrl;
+  final VoidCallback onAddImages;
+  final ValueChanged<String> onRemoveImage;
+
+  const RestaurantGallerySection({
+    super.key,
+    required this.galleryImages,
+    required this.isUploading,
+    required this.removingImageUrl,
+    required this.onAddImages,
+    required this.onRemoveImage,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Gallery Images',
+          style: AirMenuTextStyle.small.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AirMenuColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (galleryImages.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.photo_library_outlined,
+                    size: 42, color: Colors.grey.shade400),
+                const SizedBox(height: 10),
+                Text(
+                  'No gallery images yet',
+                  style: AirMenuTextStyle.normal.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Add photos to showcase your restaurant ambiance and dishes',
+                  textAlign: TextAlign.center,
+                  style: AirMenuTextStyle.small.copyWith(
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final crossAxisCount = constraints.maxWidth < 520 ? 2 : 4;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: galleryImages.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  childAspectRatio: 1.15,
+                ),
+                itemBuilder: (context, index) {
+                  final image = galleryImages[index];
+                  final url = (image['url'] ?? '').toString();
+                  final isRemoving = removingImageUrl == url;
+                  return _GalleryImageTile(
+                    imageUrl: url,
+                    isRemoving: isRemoving,
+                    onRemove: url.isEmpty ? null : () => onRemoveImage(url),
+                  );
+                },
+              );
+            },
+          ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: isUploading ? null : onAddImages,
+            icon: isUploading
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.add_photo_alternate_outlined, size: 18),
+            label: Text(isUploading ? 'Uploading...' : 'Add Gallery Images'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AirMenuColors.primary,
+              side: const BorderSide(color: AirMenuColors.primary),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            'Upload up to 10 images. Customers will see these on your restaurant profile.',
+            style: AirMenuTextStyle.small.copyWith(
+              color: Colors.grey.shade500,
+              fontSize: 11,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GalleryImageTile extends StatelessWidget {
+  final String imageUrl;
+  final bool isRemoving;
+  final VoidCallback? onRemove;
+
+  const _GalleryImageTile({
+    required this.imageUrl,
+    required this.isRemoving,
+    this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          CachedNetworkImage(
+            imageUrl: imageUrl,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              color: Colors.grey.shade100,
+              child: const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: Colors.grey.shade100,
+              child: Icon(Icons.broken_image_outlined,
+                  color: Colors.grey.shade400, size: 32),
+            ),
+          ),
+          Positioned(
+            top: 6,
+            right: 6,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: isRemoving ? null : onRemove,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    shape: BoxShape.circle,
+                  ),
+                  child: isRemoving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.close, color: Colors.white, size: 14),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

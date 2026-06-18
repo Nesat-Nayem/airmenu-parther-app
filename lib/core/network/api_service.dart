@@ -262,6 +262,83 @@ class ApiService implements DataService {
     }
   }
 
+  /// Multipart upload with multiple files under the same field name (e.g. gallery `images`).
+  Future<dynamic> invokeMultipartFileList<T>({
+    String urlBase = EnvConfig.apiUrl,
+    required String urlPath,
+    required T Function(String) fun,
+    required RequestType type,
+    required Map<String, String> fields,
+    required String fileFieldName,
+    required List<String> filePaths,
+    Map<String, String>? headers,
+    void Function(int)? statusCode,
+  }) async {
+    final token = await locator<AuthService>().getAccessToken();
+    headers ??= {};
+
+    if (token != null && token.isNotEmpty) {
+      headers["Authorization"] = "Bearer $token";
+    }
+
+    final url = urlPath.startsWith('/')
+        ? "$urlBase$urlPath"
+        : "$urlBase/$urlPath";
+
+    Log.info("apiCall Multipart FileList Initiated ${type.name} $url");
+
+    try {
+      const durationTimeout = Duration(minutes: 2);
+      final request = http.MultipartRequest(type.name.toUpperCase(), Uri.parse(url));
+      request.headers.addAll(headers);
+      request.fields.addAll(fields);
+
+      for (var i = 0; i < filePaths.length; i++) {
+        final path = filePaths[i];
+        if (kIsWeb) {
+          final bytes = await http.readBytes(Uri.parse(path));
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              fileFieldName,
+              bytes,
+              filename: 'gallery_$i.jpg',
+            ),
+          );
+        } else {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              fileFieldName,
+              path,
+              filename: 'gallery_$i.jpg',
+            ),
+          );
+        }
+      }
+
+      final streamedResponse = await request.send().timeout(durationTimeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      return await responseHandler.responseHandlerFun<T>(
+        response: response,
+        urlPath: urlPath,
+        fun: fun,
+        statusCode: statusCode,
+      );
+    } on TimeoutException catch (e, s) {
+      Log.error("Timeout - $urlPath: ${e.toString()}\\nStack trace: $s");
+      return DataFailure<T>(
+        DataError(message: "Request timeout", statusCode: 0),
+      );
+    } catch (e, s) {
+      Log.error(
+        "Unexpected error in ApiService multipart file list - $urlPath: ${e.toString()}\\nStack trace: $s",
+      );
+      return DataFailure<T>(
+        DataError(message: "Unexpected error: ${e.toString()}", statusCode: 0),
+      );
+    }
+  }
+
   /// Authenticated GET that returns the raw response bytes (for binary file
   /// downloads such as PDF/Excel exports). Avoids JSON-decoding the body so the
   /// binary payload is preserved.

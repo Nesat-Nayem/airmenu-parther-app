@@ -343,12 +343,61 @@ class _VendorSettingsDesktopViewState
     }
   }
 
+  Future<void> _pickAndUploadGalleryImages() async {
+    final images = await _imagePicker.pickMultiImage(
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (images.isNotEmpty && mounted) {
+      context.read<VendorSettingsBloc>().add(
+        UploadGalleryImages(
+          filePaths: images.map((image) => image.path).toList(),
+        ),
+      );
+    }
+  }
+
+  void _confirmRemoveGalleryImage(BuildContext context, String imageUrl) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove gallery image?'),
+        content: const Text(
+          'This image will be permanently removed from your restaurant gallery.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.read<VendorSettingsBloc>().add(
+                RemoveGalleryImage(imageUrl: imageUrl),
+              );
+            },
+            child: const Text(
+              'Remove',
+              style: TextStyle(color: Color(0xFFDC2626)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRestaurantInfo(Map<String, dynamic> data) {
     final bloc = context.read<VendorSettingsBloc>();
     final state = bloc.state;
     final suggestions = state.locationSuggestions;
     final isSearching = state.isSearchingLocation;
     final isUploading = state.isUploadingImage;
+    final isUploadingGallery = state.isUploadingGallery;
+    final galleryImages = (data['galleryImages'] as List<dynamic>? ?? [])
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -596,6 +645,14 @@ class _VendorSettingsDesktopViewState
             'Leave empty to keep the current image',
             style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade500, fontSize: 11),
           ),
+        ),
+        const SizedBox(height: 24),
+        RestaurantGallerySection(
+          galleryImages: galleryImages,
+          isUploading: isUploadingGallery,
+          removingImageUrl: state.removingGalleryImageUrl,
+          onAddImages: _pickAndUploadGalleryImages,
+          onRemoveImage: (url) => _confirmRemoveGalleryImage(context, url),
         ),
         const SizedBox(height: 24),
         const SettingsSectionHeader(title: 'Tax & Charges'),

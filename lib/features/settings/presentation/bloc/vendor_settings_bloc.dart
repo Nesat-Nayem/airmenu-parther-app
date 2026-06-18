@@ -18,6 +18,8 @@ class VendorSettingsBloc
     on<SaveRestaurantInfo>(_onSaveRestaurantInfo);
     on<SaveTimings>(_onSaveTimings);
     on<UploadMainImage>(_onUploadMainImage);
+    on<UploadGalleryImages>(_onUploadGalleryImages);
+    on<RemoveGalleryImage>(_onRemoveGalleryImage);
     on<SearchLocation>(_onSearchLocation);
     on<ClearLocationSuggestions>(_onClearLocationSuggestions);
     on<SelectLocationSuggestion>(_onSelectLocationSuggestion);
@@ -80,6 +82,9 @@ class VendorSettingsBloc
       'sgstRate': (hotel['sgstRate'] ?? 0).toString(),
       'serviceCharge': (hotel['serviceCharge'] ?? 0).toString(),
       'mainImage': hotel['mainImage'] ?? '',
+      'galleryImages': (hotel['galleryImages'] as List<dynamic>? ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList(),
       'timings': timings.isNotEmpty ? timings : _defaultTimings(),
       'notifications': {
         'newOrder': true,
@@ -417,6 +422,105 @@ class VendorSettingsBloc
     } catch (e) {
       emit(state.copyWith(
         isUploadingImage: false,
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      ));
+    }
+  }
+
+  Future<void> _onUploadGalleryImages(
+    UploadGalleryImages event,
+    Emitter<VendorSettingsState> emit,
+  ) async {
+    final hotelId = state.hotelId;
+    if (hotelId == null || hotelId.isEmpty) return;
+    if (event.filePaths.isEmpty) return;
+
+    final paths = event.filePaths.take(10).toList();
+    final restaurantName =
+        (state.data['restaurantName'] ?? 'Restaurant').toString();
+
+    emit(state.copyWith(
+      isUploadingGallery: true,
+      errorMessage: null,
+      successMessage: null,
+    ));
+    try {
+      final response = await _api.invokeMultipartFileList(
+        urlPath: '/hotels/$hotelId/gallery',
+        type: RequestType.post,
+        fields: {'alt': '$restaurantName gallery image'},
+        fileFieldName: 'images',
+        filePaths: paths,
+        fun: (data) => jsonDecode(data),
+      );
+
+      if (response is DataSuccess) {
+        final responseBody = response.data as Map<String, dynamic>;
+        final updatedHotel =
+            responseBody['data'] as Map<String, dynamic>? ?? responseBody;
+        final data = _parseHotelData(Map<String, dynamic>.from(updatedHotel));
+
+        emit(state.copyWith(
+          isUploadingGallery: false,
+          successMessage: paths.length == 1
+              ? 'Gallery image added successfully'
+              : '${paths.length} gallery images added successfully',
+          data: data,
+        ));
+      } else {
+        emit(state.copyWith(
+          isUploadingGallery: false,
+          errorMessage: 'Failed to upload gallery images',
+        ));
+      }
+    } catch (e) {
+      emit(state.copyWith(
+        isUploadingGallery: false,
+        errorMessage: e.toString().replaceFirst('Exception: ', ''),
+      ));
+    }
+  }
+
+  Future<void> _onRemoveGalleryImage(
+    RemoveGalleryImage event,
+    Emitter<VendorSettingsState> emit,
+  ) async {
+    final hotelId = state.hotelId;
+    if (hotelId == null || hotelId.isEmpty) return;
+
+    emit(state.copyWith(
+      removingGalleryImageUrl: event.imageUrl,
+      errorMessage: null,
+      successMessage: null,
+    ));
+    try {
+      final encodedUrl = Uri.encodeComponent(event.imageUrl);
+      final response = await _api.invoke(
+        urlPath: '/hotels/$hotelId/gallery/$encodedUrl',
+        type: RequestType.delete,
+        fun: (data) => jsonDecode(data),
+      );
+
+      if (response is DataSuccess) {
+        final responseBody = response.data as Map<String, dynamic>;
+        final updatedHotel =
+            responseBody['data'] as Map<String, dynamic>? ?? responseBody;
+        final data = _parseHotelData(Map<String, dynamic>.from(updatedHotel));
+
+        emit(state.copyWith(
+          clearRemovingGalleryImageUrl: true,
+          successMessage: 'Gallery image removed',
+          data: data,
+        ));
+      } else {
+        emit(state.copyWith(
+          clearRemovingGalleryImageUrl: true,
+          errorMessage: 'Failed to remove gallery image',
+        ));
+      }
+    } catch (e) {
+      emit(state.copyWith(
+        clearRemovingGalleryImageUrl: true,
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
       ));
     }

@@ -73,6 +73,22 @@ class UploadMainImage extends VendorSettingsEvent {
   List<Object?> get props => [filePath];
 }
 
+class UploadGalleryImages extends VendorSettingsEvent {
+  final List<String> filePaths;
+  const UploadGalleryImages({required this.filePaths});
+
+  @override
+  List<Object?> get props => [filePaths];
+}
+
+class RemoveGalleryImage extends VendorSettingsEvent {
+  final String imageUrl;
+  const RemoveGalleryImage({required this.imageUrl});
+
+  @override
+  List<Object?> get props => [imageUrl];
+}
+
 class SearchLocation extends VendorSettingsEvent {
   final String query;
   const SearchLocation({required this.query});
