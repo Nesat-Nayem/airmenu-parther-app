@@ -13,10 +13,13 @@ class LoadOrders extends OrdersEvent {
   /// When true, skip emitting OrdersLoading to prevent full page reload
   final bool isFiltering;
 
-  const LoadOrders({this.status, this.isFiltering = false});
+  /// Optional page size override (e.g. kitchen grid uses 9).
+  final int? limit;
+
+  const LoadOrders({this.status, this.isFiltering = false, this.limit});
 
   @override
-  List<Object?> get props => [status, isFiltering];
+  List<Object?> get props => [status, isFiltering, limit];
 }
 
 class FilterByStatus extends OrdersEvent {

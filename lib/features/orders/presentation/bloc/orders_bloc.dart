@@ -1,3 +1,4 @@
+import 'package:airmenuai_partner_app/features/orders/config/order_config.dart';
 import 'package:airmenuai_partner_app/features/orders/data/models/order_model.dart';
 import 'package:airmenuai_partner_app/features/orders/data/models/order_stats_model.dart';
 import 'package:airmenuai_partner_app/features/orders/domain/usecases/get_orders_usecase.dart';
@@ -15,6 +16,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   String _currentPaymentStatus = 'All Payments';
   bool _isGridView = true;
   String _searchQuery = '';
+  int _pageLimit = OrderConfig.defaultItemsPerPage;
 
   /// Cached order stats from API
   OrderStatsModel? _cachedOrderStats;
@@ -62,10 +64,12 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     LoadOrders event,
     Emitter<OrdersState> emit,
   ) async {
-    // Preserve allOrders if we already have them
     final preservedAllOrders = _allOrders;
 
-    // Only emit loading state for initial load, not for filtering
+    if (event.limit != null) {
+      _pageLimit = event.limit!;
+    }
+
     if (!event.isFiltering) {
       emit(
         OrdersLoading(
@@ -73,14 +77,19 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           selectedPaymentStatus: _currentPaymentStatus,
         ),
       );
+    } else if (state is OrdersLoaded) {
+      emit((state as OrdersLoaded).copyWith(isRefreshing: true));
     }
 
-    // Fetch orders and stats in parallel
+    final statusParam = _resolveStatusParam(event.status ?? _currentStatus);
+
     final ordersResult = await locator<GetOrdersUseCase>()(
-      status: event.status ?? _currentStatus,
+      status: statusParam,
       paymentStatus: _currentPaymentStatus != 'All Payments'
           ? _currentPaymentStatus
           : null,
+      page: 1,
+      limit: _pageLimit,
     );
 
     // Fetch order stats and branches in parallel
@@ -125,37 +134,32 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           // Enrich orders with hotel names from branch map
           final enrichedOrders = _enrichOrdersWithHotelNames(response.data!);
 
-          // If this is initial load (no filter), save ALL orders for tiles
           final isInitialLoad =
-              event.status == null ||
-              event.status == 'All Status' ||
-              event.status?.toLowerCase() == 'all';
+              statusParam == null;
 
           if (isInitialLoad) {
             _allOrders = enrichedOrders;
           }
 
+          final pagination = response.pagination ??
+              PaginationModel.singlePage(enrichedOrders.length);
+
           emit(
             OrdersLoaded(
               orders: enrichedOrders,
-              allOrders: preservedAllOrders.isNotEmpty
+              allOrders: preservedAllOrders.isNotEmpty && !isInitialLoad
                   ? preservedAllOrders
                   : _allOrders,
-              // Pagination placeholder - to be implemented later
-              pagination:
-                  response.pagination ??
-                  PaginationModel(
-                    totalItems: enrichedOrders.length,
-                    currentPage: 1,
-                    itemsPerPage: enrichedOrders.length,
-                    totalPages: 1,
-                  ),
-              currentPage: 1,
+              pagination: pagination,
+              currentPage: pagination.currentPage ?? 1,
               selectedStatus: _currentStatus,
               selectedPaymentStatus: _currentPaymentStatus,
               isGridView: _isGridView,
               searchQuery: _searchQuery,
               orderStats: _cachedOrderStats,
+              hasReachedMax:
+                  (pagination.currentPage ?? 1) >=
+                  (pagination.totalPages ?? 1),
             ),
           );
         }
@@ -180,12 +184,12 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     final nextPage = currentState.currentPage + 1;
 
     final result = await locator<GetOrdersUseCase>()(
-      status: _currentStatus,
+      status: _resolveStatusParam(_currentStatus),
       paymentStatus: _currentPaymentStatus != 'All Payments'
           ? _currentPaymentStatus
           : null,
       page: nextPage,
-      limit: 20,
+      limit: _pageLimit,
     );
 
     result.fold(
@@ -214,35 +218,15 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
 
   void _onFilterByStatus(FilterByStatus event, Emitter<OrdersState> emit) {
     _currentStatus = event.status;
+    final statusParam = _resolveStatusParam(event.status);
+    add(LoadOrders(status: statusParam, isFiltering: true));
+  }
 
-    // In-memory filtering from allOrders (no API call)
-    if (state is OrdersLoaded) {
-      final currentState = state as OrdersLoaded;
-      final allOrders = currentState.allOrders;
-
-      // Show loading briefly
-      emit(currentState.copyWith(isRefreshing: true));
-
-      List<OrderModel> filteredOrders;
-      if (event.status == 'All Status' || event.status.toLowerCase() == 'all') {
-        filteredOrders = allOrders;
-      } else {
-        filteredOrders = allOrders
-            .where(
-              (order) =>
-                  order.status?.toLowerCase() == event.status.toLowerCase(),
-            )
-            .toList();
-      }
-
-      emit(
-        currentState.copyWith(
-          orders: filteredOrders,
-          selectedStatus: event.status,
-          isRefreshing: false,
-        ),
-      );
+  String? _resolveStatusParam(String status) {
+    if (status == 'All Status' || status.toLowerCase() == 'all') {
+      return null;
     }
+    return status;
   }
 
   void _onFilterByPayment(FilterByPayment event, Emitter<OrdersState> emit) {
@@ -250,10 +234,44 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     add(const LoadOrders());
   }
 
-  void _onChangePage(ChangePage event, Emitter<OrdersState> emit) {
-    // Pagination removed for now - will be implemented later
-    // Just reload orders without page parameter
-    add(LoadOrders(status: _currentStatus));
+  Future<void> _onChangePage(
+    ChangePage event,
+    Emitter<OrdersState> emit,
+  ) async {
+    if (state is! OrdersLoaded) return;
+
+    final currentState = state as OrdersLoaded;
+    emit(currentState.copyWith(isRefreshing: true));
+
+    final result = await locator<GetOrdersUseCase>()(
+      status: _resolveStatusParam(_currentStatus),
+      paymentStatus: _currentPaymentStatus != 'All Payments'
+          ? _currentPaymentStatus
+          : null,
+      page: event.page,
+      limit: _pageLimit,
+    );
+
+    result.fold(
+      (failure) {
+        emit(currentState.copyWith(isRefreshing: false));
+      },
+      (response) {
+        final enrichedOrders = _enrichOrdersWithHotelNames(response.data ?? []);
+        final pagination = response.pagination ?? currentState.pagination;
+
+        emit(
+          currentState.copyWith(
+            orders: enrichedOrders,
+            pagination: pagination,
+            currentPage: event.page,
+            isRefreshing: false,
+            hasReachedMax:
+                event.page >= (pagination.totalPages ?? 1),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _onUpdateOrderStatus(
@@ -274,7 +292,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       },
       (_) {
         emit(const OrderStatusUpdateSuccess());
-        add(LoadOrders(status: _currentStatus));
+        add(LoadOrders(status: _resolveStatusParam(_currentStatus)));
       },
     );
   }
@@ -301,7 +319,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       },
       (_) {
         emit(const RefundSuccess());
-        add(LoadOrders(status: _currentStatus));
+        add(LoadOrders(status: _resolveStatusParam(_currentStatus)));
       },
     );
   }
@@ -326,7 +344,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       },
       (_) {
         emit(const ManualPaymentSuccess());
-        add(LoadOrders(status: _currentStatus));
+        add(LoadOrders(status: _resolveStatusParam(_currentStatus)));
       },
     );
   }
@@ -350,7 +368,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       },
       (_) {
         emit(const MarkCompleteSuccess());
-        add(LoadOrders(status: _currentStatus));
+        add(LoadOrders(status: _resolveStatusParam(_currentStatus)));
       },
     );
   }
@@ -376,7 +394,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       },
       (_) {
         emit(const ItemStatusUpdateSuccess());
-        add(LoadOrders(status: _currentStatus));
+        add(LoadOrders(status: _resolveStatusParam(_currentStatus)));
       },
     );
   }
@@ -421,6 +439,6 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     if (state is OrdersLoaded) {
       emit((state as OrdersLoaded).copyWith(isRefreshing: true));
     }
-    add(LoadOrders(status: _currentStatus));
+    add(LoadOrders(status: _resolveStatusParam(_currentStatus)));
   }
 }

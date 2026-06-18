@@ -2,6 +2,7 @@ import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen
 import 'package:airmenuai_partner_app/features/kitchen/presentation/bloc/kitchen_event.dart';
 import 'package:airmenuai_partner_app/features/kitchen/presentation/views/kitchen_panel_view.dart';
 import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_bloc.dart';
+import 'package:airmenuai_partner_app/features/orders/config/order_config.dart';
 import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_event.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +21,10 @@ class KitchenPanelPage extends StatelessWidget {
           create: (_) => KitchenBloc()..add(const LoadKitchenOrders()),
         ),
         BlocProvider(
-          create: (_) => locator<OrdersBloc>()..add(const LoadOrders()),
+          create: (_) => locator<OrdersBloc>()
+            ..add(
+              const LoadOrders(limit: OrderConfig.kitchenItemsPerPage),
+            ),
         ),
       ],
       child: const KitchenPanelView(),

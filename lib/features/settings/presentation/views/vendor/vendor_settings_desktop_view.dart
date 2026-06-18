@@ -24,10 +24,8 @@ class _VendorSettingsDesktopViewState
   final _nameCtrl = TextEditingController();
   final _cuisineCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
-  final _distanceCtrl = TextEditingController();
   final _minPriceCtrl = TextEditingController();
   final _maxPriceCtrl = TextEditingController();
-  final _ratingCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _gstinCtrl = TextEditingController();
   final _fssaiCtrl = TextEditingController();
@@ -43,10 +41,8 @@ class _VendorSettingsDesktopViewState
     _setIfChanged(_nameCtrl, data['restaurantName'] ?? '');
     _setIfChanged(_cuisineCtrl, data['cuisine'] ?? data['category'] ?? '');
     _setIfChanged(_locationCtrl, data['address'] ?? '');
-    _setIfChanged(_distanceCtrl, data['distance'] ?? '');
     _setIfChanged(_minPriceCtrl, (data['minPrice'] ?? '').toString());
     _setIfChanged(_maxPriceCtrl, (data['maxPrice'] ?? '').toString());
-    _setIfChanged(_ratingCtrl, (data['rating'] ?? '').toString());
     _setIfChanged(_descriptionCtrl, data['description'] ?? '');
     _setIfChanged(_gstinCtrl, data['gstin'] ?? '');
     _setIfChanged(_fssaiCtrl, data['fssai'] ?? '');
@@ -71,10 +67,8 @@ class _VendorSettingsDesktopViewState
     _nameCtrl.dispose();
     _cuisineCtrl.dispose();
     _locationCtrl.dispose();
-    _distanceCtrl.dispose();
     _minPriceCtrl.dispose();
     _maxPriceCtrl.dispose();
-    _ratingCtrl.dispose();
     _descriptionCtrl.dispose();
     _gstinCtrl.dispose();
     _fssaiCtrl.dispose();
@@ -382,124 +376,110 @@ class _VendorSettingsDesktopViewState
         const SizedBox(height: 16),
 
         // Location with autocomplete (matching Next.js LocationInput)
-        Row(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              flex: 2,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Location',
-                    style: AirMenuTextStyle.small.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AirMenuColors.textPrimary,
+            Text(
+              'Location',
+              style: AirMenuTextStyle.small.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AirMenuColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _locationCtrl,
+              onChanged: (v) {
+                _dispatchFieldUpdate(context, 'address', v);
+                _locationDebounce?.cancel();
+                _locationDebounce = Timer(const Duration(milliseconds: 300), () {
+                  bloc.add(SearchLocation(query: v));
+                });
+              },
+              style: AirMenuTextStyle.normal,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.grey.shade200),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AirMenuColors.primary),
+                ),
+                hintText: 'Start typing to search for a location...',
+                hintStyle: AirMenuTextStyle.normal.copyWith(color: Colors.grey.shade400),
+                filled: true,
+                fillColor: Colors.white,
+                suffixIcon: isSearching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : null,
+              ),
+            ),
+            if (suggestions.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                constraints: const BoxConstraints(maxHeight: 220),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade200),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _locationCtrl,
-                    onChanged: (v) {
-                      _dispatchFieldUpdate(context, 'address', v);
-                      _locationDebounce?.cancel();
-                      _locationDebounce = Timer(const Duration(milliseconds: 300), () {
-                        bloc.add(SearchLocation(query: v));
-                      });
-                    },
-                    style: AirMenuTextStyle.normal,
-                    decoration: InputDecoration(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: AirMenuColors.primary),
-                      ),
-                      hintText: 'Start typing to search for a location...',
-                      hintStyle: AirMenuTextStyle.normal.copyWith(color: Colors.grey.shade400),
-                      filled: true,
-                      fillColor: Colors.white,
-                      suffixIcon: isSearching
-                          ? const Padding(
-                              padding: EdgeInsets.all(12),
-                              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-                            )
-                          : null,
-                    ),
-                  ),
-                  // Suggestions dropdown
-                  if (suggestions.isNotEmpty)
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      constraints: const BoxConstraints(maxHeight: 240),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.grey.shade300),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        itemCount: suggestions.length,
-                        itemBuilder: (ctx, idx) {
-                          final place = suggestions[idx];
-                          final mainText = place['structured_formatting']?['main_text'] ?? place['description'] ?? '';
-                          final secondaryText = place['structured_formatting']?['secondary_text'] ?? '';
-                          return InkWell(
-                            onTap: () {
-                              final desc = (place['description'] ?? '').toString();
-                              _locationCtrl.text = desc;
-                              bloc.add(SelectLocationSuggestion(description: desc));
-                            },
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              child: Row(
+                  ],
+                ),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: suggestions.length,
+                  itemBuilder: (ctx, idx) {
+                    final place = suggestions[idx];
+                    final mainText = place['structured_formatting']?['main_text'] ?? place['description'] ?? '';
+                    final secondaryText = place['structured_formatting']?['secondary_text'] ?? '';
+                    return InkWell(
+                      onTap: () {
+                        final desc = (place['description'] ?? '').toString();
+                        _locationCtrl.text = desc;
+                        bloc.add(SelectLocationSuggestion(description: desc));
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 18, color: Colors.grey.shade500),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(Icons.location_on_outlined, size: 18, color: Colors.grey.shade500),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text(mainText.toString(), style: AirMenuTextStyle.normal.copyWith(fontWeight: FontWeight.w500)),
-                                        if (secondaryText.toString().isNotEmpty)
-                                          Text(secondaryText.toString(), style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade600)),
-                                      ],
-                                    ),
-                                  ),
+                                  Text(mainText.toString(), style: AirMenuTextStyle.normal.copyWith(fontWeight: FontWeight.w500)),
+                                  if (secondaryText.toString().isNotEmpty)
+                                    Text(secondaryText.toString(), style: AirMenuTextStyle.small.copyWith(color: Colors.grey.shade600)),
                                 ],
                               ),
                             ),
-                          );
-                        },
+                          ],
+                        ),
                       ),
-                    ),
-                ],
+                    );
+                  },
+                ),
               ),
-            ),
-            const SizedBox(width: 24),
-            Expanded(
-              child: _EditableField(
-                label: 'Distance',
-                controller: _distanceCtrl,
-                onChanged: (v) => _dispatchFieldUpdate(context, 'distance', v),
-                hint: 'e.g., 2.5 km from city center',
-              ),
-            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -526,11 +506,8 @@ class _VendorSettingsDesktopViewState
             ),
             const SizedBox(width: 24),
             Expanded(
-              child: _EditableField(
-                label: 'Rating (0–5)',
-                controller: _ratingCtrl,
-                onChanged: (v) => _dispatchFieldUpdate(context, 'rating', v),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              child: RestaurantRatingDisplay(
+                rating: (data['rating'] ?? '0').toString(),
               ),
             ),
           ],

@@ -70,7 +70,6 @@ class VendorSettingsBloc
       'restaurantName': hotel['name'] ?? '',
       'cuisine': hotel['cuisine'] ?? hotel['category'] ?? '',
       'address': hotel['location'] ?? hotel['address'] ?? '',
-      'distance': (hotel['distance'] ?? '').toString(),
       'minPrice': minPrice,
       'maxPrice': maxPrice,
       'rating': (hotel['rating'] ?? '').toString(),
@@ -206,6 +205,7 @@ class VendorSettingsBloc
     UpdateRestaurantField event,
     Emitter<VendorSettingsState> emit,
   ) {
+    if (event.key == 'distance' || event.key == 'rating') return;
     final currentData = Map<String, dynamic>.from(state.data);
     currentData[event.key] = event.value;
     emit(state.copyWith(data: currentData));
@@ -242,7 +242,6 @@ class VendorSettingsBloc
         'name': d['restaurantName'] ?? '',
         'cuisine': d['cuisine'] ?? '',
         'location': d['address'] ?? '',
-        'distance': d['distance'] ?? '',
         'description': d['description'] ?? '',
         'cgstRate': double.tryParse((d['cgstRate'] ?? '0').toString()) ?? 0,
         'sgstRate': double.tryParse((d['sgstRate'] ?? '0').toString()) ?? 0,
@@ -252,11 +251,6 @@ class VendorSettingsBloc
       // Include price if we have any price value
       if (priceString != null) {
         body['price'] = priceString;
-      }
-
-      // Only include rating if non-empty
-      if ((d['rating'] ?? '').toString().isNotEmpty) {
-        body['rating'] = double.tryParse(d['rating'].toString()) ?? 0.0;
       }
 
       // Also include weeklyTimings so all data is sent together

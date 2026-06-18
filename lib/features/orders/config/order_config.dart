@@ -24,6 +24,9 @@ class OrderConfig {
   /// Default items per page for pagination
   static const int defaultItemsPerPage = 10;
 
+  /// Kitchen active-orders grid page size (3×3)
+  static const int kitchenItemsPerPage = 9;
+
   /// Maximum items to show in order card before "+X more"
   static const int maxVisibleItems = 2;
 

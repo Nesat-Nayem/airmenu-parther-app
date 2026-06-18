@@ -143,6 +143,73 @@ class VendorSettingsShimmer extends StatelessWidget {
   }
 }
 
+/// Read-only restaurant rating — set by customers and admins, not editable by vendors.
+class RestaurantRatingDisplay extends StatelessWidget {
+  final String rating;
+
+  const RestaurantRatingDisplay({super.key, required this.rating});
+
+  @override
+  Widget build(BuildContext context) {
+    final value = double.tryParse(rating) ?? 0.0;
+    final display = value > 0 ? value.toStringAsFixed(1) : 'No ratings yet';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Restaurant Rating',
+          style: AirMenuTextStyle.small.copyWith(
+            fontWeight: FontWeight.w600,
+            color: AirMenuColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.star_rounded,
+                size: 20,
+                color: value > 0 ? const Color(0xFFF59E0B) : Colors.grey.shade400,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                display,
+                style: AirMenuTextStyle.normal.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AirMenuColors.textPrimary,
+                ),
+              ),
+              if (value > 0)
+                Text(
+                  ' / 5',
+                  style: AirMenuTextStyle.normal.copyWith(
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              const Spacer(),
+              Text(
+                'reviews',
+                style: AirMenuTextStyle.small.copyWith(
+                  color: Colors.grey.shade500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class SettingsSectionHeader extends StatelessWidget {
   final String title;
   final String subtitle;

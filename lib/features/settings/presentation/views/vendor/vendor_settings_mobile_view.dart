@@ -25,10 +25,8 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
   final _nameCtrl = TextEditingController();
   final _cuisineCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
-  final _distanceCtrl = TextEditingController();
   final _minPriceCtrl = TextEditingController();
   final _maxPriceCtrl = TextEditingController();
-  final _ratingCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _gstinCtrl = TextEditingController();
   final _fssaiCtrl = TextEditingController();
@@ -63,10 +61,8 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
     set(_nameCtrl, data['restaurantName'] ?? '');
     set(_cuisineCtrl, data['cuisine'] ?? data['category'] ?? '');
     set(_locationCtrl, data['address'] ?? '');
-    set(_distanceCtrl, (data['distance'] ?? '').toString());
     set(_minPriceCtrl, (data['minPrice'] ?? '').toString());
     set(_maxPriceCtrl, (data['maxPrice'] ?? '').toString());
-    set(_ratingCtrl, (data['rating'] ?? '').toString());
     set(_descriptionCtrl, data['description'] ?? '');
     set(_gstinCtrl, data['gstin'] ?? '');
     set(_fssaiCtrl, data['fssai'] ?? '');
@@ -81,10 +77,8 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
     _nameCtrl.dispose();
     _cuisineCtrl.dispose();
     _locationCtrl.dispose();
-    _distanceCtrl.dispose();
     _minPriceCtrl.dispose();
     _maxPriceCtrl.dispose();
-    _ratingCtrl.dispose();
     _descriptionCtrl.dispose();
     _gstinCtrl.dispose();
     _fssaiCtrl.dispose();
@@ -412,14 +406,6 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
           ],
         ),
         const SizedBox(height: 16),
-        _MobileField(
-          label: 'Distance',
-          controller: _distanceCtrl,
-          onChanged: (v) => bloc.add(
-            UpdateRestaurantField(key: 'distance', value: v),
-          ),
-        ),
-        const SizedBox(height: 16),
 
         // Price Range — dropdown selects matching Next.js
         Row(
@@ -448,13 +434,8 @@ class _VendorSettingsMobileViewState extends State<VendorSettingsMobileView> {
           ],
         ),
         const SizedBox(height: 16),
-        _MobileField(
-          label: 'Rating (0–5)',
-          controller: _ratingCtrl,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          onChanged: (v) => bloc.add(
-            UpdateRestaurantField(key: 'rating', value: v),
-          ),
+        RestaurantRatingDisplay(
+          rating: (data['rating'] ?? '0').toString(),
         ),
         const SizedBox(height: 16),
         _MobileField(
