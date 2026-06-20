@@ -54,6 +54,66 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     super.initState();
     _order = widget.order;
     _orderStatus = _order.status ?? 'pending';
+    _refundMethod = _defaultRefundMethod(_order);
+  }
+
+  String _resolvePaymentGateway(OrderModel order) {
+    if (order.paymentDetails?.phonePeMerchantOrderId != null ||
+        order.paymentDetails?.phonePeOrderId != null) {
+      return 'phonepe';
+    }
+    if (order.paymentDetails?.razorpayOrderId != null) {
+      return 'razorpay';
+    }
+    final method = (order.paymentMethod ?? '').toLowerCase();
+    if (method == 'phonepe') return 'phonepe';
+    if (method == 'razorpay') return 'razorpay';
+    return method;
+  }
+
+  String _defaultRefundMethod(OrderModel order) {
+    final gateway = _resolvePaymentGateway(order);
+    if (gateway == 'phonepe') return 'phonepe';
+    if (gateway == 'razorpay') return 'razorpay';
+    return 'cash';
+  }
+
+  List<DropdownMenuItem<String>> _refundMethodItems() {
+    final gateway = _resolvePaymentGateway(_order);
+    final items = <DropdownMenuItem<String>>[
+      const DropdownMenuItem(value: 'cash', child: Text('Cash (Manual)')),
+    ];
+    if (gateway == 'razorpay') {
+      items.add(const DropdownMenuItem(value: 'razorpay', child: Text('Razorpay Gateway')));
+    }
+    if (gateway == 'phonepe') {
+      items.add(const DropdownMenuItem(value: 'phonepe', child: Text('PhonePe Gateway')));
+    }
+    return items;
+  }
+
+  double _cancelledItemsTotal() {
+    final items = _order.items ?? [];
+    return items
+        .where((i) => (i.status ?? '').toLowerCase() == 'cancelled')
+        .fold<double>(
+          0,
+          (sum, i) => sum + ((i.price ?? 0) * (i.quantity ?? 1)).toDouble(),
+        );
+  }
+
+  void _fillCancelledItemsRefundAmount() {
+    final cancelledTotal = _cancelledItemsTotal();
+    final refundable =
+        ((_order.amountPaid ?? 0) - (_order.amountRefunded ?? 0)).toDouble();
+    final amount = cancelledTotal > 0
+        ? cancelledTotal.clamp(0, refundable)
+        : refundable;
+    if (amount <= 0) return;
+    _refundAmountCtrl.text = amount.round().toString();
+    if (_refundReasonCtrl.text.isEmpty) {
+      _refundReasonCtrl.text = 'Refund for cancelled item(s)';
+    }
   }
 
   /// Pull the latest version of this order out of the bloc state so the page
@@ -74,6 +134,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     setState(() {
       _order = match!;
       _orderStatus = match.status ?? _orderStatus;
+      final methods = _refundMethodItems().map((e) => e.value).whereType<String>().toList();
+      if (!methods.contains(_refundMethod)) {
+        _refundMethod = _defaultRefundMethod(match);
+      }
     });
   }
 
@@ -104,7 +168,10 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
         }
 
         if (state is RefundSuccess) {
-          _showSnack('Refund processed successfully', Colors.green[600]!);
+          final msg = _refundMethod == 'phonepe'
+              ? 'PhonePe refund initiated. It may take 5–7 business days to settle.'
+              : 'Refund processed successfully';
+          _showSnack(msg, Colors.green[600]!);
           _refundAmountCtrl.clear();
           _refundReasonCtrl.clear();
         } else if (state is RefundFailure) {
@@ -792,42 +859,150 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               const SizedBox(height: 8),
               _payRow('Amount Refunded:', o.amountRefunded ?? 0, bold: true, color: const Color(0xFFDC2626), size: 16),
 
-              // ── Refund Section ──
-              if (refundable > 0) ...[
-                const SizedBox(height: 20),
-                Text('Refund', style: GoogleFonts.sora(fontSize: 14, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _styledInput(_refundAmountCtrl, 'Refund amount', isProcessing, keyboardType: TextInputType.number),
-                    ),
-                    const SizedBox(width: 8),
-                    _buildRefundMethodDropdown(),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                _styledInput(_refundReasonCtrl, 'Reason (optional)', isProcessing),
-                const SizedBox(height: 6),
-                Text(
-                  'Refundable remaining: ${_formatCurrency(refundable)}',
-                  style: GoogleFonts.sora(fontSize: 11, color: const Color(0xFF6B7280)),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 40,
-                  child: ElevatedButton(
-                    onPressed: isProcessing ? null : _handleRefund,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFDC2626),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      elevation: 0,
-                    ),
-                    child: Text(isProcessing ? 'Processing...' : 'Process Refund', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
-                  ),
-                ),
-              ],
+              // ── Refund Section (always visible) ──
+              Builder(
+                builder: (context) {
+                  final canRefund = refundable > 0;
+                  final refundDisabled = isProcessing || !canRefund;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+                      Text(
+                        'Refund',
+                        style: GoogleFonts.sora(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      if (!canRefund) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE5E7EB)),
+                          ),
+                          child: Text(
+                            'No refundable amount yet. Record a payment first (manual or gateway), then refund cancelled items via cash or PhonePe/Razorpay.',
+                            style: GoogleFonts.sora(
+                              fontSize: 11,
+                              color: const Color(0xFF6B7280),
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                      if (canRefund && _cancelledItemsTotal() > 0) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFF7ED),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFFED7AA)),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Cancelled items value: ${_formatCurrency(_cancelledItemsTotal())}',
+                                  style: GoogleFonts.sora(
+                                    fontSize: 11,
+                                    color: const Color(0xFF9A3412),
+                                  ),
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: refundDisabled
+                                    ? null
+                                    : _fillCancelledItemsRefundAmount,
+                                child: Text(
+                                  'Fill amount',
+                                  style: GoogleFonts.sora(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFFEA580C),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _styledInput(
+                              _refundAmountCtrl,
+                              'Refund amount',
+                              refundDisabled,
+                              keyboardType: TextInputType.number,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildRefundMethodDropdown(enabled: canRefund && !isProcessing),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _styledInput(
+                        _refundReasonCtrl,
+                        'Reason (optional)',
+                        refundDisabled,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Refundable remaining: ${_formatCurrency(refundable)}',
+                        style: GoogleFonts.sora(
+                          fontSize: 11,
+                          color: const Color(0xFF6B7280),
+                        ),
+                      ),
+                      if (_refundMethod == 'phonepe' && canRefund) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'PhonePe gateway refunds are initiated instantly and typically settle in 5–7 business days per PhonePe policy.',
+                          style: GoogleFonts.sora(
+                            fontSize: 10,
+                            color: const Color(0xFF6B7280),
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 40,
+                        child: ElevatedButton(
+                          onPressed: refundDisabled ? null : _handleRefund,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            disabledBackgroundColor:
+                                const Color(0xFFDC2626).withValues(alpha: 0.35),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            isProcessing ? 'Processing...' : 'Process Refund',
+                            style: GoogleFonts.sora(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
 
               // ── Manual Payment Section ──
               const SizedBox(height: 16),
@@ -878,12 +1053,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     );
   }
 
-  Widget _buildRefundMethodDropdown() {
+  Widget _buildRefundMethodDropdown({bool enabled = true}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10),
       height: 42,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: enabled ? Colors.white : const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFD1D5DB)),
       ),
@@ -893,13 +1068,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
           isDense: true,
           icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: Color(0xFF6B7280)),
           style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w500, color: const Color(0xFF374151)),
-          items: const [
-            DropdownMenuItem(value: 'cash', child: Text('Cash')),
-            DropdownMenuItem(value: 'razorpay', child: Text('Razorpay')),
-          ],
-          onChanged: (val) {
-            if (val != null) setState(() => _refundMethod = val);
-          },
+          items: _refundMethodItems(),
+          onChanged: enabled
+              ? (val) {
+                  if (val != null) setState(() => _refundMethod = val);
+                }
+              : null,
         ),
       ),
     );
@@ -1012,6 +1186,7 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                   Expanded(flex: 3, child: Text('Date', style: _tableHeaderStyle())),
                   Expanded(flex: 2, child: Text('Method', style: _tableHeaderStyle())),
                   Expanded(flex: 2, child: Text('Amount', style: _tableHeaderStyle())),
+                  Expanded(flex: 2, child: Text('Status', style: _tableHeaderStyle())),
                   Expanded(flex: 2, child: Text('Reason', style: _tableHeaderStyle())),
                 ],
               ),
@@ -1022,8 +1197,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                   child: Row(
                     children: [
                       Expanded(flex: 3, child: Text(_formatDate(r.createdAt ?? ''), style: GoogleFonts.sora(fontSize: 11, color: const Color(0xFF6B7280)))),
-                      Expanded(flex: 2, child: Text(_capitalize(r.method ?? 'N/A'), style: GoogleFonts.sora(fontSize: 12))),
+                      Expanded(flex: 2, child: Text(_refundMethodLabel(r.method), style: GoogleFonts.sora(fontSize: 12))),
                       Expanded(flex: 2, child: Text(_formatCurrency(r.amount ?? 0), style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFFDC2626)))),
+                      Expanded(flex: 2, child: _refundStatusBadge(r.status)),
                       Expanded(flex: 2, child: Text(r.reason ?? '-', style: GoogleFonts.sora(fontSize: 11, color: const Color(0xFF6B7280)), overflow: TextOverflow.ellipsis)),
                     ],
                   ),
@@ -1218,6 +1394,52 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  String _refundMethodLabel(String? method) {
+    switch ((method ?? '').toLowerCase()) {
+      case 'phonepe':
+        return 'PhonePe';
+      case 'razorpay':
+        return 'Razorpay';
+      case 'cash':
+        return 'Cash';
+      default:
+        return _capitalize(method ?? 'N/A');
+    }
+  }
+
+  Widget _refundStatusBadge(String? status) {
+    final value = (status ?? 'created').toLowerCase();
+    Color bg;
+    Color fg;
+    String label;
+    switch (value) {
+      case 'processed':
+        bg = const Color(0xFFDCFCE7);
+        fg = const Color(0xFF16A34A);
+        label = 'Processed';
+        break;
+      case 'pending':
+        bg = const Color(0xFFFEF3C7);
+        fg = const Color(0xFFD97706);
+        label = 'Pending';
+        break;
+      case 'failed':
+        bg = const Color(0xFFFEE2E2);
+        fg = const Color(0xFFDC2626);
+        label = 'Failed';
+        break;
+      default:
+        bg = const Color(0xFFDBEAFE);
+        fg = const Color(0xFF2563EB);
+        label = _capitalize(value);
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      child: Text(label, style: GoogleFonts.sora(fontSize: 10, fontWeight: FontWeight.w700, color: fg)),
+    );
+  }
 
   // ─── HANDLERS ─────────────────────────────────────────────────────────
 

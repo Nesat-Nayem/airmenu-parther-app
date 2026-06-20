@@ -240,16 +240,28 @@ class RefundModel {
   final String? id;
   final num? amount;
   final String? method;
+  final String? status;
+  final String? refundId;
   final String? reason;
   final String? createdAt;
 
-  RefundModel({this.id, this.amount, this.method, this.reason, this.createdAt});
+  RefundModel({
+    this.id,
+    this.amount,
+    this.method,
+    this.status,
+    this.refundId,
+    this.reason,
+    this.createdAt,
+  });
 
   factory RefundModel.fromJson(Map<String, dynamic> json) {
     return RefundModel(
       id: json['_id'],
       amount: json['amount'],
       method: json['method'],
+      status: json['status'],
+      refundId: json['refundId'],
       reason: json['reason'],
       createdAt: json['createdAt'],
     );
@@ -287,13 +299,19 @@ class OrderMenuItemData {
 
 class OrderPaymentDetails {
   final String? phonePeOrderId;
+  final String? phonePeMerchantOrderId;
   final String? razorpayOrderId;
 
-  OrderPaymentDetails({this.phonePeOrderId, this.razorpayOrderId});
+  OrderPaymentDetails({
+    this.phonePeOrderId,
+    this.phonePeMerchantOrderId,
+    this.razorpayOrderId,
+  });
 
   factory OrderPaymentDetails.fromJson(Map<String, dynamic> json) {
     return OrderPaymentDetails(
       phonePeOrderId: json['phonePeOrderId'],
+      phonePeMerchantOrderId: json['phonePeMerchantOrderId'],
       razorpayOrderId: json['razorpayOrderId'] ?? json['razorpay_order_id'],
     );
   }
