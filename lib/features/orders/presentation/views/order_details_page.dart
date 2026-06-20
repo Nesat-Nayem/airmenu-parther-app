@@ -770,9 +770,12 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
               _payRow('Subtotal:', o.subtotal ?? 0),
               _payRow('Taxes (CGST+SGST):', taxes),
               _payRow('Service Charge:', o.serviceCharge ?? 0),
-              _payRow('Discount:', -(o.discountAmount ?? 0), color: const Color(0xFFDC2626)),
+              if ((o.discountAmount ?? 0) > 0)
+                _payRow('Coupon Discount:', -(o.discountAmount ?? 0), color: const Color(0xFFDC2626)),
               if ((o.offerDiscount ?? 0) > 0)
                 _payRow('Offer Discount:', -(o.offerDiscount ?? 0), color: const Color(0xFFDC2626)),
+              if ((o.comboDiscount ?? 0) > 0)
+                _payRow('Combo Discount:', -(o.comboDiscount ?? 0), color: const Color(0xFFDC2626)),
               // Totals
               const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Divider(height: 1, color: Color(0xFFE5E7EB))),
               _payRow('Total Amount:', o.totalAmount ?? 0, bold: true, color: const Color(0xFFDC2626), size: 16),
@@ -1308,6 +1311,8 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
     final sgst = (o.sgstAmount ?? 0).toStringAsFixed(0);
     final svc = (o.serviceCharge ?? 0).toStringAsFixed(0);
     final disc = (o.discountAmount ?? 0).toStringAsFixed(0);
+    final offerDisc = (o.offerDiscount ?? 0).toStringAsFixed(0);
+    final comboDisc = (o.comboDiscount ?? 0).toStringAsFixed(0);
     final total = (o.totalAmount ?? 0).toStringAsFixed(0);
     final paid = (o.amountPaid ?? 0).toStringAsFixed(0);
     final due = ((o.totalAmount ?? 0) - (o.amountPaid ?? 0)).toStringAsFixed(0);
@@ -1333,7 +1338,7 @@ Subtotal${' ' * (24 - 'Subtotal'.length)}$sub
 CGST${' ' * (24 - 'CGST'.length)}$cgst
 SGST${' ' * (24 - 'SGST'.length)}$sgst
 Service${' ' * (24 - 'Service'.length)}$svc
-${disc != '0' ? 'Discount${' ' * (24 - 'Discount'.length)}-$disc\n' : ''}Total${' ' * (24 - 'Total'.length)}$total
+${disc != '0' ? 'Coupon Disc${' ' * (24 - 'Coupon Disc'.length)}-$disc\n' : ''}${offerDisc != '0' ? 'Offer Disc${' ' * (24 - 'Offer Disc'.length)}-$offerDisc\n' : ''}${comboDisc != '0' ? 'Combo Disc${' ' * (24 - 'Combo Disc'.length)}-$comboDisc\n' : ''}Total${' ' * (24 - 'Total'.length)}$total
 Paid${' ' * (24 - 'Paid'.length)}$paid
 Due${' ' * (24 - 'Due'.length)}$due
 Payment${' ' * (24 - 'Payment'.length)}$payMethod

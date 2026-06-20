@@ -15,6 +15,7 @@ class OrderModel {
   final String? couponCode;
   final num? discountAmount;
   final num? offerDiscount;
+  final num? comboDiscount;
   final num? amountPaid;
   final num? amountRefunded;
   final String? orderType;
@@ -46,6 +47,7 @@ class OrderModel {
     this.couponCode,
     this.discountAmount,
     this.offerDiscount,
+    this.comboDiscount,
     this.amountPaid,
     this.amountRefunded,
     this.orderType,
@@ -80,6 +82,7 @@ class OrderModel {
       couponCode: couponCode,
       discountAmount: discountAmount,
       offerDiscount: offerDiscount,
+      comboDiscount: comboDiscount,
       amountPaid: amountPaid,
       amountRefunded: amountRefunded,
       orderType: orderType,
@@ -129,6 +132,7 @@ class OrderModel {
       couponCode: json['couponCode'],
       discountAmount: json['discountAmount'],
       offerDiscount: json['offerDiscount'],
+      comboDiscount: json['comboDiscount'],
       amountPaid: json['amountPaid'],
       amountRefunded: json['amountRefunded'],
       orderType: json['orderType'],
