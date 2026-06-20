@@ -193,6 +193,7 @@ class ApiEndpoints {
 
   // App Settings
   static const String appSettings = '/app-settings';
+  static const String vendorNavMenuFlags = '/app-settings/vendor-nav-menu';
 
   // KYC Admin Document Verification
   static String kycAdminVerifyAadhaar(String id) => '/kyc/$id/verify-aadhaar';

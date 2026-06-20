@@ -71,6 +71,7 @@ import 'package:airmenuai_partner_app/utils/shared_preferences/secure_storage.da
 import 'package:airmenuai_partner_app/core/network/api_service.dart';
 import 'package:airmenuai_partner_app/core/network/auth_service.dart';
 import 'package:airmenuai_partner_app/core/network/response_handler.dart';
+import 'package:airmenuai_partner_app/core/services/vendor_nav_menu_flags_service.dart';
 
 final locator = GetIt.instance;
 
@@ -233,5 +234,9 @@ void initializeDependencies() {
   // Inventory Feature
   locator.registerLazySingleton<InventoryRepository>(
     () => InventoryRepository(locator<ApiService>()),
+  );
+
+  locator.registerLazySingleton<VendorNavMenuFlagsService>(
+    () => VendorNavMenuFlagsService(),
   );
 }

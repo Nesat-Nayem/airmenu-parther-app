@@ -4,6 +4,7 @@ import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item_confi
 import 'package:airmenuai_partner_app/core/enums/user_role.dart';
 import 'package:airmenuai_partner_app/core/network/auth_service.dart';
 import 'package:airmenuai_partner_app/core/services/role_service.dart';
+import 'package:airmenuai_partner_app/core/services/vendor_nav_menu_flags_service.dart';
 import 'package:airmenuai_partner_app/features/common_shell/widgets/modern_nav_menu.dart';
 import 'package:airmenuai_partner_app/features/common_shell/widgets/profile_menu.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/data/vendor_kyc_repository.dart';
@@ -113,6 +114,11 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
       return hasFeature(permission);
     }
 
+    // Load global vendor nav visibility flags (admin-controlled).
+    final navFlags = await locator<VendorNavMenuFlagsService>().load();
+    bool isVendorNavEnabled(NavMenuItem item) =>
+        navFlags[item.vendorNavFlagKey] ?? true;
+
     final filteredRoutes = sideNavRoutes.where((item) {
       return _shouldShowMenuItem(
         item,
@@ -121,6 +127,7 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
         isKycApproved: isKycApproved,
         hasFeature: hasFeature,
         hasPermission: hasPermission,
+        isVendorNavEnabled: isVendorNavEnabled,
       );
     }).toList();
 
@@ -143,6 +150,7 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
     required bool isKycApproved,
     required bool Function(String) hasFeature,
     required bool Function(String) hasPermission,
+    required bool Function(NavMenuItem) isVendorNavEnabled,
   }) {
     // Unapproved vendors only see My KYC
     if (isVendor && !isKycApproved) {
@@ -185,6 +193,8 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
     // Report, Settings
 
     if (isVendor) {
+      if (!isVendorNavEnabled(item)) return false;
+
       switch (item) {
         case NavMenuItem.myKyc:
           return false;
@@ -193,25 +203,15 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
         case NavMenuItem.orders:
           return hasFeature('orders');
         case NavMenuItem.menu:
-          return true;
         case NavMenuItem.inventory:
-          return true;
         case NavMenuItem.kitchenPanel:
-          return true;
         case NavMenuItem.tables:
-          return true;
         case NavMenuItem.hotelRooms:
-          return true;
         case NavMenuItem.staffManagement:
-          return true;
         case NavMenuItem.coupons:
-          return true;
         case NavMenuItem.feedbackRating:
-          return true;
         case NavMenuItem.reports:
-          return true;
         case NavMenuItem.purchasePackage:
-          return true;
         case NavMenuItem.settings:
           return true;
         default:

@@ -1,3 +1,6 @@
+import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item.dart';
+import 'package:airmenuai_partner_app/core/services/vendor_nav_menu_flags_service.dart';
+import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'user_settings_event.dart';
 import 'user_settings_state.dart';
@@ -15,23 +18,21 @@ class UserSettingsBloc extends Bloc<UserSettingsEvent, UserSettingsState> {
   ) async {
     emit(state.copyWith(status: UserSettingsStatus.loading));
 
-    // Simulate API delay
-    await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      await locator<VendorNavMenuFlagsService>().load(force: true);
+    } catch (_) {}
 
-    // Mock Data
     final mockStats = {
       'adminUsers': 24,
       'rolesDefined': 8,
-      'featureFlags': 32,
+      'featureFlags': vendorNavMenuFeatureFlags.length,
       'configurations': 156,
     };
 
-    // TODO: Replace with real repository calls
     emit(
       state.copyWith(
         status: UserSettingsStatus.success,
         stats: mockStats,
-        // Add other mocked lists here later
       ),
     );
   }

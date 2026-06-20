@@ -94,6 +94,23 @@ const List<NavMenuItem> sideNavRoutes = [
   NavMenuItem.settings,
 ];
 
+/// Vendor sidebar items controlled by admin feature flags.
+const List<NavMenuItem> vendorNavMenuFeatureFlags = [
+  NavMenuItem.dashboard,
+  NavMenuItem.orders,
+  NavMenuItem.menu,
+  NavMenuItem.inventory,
+  NavMenuItem.kitchenPanel,
+  NavMenuItem.tables,
+  NavMenuItem.hotelRooms,
+  NavMenuItem.staffManagement,
+  NavMenuItem.coupons,
+  NavMenuItem.feedbackRating,
+  NavMenuItem.reports,
+  NavMenuItem.purchasePackage,
+  NavMenuItem.settings,
+];
+
 // Footer navigation routes
 const List<NavMenuItem> utilityNavMenuItem = [
   // NavMenuItem.myAccount,
@@ -336,5 +353,41 @@ extension NavMenuItemExtension on NavMenuItem {
 
   Key getKey() {
     return Key('${name.toLowerCase()}-nav-menu');
+  }
+
+  /// API / feature-flag key for vendor sidebar visibility.
+  String get vendorNavFlagKey => name;
+
+  String get vendorNavFlagDescription {
+    switch (this) {
+      case NavMenuItem.dashboard:
+        return 'Vendor home dashboard';
+      case NavMenuItem.orders:
+        return 'Live order management for restaurants';
+      case NavMenuItem.menu:
+        return 'Menu creation and editing';
+      case NavMenuItem.inventory:
+        return 'Stock and inventory tracking';
+      case NavMenuItem.kitchenPanel:
+        return 'Kitchen display and order prep';
+      case NavMenuItem.tables:
+        return 'Table layout and QR codes';
+      case NavMenuItem.hotelRooms:
+        return 'Hotel room service module';
+      case NavMenuItem.staffManagement:
+        return 'Captain and staff accounts';
+      case NavMenuItem.coupons:
+        return 'Offers and coupon management';
+      case NavMenuItem.feedbackRating:
+        return 'Customer feedback and ratings';
+      case NavMenuItem.reports:
+        return 'Sales and performance reports';
+      case NavMenuItem.purchasePackage:
+        return 'Subscription and plan upgrades';
+      case NavMenuItem.settings:
+        return 'Restaurant profile settings';
+      default:
+        return 'Vendor navigation item';
+    }
   }
 }
