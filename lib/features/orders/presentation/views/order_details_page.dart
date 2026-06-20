@@ -262,9 +262,9 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
                     const SizedBox(height: 2),
                     Row(
                       children: [
-                        if (o.hotel?.name != null) ...[
+                        if (_restaurantName(o).isNotEmpty) ...[
                           Text('Hotel: ', style: GoogleFonts.sora(fontSize: 12, color: const Color(0xFF6B7280))),
-                          Text(o.hotel!.name!, style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600, color: AirMenuColors.primary)),
+                          Text(_restaurantName(o), style: GoogleFonts.sora(fontSize: 12, fontWeight: FontWeight.w600, color: AirMenuColors.primary)),
                           const SizedBox(width: 12),
                         ],
                         if (o.tableNumber != null) ...[
@@ -1290,67 +1290,247 @@ class _OrderDetailsPageState extends State<OrderDetailsPage> {
 
   // ─── PRINT HTML BUILDERS ──────────────────────────────────────────────
 
+  String _restaurantName(OrderModel o) =>
+      (o.hotelName ?? o.hotel?.name ?? '').trim();
+
+  String _escapeHtml(String value) => value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;');
+
+  String _formatBillDate(String? dateString) {
+    if (dateString == null || dateString.isEmpty) {
+      return DateFormat('dd/MM/yy HH:mm').format(DateTime.now());
+    }
+    try {
+      return DateFormat('dd/MM/yy HH:mm').format(DateTime.parse(dateString));
+    } catch (_) {
+      return dateString;
+    }
+  }
+
+  String _formatBillAmount(num amount) => amount.toStringAsFixed(2);
+
+  String _padBillLeft(String value, int width) {
+    if (value.length >= width) return value.substring(0, width);
+    return value.padRight(width);
+  }
+
+  String _padBillRight(String value, int width) {
+    if (value.length >= width) return value.substring(value.length - width);
+    return value.padLeft(width);
+  }
+
+  String _buildBillItemsBlock(List<OrderItemModel> items) {
+    const nameWidth = 20;
+    const qtyWidth = 4;
+    const priceWidth = 9;
+    const amountWidth = 9;
+
+    final header =
+        '${_padBillLeft('Item', nameWidth)}'
+        '${_padBillRight('Qty.', qtyWidth)}'
+        '${_padBillRight('Price', priceWidth)}'
+        '${_padBillRight('Amount', amountWidth)}';
+
+    final lines = <String>[header, '-' * (nameWidth + qtyWidth + priceWidth + amountWidth)];
+
+    for (final it in items) {
+      final rawName = it.menuItemData?.title ?? 'Item';
+      final name = _escapeHtml(rawName);
+      final qty = it.quantity ?? 1;
+      final lineAmount = (it.price ?? 0).toDouble();
+      final unitPrice = qty > 0 ? lineAmount / qty : lineAmount;
+      final qtyText = _padBillRight(qty.toString(), qtyWidth);
+      final priceText = _padBillRight(_formatBillAmount(unitPrice), priceWidth);
+      final amountText = _padBillRight(_formatBillAmount(lineAmount), amountWidth);
+      final numbers = '$qtyText$priceText$amountText';
+
+      if (name.length <= nameWidth) {
+        lines.add('${_padBillLeft(name, nameWidth)}$numbers');
+        continue;
+      }
+
+      lines.add('${_padBillLeft(name.substring(0, nameWidth), nameWidth)}$numbers');
+      var remaining = name.substring(nameWidth);
+      while (remaining.isNotEmpty) {
+        final chunk = remaining.length <= nameWidth
+            ? remaining
+            : remaining.substring(0, nameWidth);
+        lines.add(_padBillLeft(chunk, nameWidth));
+        remaining = remaining.length > nameWidth
+            ? remaining.substring(nameWidth)
+            : '';
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  String _formatBillPercent(num amount, num subtotal) {
+    if (subtotal <= 0) return '';
+    final pct = (amount / subtotal) * 100;
+    if ((pct - pct.round()).abs() < 0.05) return pct.round().toString();
+    return pct.toStringAsFixed(1).replaceAll(RegExp(r'\.0$'), '');
+  }
+
+  String _formatPaymentLabel(OrderModel o) {
+    final method = (o.paymentMethod ?? 'other').toLowerCase();
+    final label = switch (method) {
+      'upi' => 'UPI',
+      'cash' => 'Cash',
+      'card' => 'Card',
+      'manual' => 'Cash',
+      'online' => 'Online',
+      _ => method.isEmpty ? 'Other' : _capitalize(method),
+    };
+
+    final paid = (o.amountPaid ?? 0) >= (o.totalAmount ?? 0) - 0.01 ||
+        o.paymentStatus == 'paid' ||
+        o.paymentStatus == 'completed';
+
+    return paid ? 'Paid via Other [$label]' : 'Payment Pending';
+  }
+
+  int _billNumber(OrderModel o) {
+    final id = o.id ?? '';
+    final digits = id.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length >= 4) {
+      return int.tryParse(digits.substring(digits.length - 4)) ??
+          digits.hashCode.abs() % 10000;
+    }
+    return id.hashCode.abs() % 10000;
+  }
+
   String _buildBillHtml() {
     final o = _order;
-    final hotelName = o.hotel?.name ?? 'Restaurant';
-    final orderIdShort = '#${_getShortOrderId()}';
-    final created = _formatDate(o.createdAt ?? '');
-    final table = o.tableNumber != null ? 'Table: ${o.tableNumber}' : '';
+    final restaurantName = _restaurantName(o).isNotEmpty
+        ? _restaurantName(o)
+        : 'Restaurant Name';
+    const restaurantAddress =
+        '3rd Floor, The Social Street Opp To Vivanta Hotel, Hinjewadi, Pune - 411057';
+    const restaurantMobile = 'Mob 6294702789';
+    const gstin = 'GSTIN : - 27BGCPS3709K1Z3';
+    const vat = 'VAT : 27520013727V';
+    const cashier = 'biller';
+    const assignTo = 'Staff';
 
-    final itemLines = (o.items ?? []).map((it) {
-      final name = it.menuItemData?.title ?? 'Item';
-      final qty = 'x${it.quantity ?? 1}';
-      final price = (it.price ?? 0).toStringAsFixed(0);
-      final size = it.size != null ? ' (${it.size})' : '';
-      final pad = (32 - '$name$size $qty'.length - price.length).clamp(1, 32);
-      return '$name$size $qty${' ' * pad}$price';
-    }).join('\n');
+    final billDate = _formatBillDate(o.createdAt);
+    final dineIn = o.tableNumber != null && o.tableNumber!.isNotEmpty
+        ? 'Dine In: ${o.tableNumber}'
+        : 'Dine In: Walk-in';
+    final billNo = _billNumber(o);
+    final paymentLine = _formatPaymentLabel(o);
 
-    final sub = (o.subtotal ?? 0).toStringAsFixed(0);
-    final cgst = (o.cgstAmount ?? 0).toStringAsFixed(0);
-    final sgst = (o.sgstAmount ?? 0).toStringAsFixed(0);
-    final svc = (o.serviceCharge ?? 0).toStringAsFixed(0);
-    final disc = (o.discountAmount ?? 0).toStringAsFixed(0);
-    final offerDisc = (o.offerDiscount ?? 0).toStringAsFixed(0);
-    final comboDisc = (o.comboDiscount ?? 0).toStringAsFixed(0);
-    final total = (o.totalAmount ?? 0).toStringAsFixed(0);
-    final paid = (o.amountPaid ?? 0).toStringAsFixed(0);
-    final due = ((o.totalAmount ?? 0) - (o.amountPaid ?? 0)).toStringAsFixed(0);
-    final payMethod = (o.paymentMethod ?? '-').toUpperCase();
+    final items = o.items ?? [];
+    var totalQty = 0;
+    for (final it in items) {
+      totalQty += it.quantity ?? 1;
+    }
+    final itemsBlock = _buildBillItemsBlock(items);
+
+    final subtotal = (o.subtotal ?? 0).toDouble();
+    final cgst = (o.cgstAmount ?? 0).toDouble();
+    final sgst = (o.sgstAmount ?? 0).toDouble();
+    final serviceCharge = (o.serviceCharge ?? 0).toDouble();
+    final couponDisc = (o.discountAmount ?? 0).toDouble();
+    final offerDisc = (o.offerDiscount ?? 0).toDouble();
+    final comboDisc = (o.comboDiscount ?? 0).toDouble();
+    final grandTotal = (o.totalAmount ?? 0).toDouble();
+    final discountTotal = couponDisc + offerDisc + comboDisc;
+    final computedTotal =
+        subtotal + cgst + sgst + serviceCharge - discountTotal;
+    final roundOff = grandTotal - computedTotal;
+
+    final cgstLabel = 'CGST${_formatBillPercent(cgst, subtotal)}%';
+    final sgstLabel = 'SGST${_formatBillPercent(sgst, subtotal)}%';
+
+    String discountRows = '';
+    if (couponDisc > 0) {
+      discountRows +=
+          '<div class="summary-row"><span>Coupon Disc</span><span>-${_formatBillAmount(couponDisc)}</span></div>';
+    }
+    if (offerDisc > 0) {
+      discountRows +=
+          '<div class="summary-row"><span>Offer Disc</span><span>-${_formatBillAmount(offerDisc)}</span></div>';
+    }
+    if (comboDisc > 0) {
+      discountRows +=
+          '<div class="summary-row"><span>Combo Disc</span><span>-${_formatBillAmount(comboDisc)}</span></div>';
+    }
+
+    final roundOffLabel = roundOff >= 0
+        ? '+${_formatBillAmount(roundOff.abs())}'
+        : '-${_formatBillAmount(roundOff.abs())}';
 
     return '''<!doctype html>
 <html><head><meta charset="utf-8"/>
-<title>Bill $orderIdShort</title>
+<title>Bill $billNo</title>
 <style>
 @page{size:80mm auto;margin:0}
-body{width:80mm;margin:0;font-family:monospace;font-size:12px;color:#000}
-.wrap{padding:8px}.center{text-align:center}.bold{font-weight:700}
-.line{border-top:1px dashed #000;margin:6px 0}pre{white-space:pre-wrap;word-break:break-word}
+*{box-sizing:border-box}
+body{width:80mm;margin:0 auto;padding:0;font-family:"Courier New",Courier,monospace;font-size:11px;line-height:1.35;color:#000;background:#fff}
+.wrap{padding:8px 10px 12px}
+.center{text-align:center}
+.bold{font-weight:700}
+.title{font-size:13px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.small{font-size:10px;line-height:1.3}
+.line{border-top:1px solid #000;margin:6px 0}
+.meta{display:flex;justify-content:space-between;gap:8px;font-size:10px}
+.meta-left,.meta-right{flex:1}
+.meta-right{text-align:right}
+.meta-single{font-size:10px;margin-top:2px}
+.items-pre{margin:0;white-space:pre;font-family:"Courier New",Courier,monospace;font-size:10px;line-height:1.35;letter-spacing:0}
+.summary{margin-top:2px;font-size:10px}
+.summary-row{display:flex;justify-content:space-between;gap:8px}
+.summary-row span:last-child{text-align:right;min-width:58px}
+.total-qty{margin:4px 0 2px;font-size:10px}
+.grand{font-size:13px;font-weight:700;margin-top:2px}
+.pay{font-size:10px;margin-top:4px}
+.footer{margin-top:6px;font-size:10px}
+.thanks{font-size:11px;font-weight:700;margin-top:6px}
 </style></head><body><div class="wrap">
-<div class="center bold">$hotelName</div>
-<div class="center">Bill $orderIdShort</div>
-<div class="center">$created${table.isNotEmpty ? ' • $table' : ''}</div>
-<div class="line"></div>
-<pre>$itemLines</pre>
-<div class="line"></div>
-<pre>
-Subtotal${' ' * (24 - 'Subtotal'.length)}$sub
-CGST${' ' * (24 - 'CGST'.length)}$cgst
-SGST${' ' * (24 - 'SGST'.length)}$sgst
-Service${' ' * (24 - 'Service'.length)}$svc
-${disc != '0' ? 'Coupon Disc${' ' * (24 - 'Coupon Disc'.length)}-$disc\n' : ''}${offerDisc != '0' ? 'Offer Disc${' ' * (24 - 'Offer Disc'.length)}-$offerDisc\n' : ''}${comboDisc != '0' ? 'Combo Disc${' ' * (24 - 'Combo Disc'.length)}-$comboDisc\n' : ''}Total${' ' * (24 - 'Total'.length)}$total
-Paid${' ' * (24 - 'Paid'.length)}$paid
-Due${' ' * (24 - 'Due'.length)}$due
-Payment${' ' * (24 - 'Payment'.length)}$payMethod
-</pre>
-<div class="line"></div>
-<div class="center">Thank you! Visit again.</div>
+  <div class="center title">${_escapeHtml(restaurantName)}</div>
+  <div class="center small">$restaurantAddress</div>
+  <div class="center small">$restaurantMobile</div>
+  <div class="line"></div>
+  <div class="meta">
+    <div class="meta-left">Date: $billDate</div>
+    <div class="meta-right">$dineIn</div>
+  </div>
+  <div class="meta">
+    <div class="meta-left">Cashier: $cashier</div>
+    <div class="meta-right">Bill No.: $billNo</div>
+  </div>
+  <div class="meta-single">Assign to: $assignTo</div>
+  <div class="line"></div>
+  <pre class="items-pre">$itemsBlock</pre>
+  <div class="line"></div>
+  <div class="total-qty">Total Qty: $totalQty</div>
+  <div class="summary">
+    <div class="summary-row"><span>Sub Total</span><span>${_formatBillAmount(subtotal)}</span></div>
+    ${serviceCharge > 0 ? '<div class="summary-row"><span>SC</span><span>${_formatBillAmount(serviceCharge)}</span></div>' : ''}
+    ${cgst > 0 ? '<div class="summary-row"><span>$cgstLabel</span><span>${_formatBillAmount(cgst)}</span></div>' : ''}
+    ${sgst > 0 ? '<div class="summary-row"><span>$sgstLabel</span><span>${_formatBillAmount(sgst)}</span></div>' : ''}
+    $discountRows
+  </div>
+  <div class="line"></div>
+  ${roundOff.abs() >= 0.01 ? '<div class="summary-row"><span>Round off</span><span>$roundOffLabel</span></div>' : ''}
+  <div class="summary-row grand"><span>Grand Total</span><span>₹ ${_formatBillAmount(grandTotal)}</span></div>
+  <div class="pay">$paymentLine</div>
+  <div class="line"></div>
+  <div class="center footer">$gstin</div>
+  <div class="center footer">$vat</div>
+  <div class="center thanks">Thank You And Visit Again..!!</div>
 </div></body></html>''';
   }
 
   String _buildKotHtml() {
     final o = _order;
-    final hotelName = o.hotel?.name ?? 'Restaurant';
+    final hotelName = _restaurantName(o).isNotEmpty
+        ? _restaurantName(o)
+        : 'Restaurant';
     final orderIdShort = '#${_getShortOrderId()}';
     final created = _formatDate(o.createdAt ?? '');
     final table = o.tableNumber != null ? 'Table: ${o.tableNumber}' : '';
