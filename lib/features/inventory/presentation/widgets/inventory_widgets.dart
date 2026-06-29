@@ -257,32 +257,32 @@ class CriticalItemsAlert extends StatelessWidget {
           const SizedBox(width: 16),
 
           // Create PO Action
-          InkWell(
-            onTap: onCreatePO,
-            borderRadius: BorderRadius.circular(8),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.shopping_cart_outlined,
-                    size: 18,
-                    color: Color(
-                      0xFFDC2626,
-                    ), // Keep as slightly darker red for icon
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Create PO',
-                    style: AirMenuTextStyle.small.bold700().withColor(
-                      const Color(0xFFDC2626),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // InkWell(
+          //   onTap: onCreatePO,
+          //   borderRadius: BorderRadius.circular(8),
+          //   child: Padding(
+          //     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          //     child: Row(
+          //       mainAxisSize: MainAxisSize.min,
+          //       children: [
+          //         const Icon(
+          //           Icons.shopping_cart_outlined,
+          //           size: 18,
+          //           color: Color(
+          //             0xFFDC2626,
+          //           ), // Keep as slightly darker red for icon
+          //         ),
+          //         const SizedBox(width: 8),
+          //         Text(
+          //           'Create PO',
+          //           style: AirMenuTextStyle.small.bold700().withColor(
+          //             const Color(0xFFDC2626),
+          //           ),
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     ).animate().fadeIn(duration: 500.ms).slideY(begin: 0.05, end: 0);
