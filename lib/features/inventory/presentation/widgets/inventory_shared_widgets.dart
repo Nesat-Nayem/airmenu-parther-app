@@ -1,6 +1,100 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+
+/// Centered toast shown above dialogs/modals via the root overlay.
+class InventoryOverlayToast {
+  static OverlayEntry? _entry;
+  static Timer? _dismissTimer;
+
+  static void dismiss() {
+    _dismissTimer?.cancel();
+    _dismissTimer = null;
+    _entry?.remove();
+    _entry = null;
+  }
+
+  static void showSuccess(BuildContext context, String message) {
+    _show(context, message: message, isSuccess: true);
+  }
+
+  static void showError(BuildContext context, String message) {
+    _show(context, message: message, isSuccess: false);
+  }
+
+  static void _show(
+    BuildContext context, {
+    required String message,
+    required bool isSuccess,
+  }) {
+    dismiss();
+
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) return;
+
+    final bgColor =
+        isSuccess ? InventoryColors.successGreen : InventoryColors.primaryRed;
+    final icon =
+        isSuccess ? Icons.check_circle_rounded : Icons.error_outline_rounded;
+
+    _entry = OverlayEntry(
+      builder: (_) => Positioned.fill(
+        child: GestureDetector(
+          onTap: dismiss,
+          behavior: HitTestBehavior.opaque,
+          child: Material(
+            color: Colors.black.withValues(alpha: 0.28),
+            child: Center(
+              child: GestureDetector(
+                onTap: () {},
+                child: Container(
+                  constraints: const BoxConstraints(maxWidth: 420),
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.22),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icon, color: Colors.white, size: 24),
+                      const SizedBox(width: 12),
+                      Flexible(
+                        child: Text(
+                          message,
+                          style: AirMenuTextStyle.normal
+                              .bold600()
+                              .withColor(Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    overlay.insert(_entry!);
+    _dismissTimer = Timer(const Duration(seconds: 3), dismiss);
+  }
+}
 
 /// Standard Primary Action Button (Red Gradient)
 class InventoryPrimaryButton extends StatelessWidget {

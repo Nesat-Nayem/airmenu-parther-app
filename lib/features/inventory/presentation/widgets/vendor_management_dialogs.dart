@@ -275,26 +275,23 @@ class _VendorDialogContentState extends State<_VendorDialogContent> {
                                   },
                                   onDelete: () {
                                     final cubit = context.read<VendorCubit>();
-                                    final rootMessenger = ScaffoldMessenger.of(context);
                                     showDialog(
                                       context: context,
                                       builder: (_) => RemoveVendorDialog(
                                         vendorName: vendor.companyName,
                                         onConfirm: () async {
-                                          final err = await cubit.removeVendor(vendor.id);
+                                          final err =
+                                              await cubit.removeVendor(vendor.id);
+                                          if (!context.mounted) return;
                                           if (err == null) {
-                                            rootMessenger.showSnackBar(
-                                              const SnackBar(
-                                                backgroundColor: Color(0xFF16A34A),
-                                                content: Text('Vendor removed'),
-                                              ),
+                                            InventoryOverlayToast.showSuccess(
+                                              context,
+                                              'Vendor removed',
                                             );
                                           } else {
-                                            rootMessenger.showSnackBar(
-                                              SnackBar(
-                                                backgroundColor: const Color(0xFFDC2626),
-                                                content: Text(err),
-                                              ),
+                                            InventoryOverlayToast.showError(
+                                              context,
+                                              err,
                                             );
                                           }
                                         },
@@ -596,12 +593,9 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
     if (!_formKey.currentState!.validate()) return;
     final entries = _suppliedItems.where((e) => e.materialId != null).toList();
     if (entries.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          content: Text('Please add at least one supplied item'),
-        ),
+      InventoryOverlayToast.showError(
+        context,
+        'Please add at least one supplied item',
       );
       return;
     }
@@ -628,27 +622,17 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
       suppliedItems: suppliedItems,
     );
     setState(() => _isSaving = true);
-    final messenger = ScaffoldMessenger.of(context);
     final err = await widget.onSave(vendor);
     if (!mounted) return;
     setState(() => _isSaving = false);
     if (err == null) {
+      InventoryOverlayToast.showSuccess(
+        context,
+        widget.vendor == null ? 'Vendor created' : 'Vendor updated',
+      );
       Navigator.of(context).pop();
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFF16A34A),
-          behavior: SnackBarBehavior.floating,
-          content: Text(widget.vendor == null ? 'Vendor created' : 'Vendor updated'),
-        ),
-      );
     } else {
-      messenger.showSnackBar(
-        SnackBar(
-          backgroundColor: const Color(0xFFDC2626),
-          behavior: SnackBarBehavior.floating,
-          content: Text(err),
-        ),
-      );
+      InventoryOverlayToast.showError(context, err);
     }
   }
 
@@ -1161,7 +1145,7 @@ class _SupplyEntry {
 
 class RemoveVendorDialog extends StatelessWidget {
   final String vendorName;
-  final VoidCallback onConfirm;
+  final Future<void> Function() onConfirm;
 
   const RemoveVendorDialog({
     super.key,
@@ -1219,9 +1203,9 @@ class RemoveVendorDialog extends StatelessWidget {
                 Expanded(
                   child: InventoryPrimaryButton(
                     label: 'Remove',
-                    onTap: () {
-                      onConfirm();
+                    onTap: () async {
                       Navigator.pop(context);
+                      await onConfirm();
                     },
                   ),
                 ),
