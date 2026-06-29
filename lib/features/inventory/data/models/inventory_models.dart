@@ -855,9 +855,13 @@ class StockBatch {
   });
 
   factory StockBatch.fromJson(Map<String, dynamic> json) {
+    final rawMat = json['materialId'];
+    final matId = rawMat is Map
+        ? (rawMat['_id'] ?? '').toString()
+        : (rawMat ?? '').toString();
     return StockBatch(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
-      materialId: (json['materialId'] ?? '').toString(),
+      materialId: matId,
       purchaseOrderId: json['purchaseOrderId']?.toString(),
       quantity: (json['quantity'] ?? 0).toDouble(),
       remainingQuantity: (json['remainingQuantity'] ?? 0).toDouble(),
