@@ -5,6 +5,7 @@ import 'package:airmenuai_partner_app/features/inventory/data/repositories/inven
 import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 
@@ -93,27 +94,54 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     return items.fold(0, (sum, item) => sum + (item.unitCost * item.quantity));
   }
 
+  bool get _canSubmitPO {
+    if (_isSubmitting || selectedVendorId == null) return false;
+    final configured =
+        items.where((i) => i.materialId != null && i.quantity > 0).toList();
+    if (configured.isEmpty) return false;
+    for (final item in configured) {
+      if (item.quantity < item.minOrderQty.ceil()) return false;
+    }
+    return true;
+  }
+
   Future<void> _submitPO() async {
+    if (!_canSubmitPO) return;
+
     if (selectedVendorId == null) {
       InventoryOverlayToast.showError(context, 'Please select a vendor');
       return;
     }
-    final validItems = items.where((i) => i.materialId != null && i.quantity > 0).toList();
+
+    final validItems =
+        items.where((i) => i.materialId != null && i.quantity > 0).toList();
     if (validItems.isEmpty) {
       InventoryOverlayToast.showError(context, 'Please add at least one item');
       return;
     }
 
     for (final item in validItems) {
-      final supplied = _vendorSupplied.where((s) => s.materialId == item.materialId).firstOrNull;
-      if (supplied != null && item.quantity < supplied.minOrderQty) {
+      final minQty = item.minOrderQty.ceil().clamp(1, 999999);
+      if (item.quantity < minQty) {
         InventoryOverlayToast.showError(
           context,
-          '${item.name ?? 'Item'} minimum order is ${supplied.minOrderQty.toStringAsFixed(0)} ${item.unit}',
+          '${item.name ?? 'Item'} minimum order is $minQty ${item.unit}. Cannot order less.',
         );
         return;
       }
     }
+
+    final orderItems = validItems
+        .map(
+          (i) => {
+            'materialId': i.materialId,
+            'materialName': i.name,
+            'unit': i.unit,
+            'quantity': i.quantity,
+            'unitPrice': i.unitCost,
+          },
+        )
+        .toList();
 
     setState(() => _isSubmitting = true);
     final repo = locator<InventoryRepository>();
@@ -123,15 +151,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
       'vendorName': selectedVendorName,
       if (expectedDelivery != null) 'expectedDelivery': expectedDelivery!.toIso8601String(),
       if (_notesController.text.trim().isNotEmpty) 'notes': _notesController.text.trim(),
-      'items': validItems
-          .map((i) => {
-                'materialId': i.materialId,
-                'materialName': i.name,
-                'unit': i.unit,
-                'quantity': i.quantity,
-                'unitPrice': i.unitCost,
-              })
-          .toList(),
+      'items': orderItems,
     });
 
     if (mounted) {
@@ -703,6 +723,14 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     );
   }
 
+  Widget _buildQuantityField(int index, POItem item) {
+    return _MinOrderQuantityField(
+      key: ValueKey('qty_field_${index}_${item.materialId ?? 'none'}'),
+      item: item,
+      onChanged: () => setState(() {}),
+    );
+  }
+
   Widget _buildItemRow(int index, POItem item, bool isMobile) {
     if (isMobile) {
       return Container(
@@ -730,12 +758,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: _buildInput(item.quantity.toString(), (val) {
-                    final q = int.tryParse(val);
-                    if (q != null) setState(() => item.quantity = q);
-                  }),
-                ),
+                Expanded(child: _buildQuantityField(index, item)),
                 const SizedBox(width: 8),
                 Expanded(child: _buildDisplayCell(item.unit.isNotEmpty ? item.unit : '—')),
                 const SizedBox(width: 8),
@@ -761,11 +784,8 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
         Expanded(flex: 4, child: _buildItemDropdown(item)),
         const SizedBox(width: 12),
         Expanded(
-          flex: 1,
-          child: _buildInput(item.quantity.toString(), (val) {
-            final q = int.tryParse(val);
-            if (q != null) setState(() => item.quantity = q);
-          }),
+          flex: 2,
+          child: _buildQuantityField(index, item),
         ),
         const SizedBox(width: 12),
         Expanded(
@@ -834,6 +854,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
             item.name = mat?.name ?? s.materialName;
             item.unit = mat?.unit ?? '';
             item.unitCost = s.price;
+            item.minOrderQty = s.minOrderQty;
             item.quantity = s.minOrderQty.ceil().clamp(1, 999999);
           }),
           itemBuilder: (context) => supplied.map((s) {
@@ -1020,7 +1041,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                 InventoryPrimaryButton(
                   label: _isSubmitting ? 'Submitting...' : 'Create & Send PO',
                   icon: Icons.send_rounded,
-                  onTap: _isSubmitting ? () {} : _submitPO,
+                  onTap: _canSubmitPO ? _submitPO : () {},
                   width: double.infinity,
                 ),
               ],
@@ -1037,7 +1058,7 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
                 InventoryPrimaryButton(
                   label: _isSubmitting ? 'Submitting...' : 'Create & Send PO',
                   icon: Icons.send_rounded,
-                  onTap: _isSubmitting ? () {} : _submitPO,
+                  onTap: _canSubmitPO ? _submitPO : () {},
                 ),
               ],
             ),
@@ -1053,6 +1074,158 @@ class POItem {
   String unit;
   int quantity;
   double unitCost;
+  double? _minOrderQty;
 
-  POItem({this.name, this.materialId, this.unit = '', this.quantity = 1, this.unitCost = 0});
+  /// Vendor minimum order qty; defaults to 1 for new/legacy rows (e.g. after hot reload).
+  double get minOrderQty => _minOrderQty ?? 1;
+  set minOrderQty(double value) => _minOrderQty = value;
+
+  POItem({
+    this.name,
+    this.materialId,
+    this.unit = '',
+    this.quantity = 1,
+    this.unitCost = 0,
+    double minOrderQty = 1,
+  }) : _minOrderQty = minOrderQty;
+}
+
+/// Quantity stepper — only +/- can change qty; never below vendor minimum.
+class _MinOrderQuantityField extends StatefulWidget {
+  final POItem item;
+  final VoidCallback? onChanged;
+
+  const _MinOrderQuantityField({
+    super.key,
+    required this.item,
+    this.onChanged,
+  });
+
+  @override
+  State<_MinOrderQuantityField> createState() => _MinOrderQuantityFieldState();
+}
+
+class _MinOrderQuantityFieldState extends State<_MinOrderQuantityField> {
+  int get _minQty => widget.item.minOrderQty.ceil().clamp(1, 999999);
+
+  @override
+  void initState() {
+    super.initState();
+    _syncToMinimum();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MinOrderQuantityField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.materialId != widget.item.materialId) {
+      _syncToMinimum();
+    }
+  }
+
+  void _syncToMinimum() {
+    if (widget.item.materialId != null &&
+        widget.item.quantity < _minQty) {
+      widget.item.quantity = _minQty;
+    }
+  }
+
+  void _setQuantity(int qty) {
+    final next = qty < _minQty ? _minQty : qty;
+    widget.item.quantity = next;
+    widget.onChanged?.call();
+    setState(() {});
+  }
+
+  void _increment() => _setQuantity(widget.item.quantity + 1);
+
+  void _decrement() {
+    if (widget.item.quantity <= _minQty) return;
+    _setQuantity(widget.item.quantity - 1);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasMaterial = widget.item.materialId != null;
+    final unitSuffix = widget.item.unit.isNotEmpty ? ' ${widget.item.unit}' : '';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFF3F4F6)),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final showStepper = constraints.maxWidth >= 88;
+
+              final qtyDisplay = Text(
+                hasMaterial ? widget.item.quantity.toString() : '—',
+                textAlign: TextAlign.center,
+                style: AirMenuTextStyle.small.bold600().withColor(
+                  const Color(0xFF111827),
+                ),
+              );
+
+              if (!showStepper) {
+                return Center(child: qtyDisplay);
+              }
+
+              return Row(
+                children: [
+                  _qtyIconButton(
+                    icon: Icons.remove,
+                    onTap: hasMaterial ? _decrement : null,
+                    enabled: hasMaterial && widget.item.quantity > _minQty,
+                  ),
+                  Expanded(child: Center(child: qtyDisplay)),
+                  _qtyIconButton(
+                    icon: Icons.add,
+                    onTap: hasMaterial ? _increment : null,
+                    enabled: hasMaterial,
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        if (hasMaterial)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Min order: $_minQty$unitSuffix',
+              style: AirMenuTextStyle.caption
+                  .medium500()
+                  .withColor(const Color(0xFF6B7280)),
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _qtyIconButton({
+    required IconData icon,
+    required VoidCallback? onTap,
+    required bool enabled,
+  }) {
+    return SizedBox(
+      width: 28,
+      height: 48,
+      child: IconButton(
+        onPressed: enabled ? onTap : null,
+        icon: Icon(icon, size: 14),
+        color: enabled ? const Color(0xFF374151) : const Color(0xFFD1D5DB),
+        padding: EdgeInsets.zero,
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+        splashRadius: 16,
+      ),
+    );
+  }
 }
