@@ -95,28 +95,21 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
 
   Future<void> _submitPO() async {
     if (selectedVendorId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a vendor')),
-      );
+      InventoryOverlayToast.showError(context, 'Please select a vendor');
       return;
     }
     final validItems = items.where((i) => i.materialId != null && i.quantity > 0).toList();
     if (validItems.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add at least one item')),
-      );
+      InventoryOverlayToast.showError(context, 'Please add at least one item');
       return;
     }
 
     for (final item in validItems) {
       final supplied = _vendorSupplied.where((s) => s.materialId == item.materialId).firstOrNull;
       if (supplied != null && item.quantity < supplied.minOrderQty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${item.name ?? 'Item'} minimum order is ${supplied.minOrderQty.toStringAsFixed(0)} ${item.unit}',
-            ),
-          ),
+        InventoryOverlayToast.showError(
+          context,
+          '${item.name ?? 'Item'} minimum order is ${supplied.minOrderQty.toStringAsFixed(0)} ${item.unit}',
         );
         return;
       }
@@ -144,15 +137,18 @@ class _CreatePurchaseOrderDialogState extends State<CreatePurchaseOrderDialog>
     if (mounted) {
       setState(() => _isSubmitting = false);
       final ok = res is DataSuccess;
-      if (ok) Navigator.pop(context, true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ok
-              ? 'Purchase order created (pending) with ${validItems.length} item(s)'
-              : (res.error?.message ?? 'Failed to create purchase order')),
-          backgroundColor: ok ? Colors.green : Colors.red,
-        ),
-      );
+      if (ok) {
+        InventoryOverlayToast.showSuccess(
+          context,
+          'Purchase order created with ${validItems.length} item(s)',
+        );
+        Navigator.pop(context, true);
+      } else {
+        InventoryOverlayToast.showError(
+          context,
+          res.error?.message ?? 'Failed to create purchase order',
+        );
+      }
     }
   }
 

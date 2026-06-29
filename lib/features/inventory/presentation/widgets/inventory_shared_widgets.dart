@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/constants/inventory_colors.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
-/// Centered toast shown above dialogs/modals via the root overlay.
+enum _OverlayAlertType { success, error, warning }
+
+/// Centered SweetAlert-style alert shown above dialogs via the root overlay.
 class InventoryOverlayToast {
   static OverlayEntry? _entry;
   static Timer? _dismissTimer;
@@ -17,72 +19,128 @@ class InventoryOverlayToast {
   }
 
   static void showSuccess(BuildContext context, String message) {
-    _show(context, message: message, isSuccess: true);
+    _show(context, message: message, type: _OverlayAlertType.success);
   }
 
   static void showError(BuildContext context, String message) {
-    _show(context, message: message, isSuccess: false);
+    _show(context, message: message, type: _OverlayAlertType.error);
+  }
+
+  static void showWarning(BuildContext context, String message) {
+    _show(context, message: message, type: _OverlayAlertType.warning);
   }
 
   static void _show(
     BuildContext context, {
     required String message,
-    required bool isSuccess,
+    required _OverlayAlertType type,
   }) {
     dismiss();
 
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
 
-    final bgColor =
-        isSuccess ? InventoryColors.successGreen : InventoryColors.primaryRed;
-    final icon =
-        isSuccess ? Icons.check_circle_rounded : Icons.error_outline_rounded;
+    final config = switch (type) {
+      _OverlayAlertType.success => (
+          title: 'Success',
+          color: InventoryColors.successGreen,
+          icon: Icons.check_rounded,
+        ),
+      _OverlayAlertType.error => (
+          title: 'Error',
+          color: InventoryColors.primaryRed,
+          icon: Icons.close_rounded,
+        ),
+      _OverlayAlertType.warning => (
+          title: 'Warning',
+          color: InventoryColors.warningOrange,
+          icon: Icons.priority_high_rounded,
+        ),
+    };
 
     _entry = OverlayEntry(
       builder: (_) => Positioned.fill(
-        child: GestureDetector(
-          onTap: dismiss,
-          behavior: HitTestBehavior.opaque,
-          child: Material(
-            color: Colors.black.withValues(alpha: 0.28),
-            child: Center(
-              child: GestureDetector(
-                onTap: () {},
-                child: Container(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        blurRadius: 24,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(icon, color: Colors.white, size: 24),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          message,
-                          style: AirMenuTextStyle.normal
-                              .bold600()
-                              .withColor(Colors.white),
-                          textAlign: TextAlign.center,
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.45),
+          child: Center(
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.85, end: 1),
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutBack,
+              builder: (context, scale, child) => Transform.scale(
+                scale: scale,
+                child: child,
+              ),
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 380),
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 32,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: config.color.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: config.color.withValues(alpha: 0.25),
+                          width: 2,
                         ),
                       ),
-                    ],
-                  ),
+                      child: Icon(config.icon, color: config.color, size: 32),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      config.title,
+                      style: AirMenuTextStyle.headingH4
+                          .bold700()
+                          .withColor(InventoryColors.textPrimary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      message,
+                      style: AirMenuTextStyle.normal
+                          .medium500()
+                          .withColor(InventoryColors.textSecondary),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 22),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: dismiss,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: config.color,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: Text(
+                          'OK',
+                          style: AirMenuTextStyle.normal.bold600().withColor(
+                            Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -92,7 +150,7 @@ class InventoryOverlayToast {
     );
 
     overlay.insert(_entry!);
-    _dismissTimer = Timer(const Duration(seconds: 3), dismiss);
+    _dismissTimer = Timer(const Duration(seconds: 4), dismiss);
   }
 }
 

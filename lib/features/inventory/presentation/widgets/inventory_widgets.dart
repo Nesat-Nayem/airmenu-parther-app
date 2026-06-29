@@ -11,6 +11,8 @@ import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/recipe_mapping_dialog.dart';
 import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/receive_po_dialog.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shared_widgets.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/view_purchase_order_dialog.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/repositories/menu_repository.dart';
 import 'package:airmenuai_partner_app/utils/shared_preferences/local_storage.dart';
@@ -1204,22 +1206,35 @@ class InventoryDashboardSecondaryWidgetsState
             ],
           ),
           const SizedBox(height: 8),
-          // Status controls: pending POs can be received or cancelled; received
-          // and cancelled POs are terminal (shown read-only).
-          if (po.status == PurchaseOrderStatus.pending || po.status == PurchaseOrderStatus.partiallyReceived)
-            Row(
-              children: [
+          Row(
+            children: [
+              Expanded(
+                child: _poActionButton(
+                  label: 'View',
+                  icon: Icons.visibility_outlined,
+                  color: const Color(0xFF374151),
+                  filled: false,
+                  onTap: () => ViewPurchaseOrderDialog.show(context, order: po),
+                ),
+              ),
+              if (po.status == PurchaseOrderStatus.pending ||
+                  po.status == PurchaseOrderStatus.partiallyReceived) ...[
+                const SizedBox(width: 8),
                 Expanded(
                   child: _poActionButton(
-                    label: isUpdating ? 'Working…' : (po.status == PurchaseOrderStatus.partiallyReceived ? 'Receive More' : 'Receive'),
+                    label: isUpdating
+                        ? 'Working…'
+                        : (po.status == PurchaseOrderStatus.partiallyReceived
+                            ? 'Receive More'
+                            : 'Receive'),
                     icon: Icons.check_circle_outline,
                     color: const Color(0xFF16A34A),
                     filled: true,
                     onTap: isUpdating ? null : () => _openReceiveDialog(po),
                   ),
                 ),
-                const SizedBox(width: 8),
-                if (po.status == PurchaseOrderStatus.pending)
+                if (po.status == PurchaseOrderStatus.pending) ...[
+                  const SizedBox(width: 8),
                   _poActionButton(
                     label: 'Cancel',
                     icon: Icons.close,
@@ -1227,16 +1242,24 @@ class InventoryDashboardSecondaryWidgetsState
                     filled: false,
                     onTap: isUpdating ? null : () => _confirmCancelPO(po),
                   ),
+                ],
               ],
-            )
-          else
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                po.status == PurchaseOrderStatus.received
-                    ? 'Received${po.receivedAt != null ? ' · ${DateFormat('dd MMM yyyy').format(po.receivedAt!)}' : ''}'
-                    : 'Cancelled',
-                style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary),
+            ],
+          ),
+          if (po.status != PurchaseOrderStatus.pending &&
+              po.status != PurchaseOrderStatus.partiallyReceived)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  po.status == PurchaseOrderStatus.received
+                      ? 'Received${po.receivedAt != null ? ' · ${DateFormat('dd MMM yyyy').format(po.receivedAt!)}' : ''}'
+                      : 'Cancelled',
+                  style: AirMenuTextStyle.caption
+                      .medium500()
+                      .withColor(InventoryColors.textTertiary),
+                ),
               ),
             ),
         ],
@@ -1309,7 +1332,6 @@ class InventoryDashboardSecondaryWidgetsState
     );
     if (confirmed == true) {
       setState(() => _updatingPOId = po.id);
-      final messenger = ScaffoldMessenger.of(context);
       final res = await locator<InventoryRepository>().updatePurchaseOrderStatus(
         po.id,
         PurchaseOrderStatus.cancelled.apiValue,
@@ -1318,20 +1340,14 @@ class InventoryDashboardSecondaryWidgetsState
       setState(() => _updatingPOId = null);
       if (res is DataSuccess<PurchaseOrder>) {
         await _loadPurchaseOrders();
-        messenger.showSnackBar(
-          const SnackBar(
-            backgroundColor: Color(0xFF16A34A),
-            behavior: SnackBarBehavior.floating,
-            content: Text('Purchase order cancelled'),
-          ),
+        InventoryOverlayToast.showSuccess(
+          context,
+          'Purchase order cancelled successfully',
         );
       } else {
-        messenger.showSnackBar(
-          SnackBar(
-            backgroundColor: const Color(0xFFDC2626),
-            behavior: SnackBarBehavior.floating,
-            content: Text(res.error?.message ?? 'Failed to cancel purchase order'),
-          ),
+        InventoryOverlayToast.showError(
+          context,
+          res.error?.message ?? 'Failed to cancel purchase order',
         );
       }
     }

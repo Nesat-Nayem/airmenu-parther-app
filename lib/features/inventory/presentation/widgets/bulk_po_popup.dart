@@ -153,19 +153,19 @@ class _BulkPurchaseOrderDialogState extends State<BulkPurchaseOrderDialog> {
 
     if (mounted) {
       setState(() => _isSubmitting = false);
-      Navigator.pop(context, successCount > 0);
       final parts = <String>[];
       if (successCount > 0) parts.add('$successCount pending PO(s) created');
       if (failCount > 0) parts.add('$failCount failed');
       if (skipped > 0) parts.add('$skipped item(s) skipped (no vendor)');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(parts.isEmpty ? 'No purchase orders created' : parts.join(', ')),
-          backgroundColor: failCount == 0 && successCount > 0
-              ? Colors.green
-              : Colors.orange,
-        ),
-      );
+      final message = parts.isEmpty ? 'No purchase orders created' : parts.join(', ');
+      Navigator.pop(context, successCount > 0);
+      if (failCount == 0 && successCount > 0) {
+        InventoryOverlayToast.showSuccess(context, message);
+      } else if (successCount > 0) {
+        InventoryOverlayToast.showWarning(context, message);
+      } else {
+        InventoryOverlayToast.showError(context, message);
+      }
     }
   }
 

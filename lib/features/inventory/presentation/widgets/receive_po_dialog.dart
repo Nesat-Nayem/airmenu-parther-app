@@ -2,6 +2,7 @@ import 'package:airmenuai_partner_app/core/network/data_state.dart';
 import 'package:airmenuai_partner_app/core/network/request_type.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/models/inventory_models.dart';
 import 'package:airmenuai_partner_app/features/inventory/data/repositories/inventory_repository.dart';
+import 'package:airmenuai_partner_app/features/inventory/presentation/widgets/inventory_shared_widgets.dart';
 import 'package:airmenuai_partner_app/utils/injectible.dart';
 import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:file_picker/file_picker.dart';
@@ -127,8 +128,9 @@ class _ReceivePurchaseOrderDialogState extends State<ReceivePurchaseOrderDialog>
       }
     });
     if (upload is! DataSuccess<String>) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(upload.error?.message ?? 'Failed to upload slip')),
+      InventoryOverlayToast.showError(
+        context,
+        upload.error?.message ?? 'Failed to upload slip',
       );
     }
   }
@@ -141,8 +143,9 @@ class _ReceivePurchaseOrderDialogState extends State<ReceivePurchaseOrderDialog>
       final receivedQty = double.tryParse(line.qtyController.text.trim()) ?? 0;
       if (receivedQty <= 0) continue;
       if (receivedQty > line.item.remainingQuantity + 0.0001) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Received qty exceeds remaining for ${line.item.materialName}')),
+        InventoryOverlayToast.showError(
+          context,
+          'Received qty exceeds remaining for ${line.item.materialName}',
         );
         return;
       }
@@ -152,8 +155,9 @@ class _ReceivePurchaseOrderDialogState extends State<ReceivePurchaseOrderDialog>
         (sum, b) => sum + (double.tryParse(b.qtyController.text.trim()) ?? 0),
       );
       if ((batchTotal - receivedQty).abs() > 0.0001) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Expiry batches must total ${receivedQty.toStringAsFixed(0)} for ${line.item.materialName}')),
+        InventoryOverlayToast.showError(
+          context,
+          'Expiry batches must total ${receivedQty.toStringAsFixed(0)} for ${line.item.materialName}',
         );
         return;
       }
@@ -173,8 +177,9 @@ class _ReceivePurchaseOrderDialogState extends State<ReceivePurchaseOrderDialog>
     }
 
     if (items.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter at least one received quantity')),
+      InventoryOverlayToast.showError(
+        context,
+        'Enter at least one received quantity',
       );
       return;
     }
@@ -193,16 +198,15 @@ class _ReceivePurchaseOrderDialogState extends State<ReceivePurchaseOrderDialog>
 
     if (res is DataSuccess<PurchaseOrder>) {
       widget.onReceived?.call();
-      Navigator.of(context).pop(true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Color(0xFF16A34A),
-          content: Text('Purchase order received — stock updated'),
-        ),
+      InventoryOverlayToast.showSuccess(
+        context,
+        'Purchase order received — stock updated',
       );
+      Navigator.of(context).pop(true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(res.error?.message ?? 'Failed to receive purchase order')),
+      InventoryOverlayToast.showError(
+        context,
+        res.error?.message ?? 'Failed to receive purchase order',
       );
     }
   }
