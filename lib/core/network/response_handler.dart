@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:airmenuai_partner_app/core/network/data_error.dart';
 import 'package:airmenuai_partner_app/core/network/data_state.dart';
+import 'package:airmenuai_partner_app/core/network/session_expiry_handler.dart';
 import 'package:airmenuai_partner_app/utils/logger/log.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart';
@@ -32,6 +33,14 @@ class ResponseHandler {
       // JSON parsing failed, return fallback
     }
     return fallback;
+  }
+
+  bool _isTokenExpiredLikeMessage(String message) {
+    final m = message.toLowerCase().trim();
+    return m.contains('expired token') ||
+        m.contains('token expired') ||
+        m.contains('invalid or expired token') ||
+        m == 'unauthorized';
   }
 
   Future<DataState<T>> responseHandlerFun<T>({
@@ -69,6 +78,14 @@ class ResponseHandler {
       } else if (response.statusCode == 401) {
         final message = _extractErrorMessage(response.body, "Unauthorized");
         Log.error("Unauthorized API - $urlPath: $message");
+
+        // If backend says token expired/invalid, force logout + redirect to login.
+        if (_isTokenExpiredLikeMessage(message)) {
+          SessionExpiryHandler.forceLogoutToLogin(
+            reason: '401 from $urlPath: $message',
+          );
+        }
+
         return DataFailure<T>(
           DataError(message: message, statusCode: response.statusCode),
         );

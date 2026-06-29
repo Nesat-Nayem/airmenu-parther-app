@@ -1,5 +1,6 @@
 import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item.dart';
+import 'package:airmenuai_partner_app/config/router/root_navigator_key.dart';
 import 'package:airmenuai_partner_app/config/router/token_check.dart';
 import 'package:airmenuai_partner_app/core/services/role_service.dart';
 import 'package:airmenuai_partner_app/features/my_kyc/data/vendor_kyc_repository.dart';
@@ -77,6 +78,7 @@ class AppRouter {
 
   AppRouter()
     : _router = GoRouter(
+        navigatorKey: rootNavigatorKey,
         initialLocation: AppRoutes.loginAndSignUp.path,
         redirect: (context, state) async {
           final isAuth = await tokenCheck();
