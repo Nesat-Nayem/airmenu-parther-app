@@ -35,8 +35,8 @@ class TrialCodeModel {
   };
 
   Map<String, dynamic> toUpdateJson() => {
-    if (validDays > 0) 'validDays': validDays,
-    if (maxUses != null) 'maxUses': maxUses,
+    'validDays': validDays,
+    'maxUses': maxUses,
     'isActive': isActive,
     if (expiresAt != null) 'expiresAt': expiresAt!.toIso8601String(),
   };
