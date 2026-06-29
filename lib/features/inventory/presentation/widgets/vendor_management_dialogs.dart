@@ -912,7 +912,7 @@ class _AddEditVendorDialogState extends State<AddEditVendorDialog> {
                               const SizedBox(width: 8),
                               Expanded(child: _supplyHeader('Min Order')),
                               const SizedBox(width: 8),
-                              Expanded(child: _supplyHeader('Delivery')),
+                              Expanded(child: _supplyHeader('Delivery Days')),
                               const SizedBox(width: 36),
                             ],
                           ),
