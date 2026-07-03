@@ -312,7 +312,7 @@ class _VendorDialogContentState extends State<_VendorDialogContent> {
   }
 }
 
-class VendorTableCard extends StatelessWidget {
+class VendorTableCard extends StatefulWidget {
   final Vendor vendor;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
@@ -323,6 +323,44 @@ class VendorTableCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
   });
+
+  @override
+  State<VendorTableCard> createState() => _VendorTableCardState();
+}
+
+class _VendorTableCardState extends State<VendorTableCard> with SingleTickerProviderStateMixin {
+  bool _isExpanded = false;
+  late final AnimationController _iconController;
+  late final Animation<double> _iconTurns;
+
+  @override
+  void initState() {
+    super.initState();
+    _iconController = AnimationController(
+      duration: const Duration(milliseconds: 250),
+      vsync: this,
+    );
+    _iconTurns = Tween<double>(begin: 0.0, end: 0.5).animate(
+      CurvedAnimation(parent: _iconController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _iconController.dispose();
+    super.dispose();
+  }
+
+  void _toggleExpanded() {
+    setState(() {
+      _isExpanded = !_isExpanded;
+      if (_isExpanded) {
+        _iconController.forward();
+      } else {
+        _iconController.reverse();
+      }
+    });
+  }
 
   String _formatUpdated(DateTime? date) {
     if (date == null) return '—';
@@ -336,7 +374,7 @@ class VendorTableCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items = vendor.suppliedItems.where((s) => s.materialName.isNotEmpty || s.materialId.isNotEmpty).toList();
+    final items = widget.vendor.suppliedItems.where((s) => s.materialName.isNotEmpty || s.materialId.isNotEmpty).toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -379,7 +417,7 @@ class VendorTableCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        vendor.companyName,
+                        widget.vendor.companyName,
                         style: AirMenuTextStyle.normal.bold700().withColor(InventoryColors.textPrimary),
                       ),
                       const SizedBox(height: 6),
@@ -387,22 +425,22 @@ class VendorTableCard extends StatelessWidget {
                         spacing: 16,
                         runSpacing: 6,
                         children: [
-                          _meta(Icons.person_outline, vendor.contactPerson),
-                          _meta(Icons.phone_outlined, vendor.phone),
-                          if (vendor.email.isNotEmpty) _meta(Icons.email_outlined, vendor.email),
-                          if (vendor.gstNumber.isNotEmpty) _meta(Icons.receipt_long_outlined, 'GST ${vendor.gstNumber}'),
+                          _meta(Icons.person_outline, widget.vendor.contactPerson),
+                          _meta(Icons.phone_outlined, widget.vendor.phone),
+                          if (widget.vendor.email.isNotEmpty) _meta(Icons.email_outlined, widget.vendor.email),
+                          if (widget.vendor.gstNumber.isNotEmpty) _meta(Icons.receipt_long_outlined, 'GST ${widget.vendor.gstNumber}'),
                         ],
                       ),
-                      if (vendor.address.isNotEmpty) ...[
+                      if (widget.vendor.address.isNotEmpty) ...[
                         const SizedBox(height: 6),
-                        _meta(Icons.location_on_outlined, vendor.address),
+                        _meta(Icons.location_on_outlined, widget.vendor.address),
                       ],
                     ],
                   ),
                 ),
-                IconButton(onPressed: onEdit, icon: const Icon(Icons.edit_outlined, size: 18), tooltip: 'Edit'),
+                IconButton(onPressed: widget.onEdit, icon: const Icon(Icons.edit_outlined, size: 18), tooltip: 'Edit'),
                 IconButton(
-                  onPressed: onDelete,
+                  onPressed: widget.onDelete,
                   icon: const Icon(Icons.delete_outline, size: 18, color: InventoryColors.primaryRed),
                   tooltip: 'Delete',
                 ),
@@ -417,45 +455,119 @@ class VendorTableCard extends StatelessWidget {
                 style: AirMenuTextStyle.small.medium500().withColor(InventoryColors.textTertiary),
               ),
             )
-          else
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width * 0.85),
-                child: DataTable(
-                  headingRowColor: WidgetStateProperty.all(const Color(0xFFF9FAFB)),
-                  columnSpacing: 24,
-                  horizontalMargin: 16,
-                  dataRowMinHeight: 44,
-                  dataRowMaxHeight: 52,
-                  headingTextStyle: AirMenuTextStyle.caption.bold700().withColor(const Color(0xFF6B7280)),
-                  columns: const [
-                    DataColumn(label: Text('Material')),
-                    DataColumn(label: Text('Price')),
-                    DataColumn(label: Text('Min Order')),
-                    DataColumn(label: Text('Delivery')),
-                    DataColumn(label: Text('Updated')),
+          else ...[
+            // Collapsible toggle bar for materials
+            InkWell(
+              onTap: _toggleExpanded,
+              borderRadius: _isExpanded
+                  ? BorderRadius.zero
+                  : const BorderRadius.vertical(bottom: Radius.circular(16)),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: _isExpanded ? const Color(0xFFF0F4FF) : const Color(0xFFF9FAFB),
+                  borderRadius: _isExpanded
+                      ? BorderRadius.zero
+                      : const BorderRadius.vertical(bottom: Radius.circular(16)),
+                  border: const Border(top: BorderSide(color: Color(0xFFF3F4F6))),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 16,
+                      color: _isExpanded ? const Color(0xFF4F6BED) : const Color(0xFF6B7280),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Supplied Materials',
+                      style: AirMenuTextStyle.small.bold600().withColor(
+                        _isExpanded ? const Color(0xFF4F6BED) : const Color(0xFF374151),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _isExpanded
+                            ? const Color(0xFF4F6BED).withValues(alpha: 0.12)
+                            : const Color(0xFF6B7280).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${items.length}',
+                        style: AirMenuTextStyle.caption.bold700().withColor(
+                          _isExpanded ? const Color(0xFF4F6BED) : const Color(0xFF6B7280),
+                        ),
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _isExpanded ? 'Hide' : 'Show',
+                      style: AirMenuTextStyle.caption.medium500().withColor(
+                        _isExpanded ? const Color(0xFF4F6BED) : const Color(0xFF9CA3AF),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    RotationTransition(
+                      turns: _iconTurns,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 20,
+                        color: _isExpanded ? const Color(0xFF4F6BED) : const Color(0xFF9CA3AF),
+                      ),
+                    ),
                   ],
-                  rows: items.map((item) {
-                    final deliveryLabel = item.deliveryDays <= 1 ? '1 day' : '${item.deliveryDays} days';
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(item.materialName.isNotEmpty ? item.materialName : '—',
-                            style: AirMenuTextStyle.small.medium500())),
-                        DataCell(Text('₹${item.price == item.price.roundToDouble() ? item.price.toStringAsFixed(0) : item.price.toStringAsFixed(2)}',
-                            style: AirMenuTextStyle.small.bold600())),
-                        DataCell(Text(item.minOrderQty == item.minOrderQty.roundToDouble()
-                            ? item.minOrderQty.toStringAsFixed(0)
-                            : item.minOrderQty.toStringAsFixed(1))),
-                        DataCell(Text(deliveryLabel)),
-                        DataCell(Text(_formatUpdated(item.priceUpdatedAt),
-                            style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary))),
-                      ],
-                    );
-                  }).toList(),
                 ),
               ),
             ),
+            // Animated collapsible materials table
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: _isExpanded
+                  ? SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minWidth: MediaQuery.of(context).size.width * 0.85),
+                        child: DataTable(
+                          headingRowColor: WidgetStateProperty.all(const Color(0xFFF9FAFB)),
+                          columnSpacing: 24,
+                          horizontalMargin: 16,
+                          dataRowMinHeight: 44,
+                          dataRowMaxHeight: 52,
+                          headingTextStyle: AirMenuTextStyle.caption.bold700().withColor(const Color(0xFF6B7280)),
+                          columns: const [
+                            DataColumn(label: Text('Material')),
+                            DataColumn(label: Text('Price')),
+                            DataColumn(label: Text('Min Order')),
+                            DataColumn(label: Text('Delivery')),
+                            DataColumn(label: Text('Updated')),
+                          ],
+                          rows: items.map((item) {
+                            final deliveryLabel = item.deliveryDays <= 1 ? '1 day' : '${item.deliveryDays} days';
+                            return DataRow(
+                              cells: [
+                                DataCell(Text(item.materialName.isNotEmpty ? item.materialName : '—',
+                                    style: AirMenuTextStyle.small.medium500())),
+                                DataCell(Text('₹${item.price == item.price.roundToDouble() ? item.price.toStringAsFixed(0) : item.price.toStringAsFixed(2)}',
+                                    style: AirMenuTextStyle.small.bold600())),
+                                DataCell(Text(item.minOrderQty == item.minOrderQty.roundToDouble()
+                                    ? item.minOrderQty.toStringAsFixed(0)
+                                    : item.minOrderQty.toStringAsFixed(1))),
+                                DataCell(Text(deliveryLabel)),
+                                DataCell(Text(_formatUpdated(item.priceUpdatedAt),
+                                    style: AirMenuTextStyle.caption.medium500().withColor(InventoryColors.textTertiary))),
+                              ],
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
         ],
       ),
     ).animate().fadeIn(duration: 250.ms);
