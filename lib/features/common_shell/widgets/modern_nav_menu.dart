@@ -488,10 +488,10 @@ class _MeshDotPainter extends CustomPainter {
       oldDelegate.color != color;
 }
 
-/// Nav item with Lovable gradient active state + safe hover animation.
+/// Nav item with Lovable gradient active state + safe hover.
 ///
-/// Avoids setState during MouseTracker device-update (no transform /
-/// magnetic pointer tracking that invalidates hit tests mid-hover).
+/// No SlideTransition / icon scale / deferred ValueNotifier hover —
+/// those caused mouse_tracker.dart assertion storms and blank content.
 class _MagneticNavItem extends StatefulWidget {
   final NavMenuItemConfig<NavMenuItem> item;
   final bool isSelected;
@@ -509,162 +509,89 @@ class _MagneticNavItem extends StatefulWidget {
   State<_MagneticNavItem> createState() => _MagneticNavItemState();
 }
 
-class _MagneticNavItemState extends State<_MagneticNavItem>
-    with SingleTickerProviderStateMixin {
-  final ValueNotifier<bool> _hovered = ValueNotifier(false);
-  late final AnimationController _enterController;
-  late final Animation<double> _enterOpacity;
-  late final Animation<Offset> _enterSlide;
-
-  @override
-  void initState() {
-    super.initState();
-    _enterController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 420),
-    );
-    final delay = (widget.staggerIndex * 30).clamp(0, 400);
-    _enterOpacity = CurvedAnimation(
-      parent: _enterController,
-      curve: Curves.easeOutCubic,
-    );
-    _enterSlide = Tween<Offset>(
-      begin: const Offset(-0.08, 0),
-      end: Offset.zero,
-    ).animate(
-      CurvedAnimation(parent: _enterController, curve: Curves.easeOutCubic),
-    );
-    Future.delayed(Duration(milliseconds: 80 + delay), () {
-      if (mounted) _enterController.forward();
-    });
-  }
-
-  @override
-  void dispose() {
-    _hovered.dispose();
-    _enterController.dispose();
-    super.dispose();
-  }
-
-  void _setHovered(bool value) {
-    // Defer past MouseTracker device-update phase to avoid assertion spam.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _hovered.value != value) {
-        _hovered.value = value;
-      }
-    });
-  }
+class _MagneticNavItemState extends State<_MagneticNavItem> {
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
     final isActive = widget.isSelected;
-    // Pill radius like Lovable capsules
     const radius = 999.0;
+    final showHover = _hovered && !isActive;
+    final iconColor = isActive
+        ? Colors.white
+        : (showHover ? _LovableTheme.foreground : _LovableTheme.muted);
 
-    return FadeTransition(
-      opacity: _enterOpacity,
-      child: SlideTransition(
-        position: _enterSlide,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: MouseRegion(
-            onEnter: (_) => _setHovered(true),
-            onExit: (_) => _setHovered(false),
-            cursor: SystemMouseCursors.click,
-            child: Material(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(radius),
-              child: InkWell(
-                onTap: widget.onTap,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: MouseRegion(
+        onEnter: (_) {
+          if (!_hovered) setState(() => _hovered = true);
+        },
+        onExit: (_) {
+          if (_hovered) setState(() => _hovered = false);
+        },
+        cursor: SystemMouseCursors.click,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(radius),
+          child: InkWell(
+            onTap: widget.onTap,
+            borderRadius: BorderRadius.circular(radius),
+            splashColor: _LovableTheme.primary.withValues(alpha: 0.1),
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 11,
+              ),
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(radius),
-                splashColor: _LovableTheme.primary.withValues(alpha: 0.1),
-                highlightColor: Colors.transparent,
-                hoverColor: Colors.transparent,
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: _hovered,
-                  builder: (context, hovered, _) {
-                    final showHover = hovered && !isActive;
-                    final iconColor = isActive
-                        ? Colors.white
-                        : (showHover
-                            ? _LovableTheme.foreground
-                            : _LovableTheme.muted);
-                    final textColor = iconColor;
-
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 11,
+                gradient: isActive ? _LovableTheme.activeGradient : null,
+                color: isActive
+                    ? null
+                    : (showHover
+                        ? _LovableTheme.hoverFill
+                        : Colors.transparent),
+                boxShadow: isActive
+                    ? [
+                        BoxShadow(
+                          color:
+                              _LovableTheme.primary.withValues(alpha: 0.28),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Icon(
+                      widget.item.iconData ?? Icons.circle_outlined,
+                      size: 20,
+                      color: iconColor,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      widget.item.title,
+                      style: GoogleFonts.sora(
+                        fontSize: 13.5,
+                        fontWeight: isActive || showHover
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: iconColor,
                       ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(radius),
-                        gradient:
-                            isActive ? _LovableTheme.activeGradient : null,
-                        color: isActive
-                            ? null
-                            : (showHover
-                                ? _LovableTheme.hoverFill
-                                : Colors.transparent),
-                        boxShadow: isActive
-                            ? [
-                                BoxShadow(
-                                  color: _LovableTheme.primary
-                                      .withValues(alpha: 0.28),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 6),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: Center(
-                              child: AnimatedScale(
-                                scale: showHover ? 1.1 : 1.0,
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeOutBack,
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 180),
-                                  child: Icon(
-                                    widget.item.iconData ??
-                                        Icons.circle_outlined,
-                                    key: ValueKey(
-                                      '$iconColor-${widget.item.title}',
-                                    ),
-                                    size: 20,
-                                    color: iconColor,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: AnimatedDefaultTextStyle(
-                              duration: const Duration(milliseconds: 180),
-                              style: GoogleFonts.sora(
-                                fontSize: 13.5,
-                                fontWeight: isActive || showHover
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                                color: textColor,
-                              ),
-                              child: Text(
-                                widget.item.title,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
