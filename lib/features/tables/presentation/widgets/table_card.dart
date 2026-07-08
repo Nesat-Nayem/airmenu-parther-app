@@ -6,287 +6,433 @@ import '../bloc/tables_bloc.dart';
 import 'qr_code_dialog.dart';
 import 'table_detail_dialog.dart';
 
-/// Table Card - Displays table info in a card format
-/// Matches reference design with status indicator, meta info, and QR button
-class TableCard extends StatelessWidget {
-  final TableModel table;
+/// Shared Tokens — Lovable Tables & QR cards.
+abstract final class TableCardLayout {
+  static const double radius = 16;
+  static const Color canvas = Color(0xFFFCFBF9);
+  static const Color foreground = Color(0xFF2A3038);
+  static const Color muted = Color(0xFF7A8494);
+  static const Color idleBorder = Color(0xFFECE8E6);
+  static const Color accent = Color(0xFFD4353A);
 
-  const TableCard({super.key, required this.table});
+  static Color statusDot(TableStatus status) {
+    switch (status) {
+      case TableStatus.vacant:
+        return const Color(0xFF22C55E);
+      case TableStatus.occupied:
+        return accent;
+      case TableStatus.reserved:
+        return const Color(0xFFF59E0B);
+      case TableStatus.cleaning:
+        return const Color(0xFF6B7280);
+    }
+  }
+
+  static Color statusTint(TableStatus status) {
+    switch (status) {
+      case TableStatus.vacant:
+        return const Color(0xFF22C55E).withValues(alpha: 0.08);
+      case TableStatus.occupied:
+        return accent.withValues(alpha: 0.08);
+      case TableStatus.reserved:
+        return const Color(0xFFF59E0B).withValues(alpha: 0.10);
+      case TableStatus.cleaning:
+        return const Color(0xFFF3F4F6);
+    }
+  }
+
+  static Color statusBorder(TableStatus status) {
+    switch (status) {
+      case TableStatus.vacant:
+        return const Color(0xFF22C55E).withValues(alpha: 0.28);
+      case TableStatus.occupied:
+        return accent.withValues(alpha: 0.28);
+      case TableStatus.reserved:
+        return const Color(0xFFF59E0B).withValues(alpha: 0.30);
+      case TableStatus.cleaning:
+        return idleBorder;
+    }
+  }
+
+  static String statusLabel(TableStatus status) {
+    switch (status) {
+      case TableStatus.vacant:
+        return 'Vacant';
+      case TableStatus.occupied:
+        return 'Occupied';
+      case TableStatus.reserved:
+        return 'Reserved';
+      case TableStatus.cleaning:
+        return 'Cleaning';
+    }
+  }
+}
+
+/// Lovable glass table card — fixed border hover (MouseTracker-safe).
+class TableCard extends StatefulWidget {
+  final TableModel table;
+  final int animationIndex;
+
+  const TableCard({
+    super.key,
+    required this.table,
+    this.animationIndex = 0,
+  });
+
+  @override
+  State<TableCard> createState() => _TableCardState();
+}
+
+class _TableCardState extends State<TableCard>
+    with SingleTickerProviderStateMixin {
+  bool _hovered = false;
+  late final AnimationController _enterCtrl;
+  late final Animation<double> _fade;
+
+  TableModel get table => widget.table;
+
+  @override
+  void initState() {
+    super.initState();
+    _enterCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    );
+    _fade = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOutCubic);
+
+    final delay = Duration(milliseconds: 30 * widget.animationIndex.clamp(0, 20));
+    Future.delayed(delay, () {
+      if (mounted) _enterCtrl.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _enterCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    Color statusColor;
+    final statusColor = TableCardLayout.statusDot(table.status);
 
-    switch (table.status) {
-      case TableStatus.vacant:
-        statusColor = const Color(0xFF22C55E); // Green-500
-        break;
-      case TableStatus.occupied:
-        statusColor = const Color(0xFFEF4444); // Red-500
-        break;
-      case TableStatus.reserved:
-        statusColor = const Color(0xFFF59E0B); // Amber-500
-        break;
-      case TableStatus.cleaning:
-        statusColor = const Color(0xFF6B7280); // Gray-500
-        break;
-    }
-
-    return GestureDetector(
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (_) => TableDetailDialog(table: table),
-        );
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
-                    decoration: BoxDecoration(
-                      color: statusColor,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'T-${table.tableNumber}',
-                      style: GoogleFonts.sora(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E293B),
+    return FadeTransition(
+      opacity: _fade,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) {
+          if (!_hovered) setState(() => _hovered = true);
+        },
+        onExit: (_) {
+          if (_hovered) setState(() => _hovered = false);
+        },
+        child: GestureDetector(
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (_) => TableDetailDialog(table: table),
+            );
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(TableCardLayout.radius),
+              border: Border.all(
+                color: _hovered
+                    ? statusColor.withValues(alpha: 0.45)
+                    : TableCardLayout.statusBorder(table.status),
+                width: 1.5,
+              ),
+              boxShadow: _hovered
+                  ? [
+                      BoxShadow(
+                        color: statusColor.withValues(alpha: 0.16),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
                       ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    icon: Icon(
-                      Icons.more_vert,
-                      size: 20,
-                      color: Colors.grey.shade400,
-                    ),
-                    onSelected: (value) {
-                      if (value == 'edit') {
-                        _showEditDialog(context);
-                      } else if (value == 'delete') {
-                        _confirmDelete(context);
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Row(
-                          children: [
-                            Icon(Icons.edit_outlined, size: 18, color: Colors.grey.shade600),
-                            const SizedBox(width: 8),
-                            const Text('Edit'),
-                          ],
-                        ),
+                      BoxShadow(
+                        color: statusColor.withValues(alpha: 0.06),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
                       ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(
-                          children: [
-                            Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
-                            const SizedBox(width: 8),
-                            Text('Delete', style: TextStyle(color: Colors.red.shade400)),
-                          ],
-                        ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
                       ),
                     ],
-                  ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeader(statusColor),
+                const SizedBox(height: 12),
+                _buildMeta(),
+                const SizedBox(height: 10),
+                Expanded(child: _buildStatusBody()),
+                Divider(
+                  height: 1,
+                  color: TableCardLayout.idleBorder.withValues(alpha: 0.9),
+                ),
+                const SizedBox(height: 10),
+                _buildFooter(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(Color statusColor) {
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: statusColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: statusColor.withValues(alpha: 0.4),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            'T-${table.tableNumber}',
+            style: GoogleFonts.sora(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: TableCardLayout.foreground,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        _IconBtn(
+          icon: Icons.qr_code_2_rounded,
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (_) => QrCodeDialog(table: table),
+            );
+          },
+        ),
+        PopupMenuButton<String>(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          icon: Icon(
+            Icons.more_horiz_rounded,
+            size: 20,
+            color: Colors.grey.shade400,
+          ),
+          onSelected: (value) {
+            if (value == 'edit') {
+              _showEditDialog(context);
+            } else if (value == 'delete') {
+              _confirmDelete(context);
+            }
+          },
+          itemBuilder: (_) => [
+            PopupMenuItem(
+              value: 'edit',
+              child: Row(
+                children: [
+                  Icon(Icons.edit_outlined, size: 18, color: Colors.grey.shade600),
+                  const SizedBox(width: 8),
+                  const Text('Edit'),
                 ],
               ),
             ),
-
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Meta Info - Seats & Zone
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.group_outlined,
-                          size: 16,
-                          color: Colors.grey.shade500,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${table.capacity} seats',
-                          style: GoogleFonts.sora(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              table.zone,
-                              style: GoogleFonts.sora(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Order ID (if occupied)
-                    if (table.status == TableStatus.occupied) ...[
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.receipt_outlined,
-                            size: 16,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              '#${table.id.length > 4 ? table.id.substring(table.id.length - 4).toUpperCase() : table.id}',
-                              style: GoogleFonts.sora(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: Colors.grey.shade600,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time_rounded,
-                            size: 16,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '--',
-                            style: GoogleFonts.sora(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.grey.shade500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ] else if (table.status == TableStatus.cleaning) ...[
-                      Text(
-                        'Being prepared...',
-                        style: GoogleFonts.sora(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.grey.shade500,
-                        ),
-                      ),
-                    ] else ...[
-                      const SizedBox(height: 22), // Placeholder space
-                    ],
-                  ],
-                ),
+            PopupMenuItem(
+              value: 'delete',
+              child: Row(
+                children: [
+                  Icon(Icons.delete_outline, size: 18, color: Colors.red.shade400),
+                  const SizedBox(width: 8),
+                  Text('Delete', style: TextStyle(color: Colors.red.shade400)),
+                ],
               ),
             ),
+          ],
+        ),
+      ],
+    );
+  }
 
-            // Divider
-            Divider(height: 1, color: Colors.grey.shade100),
+  Widget _buildMeta() {
+    return Row(
+      children: [
+        Icon(Icons.people_outline_rounded, size: 15, color: Colors.grey.shade500),
+        const SizedBox(width: 5),
+        Text(
+          '${table.capacity} seats',
+          style: GoogleFonts.sora(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w400,
+            color: TableCardLayout.muted,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F3F1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              table.zone,
+              style: GoogleFonts.sora(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: TableCardLayout.muted,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
-            // Footer Action - QR Code Button
-            InkWell(
+  Widget _buildStatusBody() {
+    if (table.status == TableStatus.occupied) {
+      final shortId = table.id.length > 4
+          ? table.id.substring(table.id.length - 4).toUpperCase()
+          : table.id;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.shopping_bag_outlined, size: 14, color: Colors.grey.shade400),
+              const SizedBox(width: 6),
+              Text(
+                '#$shortId',
+                style: GoogleFonts.sora(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: TableCardLayout.foreground,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.schedule_rounded, size: 14, color: Colors.grey.shade400),
+              const SizedBox(width: 6),
+              Text(
+                'Active',
+                style: GoogleFonts.sora(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                  color: TableCardLayout.muted,
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
+    if (table.status == TableStatus.cleaning) {
+      return Text(
+        'Being prepared...',
+        style: GoogleFonts.sora(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w400,
+          color: TableCardLayout.muted,
+        ),
+      );
+    }
+
+    if (table.status == TableStatus.reserved) {
+      return Text(
+        'Reserved',
+        style: GoogleFonts.sora(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w500,
+          color: const Color(0xFFD97706),
+        ),
+      );
+    }
+
+    return Text(
+      'Ready for guests',
+      style: GoogleFonts.sora(
+        fontSize: 12.5,
+        fontWeight: FontWeight.w400,
+        color: TableCardLayout.muted,
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Row(
+      children: [
+        Expanded(
+          child: Material(
+            color: const Color(0xFFF8F6F4),
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
               onTap: () {
                 showDialog(
                   context: context,
                   builder: (_) => QrCodeDialog(table: table),
                 );
               },
-              borderRadius: const BorderRadius.vertical(
-                bottom: Radius.circular(16),
-              ),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  vertical: 12,
-                  horizontal: 16,
-                ),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 9),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.qr_code_2,
-                      size: 18,
-                      color: Colors.grey.shade600,
-                    ),
-                    const SizedBox(width: 8),
+                    Icon(Icons.qr_code_2_rounded, size: 15, color: Colors.grey.shade700),
+                    const SizedBox(width: 6),
                     Text(
                       'QR Code',
                       style: GoogleFonts.sora(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
                         color: Colors.grey.shade700,
                       ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.visibility_outlined,
-                      size: 18,
-                      color: Colors.grey.shade400,
                     ),
                   ],
                 ),
               ),
             ),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(width: 8),
+        _IconBtn(
+          icon: Icons.visibility_outlined,
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (_) => TableDetailDialog(table: table),
+            );
+          },
+        ),
+      ],
     );
   }
 
   void _showEditDialog(BuildContext context) {
     final tableNumberController = TextEditingController(text: table.tableNumber);
-    final capacityController = TextEditingController(text: table.capacity.toString());
-    // Build zone list from bloc state, always include current table.zone as fallback
+    final capacityController =
+        TextEditingController(text: table.capacity.toString());
     final blocZoneNames = context.read<TablesBloc>().state.zoneNames;
     final zoneItems = blocZoneNames.isNotEmpty
         ? (blocZoneNames.contains(table.zone)
@@ -317,7 +463,7 @@ class TableCard extends StatelessWidget {
                         style: GoogleFonts.sora(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF111827),
+                          color: TableCardLayout.foreground,
                         ),
                       ),
                       InkWell(
@@ -335,30 +481,47 @@ class TableCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Table Number', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Table Number',
+                          style: GoogleFonts.sora(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: tableNumberController,
                           decoration: InputDecoration(
                             hintText: 'e.g., T-13',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(color: Colors.grey.shade300),
                             ),
                             contentPadding: const EdgeInsets.all(16),
                           ),
-                          validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                          validator: (v) =>
+                              (v == null || v.isEmpty) ? 'Required' : null,
                         ),
                         const SizedBox(height: 16),
-                        Text('Capacity', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Capacity',
+                          style: GoogleFonts.sora(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: capacityController,
                           keyboardType: TextInputType.number,
                           decoration: InputDecoration(
                             hintText: 'Number of seats',
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                               borderSide: BorderSide(color: Colors.grey.shade300),
@@ -372,7 +535,13 @@ class TableCard extends StatelessWidget {
                           },
                         ),
                         const SizedBox(height: 16),
-                        Text('Zone', style: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w500)),
+                        Text(
+                          'Zone',
+                          style: GoogleFonts.sora(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -387,11 +556,16 @@ class TableCard extends StatelessWidget {
                               items: zoneItems.map((z) {
                                 return DropdownMenuItem(
                                   value: z,
-                                  child: Text(z, style: GoogleFonts.sora(fontSize: 14)),
+                                  child: Text(
+                                    z,
+                                    style: GoogleFonts.sora(fontSize: 14),
+                                  ),
                                 );
                               }).toList(),
                               onChanged: (val) {
-                                if (val != null) setDialogState(() => selectedZone = val);
+                                if (val != null) {
+                                  setDialogState(() => selectedZone = val);
+                                }
                               },
                             ),
                           ),
@@ -408,8 +582,13 @@ class TableCard extends StatelessWidget {
                       OutlinedButton(
                         onPressed: () => Navigator.pop(dialogContext),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           side: BorderSide(color: Colors.grey.shade300),
                         ),
                         child: const Text('Cancel'),
@@ -427,15 +606,22 @@ class TableCard extends StatelessWidget {
                               qrUrl: table.qrUrl,
                               hotelId: table.hotelId,
                             );
-                            context.read<TablesBloc>().add(UpdateTable(updatedTable));
+                            context.read<TablesBloc>().add(
+                                  UpdateTable(updatedTable),
+                                );
                             Navigator.pop(dialogContext);
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFDC2626),
+                          backgroundColor: TableCardLayout.accent,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 0,
                         ),
                         child: const Text('Save Changes'),
@@ -475,14 +661,94 @@ class TableCard extends StatelessWidget {
               Navigator.pop(dialogContext);
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
+              backgroundColor: TableCardLayout.accent,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               elevation: 0,
             ),
             child: const Text('Delete'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _IconBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _IconBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(icon, size: 18, color: Colors.grey.shade500),
+        ),
+      ),
+    );
+  }
+}
+
+/// Skeleton matching [TableCard] height/structure.
+class TableCardSkeleton extends StatelessWidget {
+  const TableCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(TableCardLayout.radius),
+        border: Border.all(color: TableCardLayout.idleBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _bone(10, 10, 999),
+              const SizedBox(width: 8),
+              _bone(64, 16, 4),
+              const Spacer(),
+              _bone(28, 28, 8),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _bone(110, 12, 4),
+          const SizedBox(height: 12),
+          _bone(80, 12, 4),
+          const Spacer(),
+          Container(height: 1, color: TableCardLayout.idleBorder),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _bone(double.infinity, 34, 10)),
+              const SizedBox(width: 8),
+              _bone(34, 34, 8),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _bone(double w, double h, double r) {
+    return Container(
+      width: w == double.infinity ? null : w,
+      height: h,
+      decoration: BoxDecoration(
+        color: const Color(0xFFECE8E6),
+        borderRadius: BorderRadius.circular(r),
       ),
     );
   }

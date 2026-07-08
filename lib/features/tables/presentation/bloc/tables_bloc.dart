@@ -124,6 +124,8 @@ class TablesState extends Equatable {
     List<ZoneModel>? zones,
     bool? isLoadingZones,
     String? zoneError,
+    bool clearZoneFilter = false,
+    bool clearStatusFilter = false,
   }) {
     return TablesState(
       allTables: allTables ?? this.allTables,
@@ -131,8 +133,9 @@ class TablesState extends Equatable {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       searchQuery: searchQuery ?? this.searchQuery,
-      zoneFilter: zoneFilter ?? this.zoneFilter,
-      statusFilter: statusFilter ?? this.statusFilter,
+      zoneFilter: clearZoneFilter ? null : (zoneFilter ?? this.zoneFilter),
+      statusFilter:
+          clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
       zones: zones ?? this.zones,
       isLoadingZones: isLoadingZones ?? this.isLoadingZones,
       zoneError: zoneError,
@@ -214,6 +217,8 @@ class TablesBloc extends Bloc<TablesEvent, TablesState> {
         searchQuery: event.searchQuery,
         zoneFilter: event.zoneFilter,
         statusFilter: event.statusFilter,
+        clearZoneFilter: event.zoneFilter == null,
+        clearStatusFilter: event.statusFilter == null,
       ),
     );
   }

@@ -2,12 +2,15 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shimmer/shimmer.dart';
 import '../../data/repositories/table_repository.dart';
 import '../../data/repositories/zone_repository.dart';
 import '../bloc/tables_bloc.dart';
 import '../widgets/tables_stats_row.dart';
 import '../widgets/tables_toolbar.dart';
 import '../widgets/table_card.dart';
+import '../widgets/table_list_row.dart';
 import '../widgets/add_table_dialog.dart';
 import '../widgets/zone_manager_dialog.dart';
 import '../widgets/download_helper_stub.dart'
@@ -31,9 +34,16 @@ class TablesPage extends StatelessWidget {
   }
 }
 
-// Mixin to hold download state — used in TablesPageView via StatefulWidget
+class TablesPageView extends StatefulWidget {
+  const TablesPageView({super.key});
+
+  @override
+  State<TablesPageView> createState() => _TablesPageViewState();
+}
+
 class _TablesPageViewState extends State<TablesPageView> {
   bool _isDownloadingAll = false;
+  bool _isGridView = true;
 
   Future<void> _downloadAllQr(BuildContext context) async {
     if (!kIsWeb) {
@@ -45,8 +55,6 @@ class _TablesPageViewState extends State<TablesPageView> {
     setState(() => _isDownloadingAll = true);
     try {
       final repo = GetIt.I<TableRepository>();
-      // For vendors, hotelId is resolved by backend auth middleware
-      // We pass the hotelId from localStorage via the repository's _getHotelId
       final hotelId = await repo.getVendorHotelId() ?? '';
       final urls = await repo.getDownloadAllUrls(hotelId);
       if (urls.isEmpty) {
@@ -61,7 +69,10 @@ class _TablesPageViewState extends State<TablesPageView> {
         final url = item['qrCodeImage'] ?? '';
         final tableNum = item['tableNumber'] ?? '';
         if (url.isNotEmpty) {
-          download_helper.downloadFileFromUrl(url, 'table_${tableNum}_qrcode.png');
+          download_helper.downloadFileFromUrl(
+            url,
+            'table_${tableNum}_qrcode.png',
+          );
         }
       }
       if (mounted) {
@@ -85,53 +96,29 @@ class _TablesPageViewState extends State<TablesPageView> {
 
   @override
   Widget build(BuildContext context) {
-    return _TablesPageViewContent(
-      isDownloadingAll: _isDownloadingAll,
-      onDownloadAll: () => _downloadAllQr(context),
-    );
-  }
-}
-
-class TablesPageView extends StatefulWidget {
-  const TablesPageView({super.key});
-
-  @override
-  State<TablesPageView> createState() => _TablesPageViewState();
-}
-
-class _TablesPageViewContent extends StatelessWidget {
-  final bool isDownloadingAll;
-  final VoidCallback onDownloadAll;
-
-  const _TablesPageViewContent({
-    required this.isDownloadingAll,
-    required this.onDownloadAll,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= 1024;
-    final isTablet = MediaQuery.of(context).size.width >= 600 &&
-        MediaQuery.of(context).size.width < 1024;
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= 1024;
+    final isTablet = width >= 600 && width < 1024;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: TableCardLayout.canvas,
       body: Column(
         children: [
-          // Header removed as it is handled by AppScaffoldShell
           Expanded(
             child: BlocConsumer<TablesBloc, TablesState>(
               listener: (context, state) {
                 if (state.error != null) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text(state.error!)));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(state.error!)),
+                  );
                 }
               },
               builder: (context, state) {
                 if (state.isLoading && state.allTables.isEmpty) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: Color(0xFFDC2626)),
+                  return _TablesLoadingSkeleton(
+                    isDesktop: isDesktop,
+                    isTablet: isTablet,
+                    isGrid: _isGridView,
                   );
                 }
 
@@ -148,7 +135,7 @@ class _TablesPageViewContent extends StatelessWidget {
                         const SizedBox(height: 16),
                         Text(
                           state.error!,
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: GoogleFonts.sora(color: Colors.grey.shade600),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 16),
@@ -159,7 +146,7 @@ class _TablesPageViewContent extends StatelessWidget {
                           icon: const Icon(Icons.refresh),
                           label: const Text('Retry'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFDC2626),
+                            backgroundColor: TableCardLayout.accent,
                             foregroundColor: Colors.white,
                           ),
                         ),
@@ -169,54 +156,42 @@ class _TablesPageViewContent extends StatelessWidget {
                 }
 
                 return RefreshIndicator(
+                  color: TableCardLayout.accent,
                   onRefresh: () async {
                     context.read<TablesBloc>().add(LoadTables());
                   },
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
                     physics: const AlwaysScrollableScrollPhysics(),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Stats Row
-                        TablesStatsRow(tables: state.filteredTables),
-                        const SizedBox(height: 24),
-
-                        // Toolbar & Add Button
-                        _buildToolbarSection(context, isDesktop, isDownloadingAll, onDownloadAll),
-                        const SizedBox(height: 24),
-
-                        // Grid
+                        TablesStatsRow(tables: state.allTables),
+                        const SizedBox(height: 20),
+                        _buildToolbarSection(
+                          context,
+                          isDesktop,
+                          _isDownloadingAll,
+                          () => _downloadAllQr(context),
+                        ),
+                        const SizedBox(height: 20),
                         if (state.filteredTables.isEmpty)
                           Center(
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 40),
+                              padding: const EdgeInsets.symmetric(vertical: 48),
                               child: Text(
                                 'No tables found',
-                                style: TextStyle(color: Colors.grey.shade500),
+                                style: GoogleFonts.sora(
+                                  color: Colors.grey.shade500,
+                                  fontSize: 14,
+                                ),
                               ),
                             ),
                           )
+                        else if (_isGridView)
+                          _buildGrid(state, isDesktop, isTablet)
                         else
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: isDesktop
-                                      ? 4
-                                      : (isTablet ? 2 : 1),
-                                  crossAxisSpacing: 16,
-                                  mainAxisSpacing: 16,
-                                  childAspectRatio: 1.4,
-                                ),
-                            itemCount: state.filteredTables.length,
-                            itemBuilder: (context, index) {
-                              return TableCard(
-                                table: state.filteredTables[index],
-                              );
-                            },
-                          ),
+                          _buildList(state),
                       ],
                     ),
                   ),
@@ -224,6 +199,55 @@ class _TablesPageViewContent extends StatelessWidget {
               },
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGrid(TablesState state, bool isDesktop, bool isTablet) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isDesktop ? 4 : (isTablet ? 2 : 1),
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        mainAxisExtent: 210,
+      ),
+      itemCount: state.filteredTables.length,
+      itemBuilder: (context, index) {
+        return TableCard(
+          table: state.filteredTables[index],
+          animationIndex: index,
+        );
+      },
+    );
+  }
+
+  Widget _buildList(TablesState state) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: TableCardLayout.idleBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const _ListHeader(),
+          ...List.generate(state.filteredTables.length, (index) {
+            return TableListRow(
+              table: state.filteredTables[index],
+              animationIndex: index,
+              isLast: index == state.filteredTables.length - 1,
+            );
+          }),
         ],
       ),
     );
@@ -245,156 +269,274 @@ class _TablesPageViewContent extends StatelessWidget {
     bool isDownloadingAll,
     VoidCallback onDownloadAll,
   ) {
+    final actions = _buildActions(context, isDownloadingAll, onDownloadAll);
+
     if (isDesktop) {
       return Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 800),
-            child: const TablesToolbar(),
-          ),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _showZoneManager(context),
-                icon: const Icon(Icons.layers_outlined, size: 18),
-                label: const Text('Manage Zones'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  foregroundColor: Colors.grey.shade700,
-                  side: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (kIsWeb)
-              OutlinedButton.icon(
-                onPressed: isDownloadingAll ? null : onDownloadAll,
-                icon: isDownloadingAll
-                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.download_rounded, size: 18),
-                label: Text(isDownloadingAll ? 'Downloading...' : 'Download All QR'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  foregroundColor: Colors.grey.shade700,
-                  side: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (_) => BlocProvider.value( 
-                      value: context.read<TablesBloc>(),
-                      child: const AddTableDialog(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.add),
-                label: const Text('Add Table'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    } else {
-      // Mobile/Tablet Vertical Layout
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const TablesToolbar(),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _showZoneManager(context),
-                icon: const Icon(Icons.layers_outlined, size: 18),
-                label: const Text('Manage Zones'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  foregroundColor: Colors.grey.shade700,
-                  side: BorderSide(color: Colors.grey.shade300),
-                ),
-              ),
+          Expanded(
+            child: TablesToolbar(
+              isGridView: _isGridView,
+              onViewModeChanged: (isGrid) {
+                setState(() => _isGridView = isGrid);
+              },
             ),
-            const SizedBox(width: 8),
-            if (kIsWeb) ...
-              [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: isDownloadingAll ? null : onDownloadAll,
-                  icon: isDownloadingAll
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.download_rounded, size: 18),
-                  label: Text(isDownloadingAll ? 'Downloading...' : 'Download All QR'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    foregroundColor: Colors.grey.shade700,
-                    side: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ],
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => BlocProvider.value(
-                        value: context.read<TablesBloc>(),
-                        child: const AddTableDialog(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Table'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFDC2626),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                ),
-              ),
-            ],
           ),
+          const SizedBox(width: 12),
+          actions,
         ],
       );
     }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TablesToolbar(
+          isGridView: _isGridView,
+          onViewModeChanged: (isGrid) {
+            setState(() => _isGridView = isGrid);
+          },
+        ),
+        const SizedBox(height: 12),
+        actions,
+      ],
+    );
+  }
+
+  Widget _buildActions(
+    BuildContext context,
+    bool isDownloadingAll,
+    VoidCallback onDownloadAll,
+  ) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.end,
+      children: [
+        _OutlineAction(
+          icon: Icons.layers_outlined,
+          label: 'Manage Zones',
+          onPressed: () => _showZoneManager(context),
+        ),
+        if (kIsWeb)
+          _OutlineAction(
+            icon: Icons.download_rounded,
+            label: isDownloadingAll ? 'Downloading...' : 'Download All QR',
+            onPressed: isDownloadingAll ? null : onDownloadAll,
+            loading: isDownloadingAll,
+          ),
+        _GradientAction(
+          icon: Icons.add,
+          label: 'Add Table',
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => BlocProvider.value(
+                value: context.read<TablesBloc>(),
+                child: const AddTableDialog(),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _OutlineAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  const _OutlineAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: loading
+          ? const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        foregroundColor: Colors.grey.shade700,
+        side: BorderSide(color: TableCardLayout.idleBorder),
+        textStyle: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+}
+
+class _GradientAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  const _GradientAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFC52031), Color(0xFFEA580C)],
+        ),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: TableCardLayout.accent.withValues(alpha: 0.25),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: GoogleFonts.sora(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+}
+
+class _ListHeader extends StatelessWidget {
+  const _ListHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = GoogleFonts.sora(
+      fontSize: 11,
+      fontWeight: FontWeight.w600,
+      color: TableCardLayout.muted,
+      letterSpacing: 0.4,
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: TableCardLayout.idleBorder),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(flex: 2, child: Text('TABLE', style: style)),
+          Expanded(flex: 2, child: Text('ZONE', style: style)),
+          Expanded(child: Text('CAPACITY', style: style)),
+          Expanded(child: Text('STATUS', style: style)),
+          SizedBox(
+            width: 100,
+            child: Text('ACTIONS', style: style, textAlign: TextAlign.right),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TablesLoadingSkeleton extends StatelessWidget {
+  final bool isDesktop;
+  final bool isTablet;
+  final bool isGrid;
+
+  const _TablesLoadingSkeleton({
+    required this.isDesktop,
+    required this.isTablet,
+    required this.isGrid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final crossAxisCount = isDesktop ? 4 : (isTablet ? 2 : 1);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+      child: Shimmer.fromColors(
+        baseColor: const Color(0xFFECE8E6),
+        highlightColor: const Color(0xFFF8F6F4),
+        child: Column(
+          children: [
+            const TablesStatsSkeleton(),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  width: 120,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            if (isGrid)
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 16,
+                  mainAxisSpacing: 16,
+                  mainAxisExtent: 210,
+                ),
+                itemCount: crossAxisCount * 2,
+                itemBuilder: (_, _) => const TableCardSkeleton(),
+              )
+            else
+              Column(
+                children: List.generate(
+                  6,
+                  (_) => Container(
+                    height: 64,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
