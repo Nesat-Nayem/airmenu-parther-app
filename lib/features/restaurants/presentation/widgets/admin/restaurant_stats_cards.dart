@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
-import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 
-/// Stats cards widget for admin restaurants page
+/// Lovable glass stats cards for admin restaurants overview.
 class RestaurantStatsCards extends StatelessWidget {
   final RestaurantStatsModel stats;
 
@@ -12,16 +12,29 @@ class RestaurantStatsCards extends StatelessWidget {
   Widget build(BuildContext context) {
     final statCards = stats.toStatCards();
 
-    return Row(
-      children: statCards.map((card) {
-        final isLast = card == statCards.last;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: isLast ? 0 : 16),
-            child: _StatCard(data: card),
-          ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 640;
+        if (isNarrow) {
+          return Column(
+            children: [
+              for (var i = 0; i < statCards.length; i++) ...[
+                if (i > 0) const SizedBox(height: 12),
+                _StatCard(data: statCards[i]),
+              ],
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            for (var i = 0; i < statCards.length; i++) ...[
+              if (i > 0) const SizedBox(width: 16),
+              Expanded(child: _StatCard(data: statCards[i])),
+            ],
+          ],
         );
-      }).toList(),
+      },
     );
   }
 }
@@ -31,26 +44,25 @@ class _StatCard extends StatelessWidget {
 
   const _StatCard({required this.data});
 
+  static const _idleBorder = Color(0xFFECE8E6);
+  static const _muted = Color(0xFF7A8494);
+
   @override
   Widget build(BuildContext context) {
-    // Determine color based on label if not explicitly clear from data
-    // Or we can rely on data.color which is already set in the model.
-    // Total Restaurants usually stays black/dark.
-    final isTotal = data.label.contains('Total');
-    final valueColor = isTotal ? const Color(0xFF111827) : data.color;
+    final isTotal = data.label.toLowerCase().contains('total');
+    final valueColor = isTotal ? const Color(0xFF2A3038) : data.color;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        // Subtle border as per screenshot style seems very light or none with shadow
-        border: Border.all(color: Colors.transparent),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _idleBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 12,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -59,10 +71,10 @@ class _StatCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            data.label,
-            style: AirMenuTextStyle.normal.copyWith(
-              color: const Color(0xFF6B7280),
-              fontSize: 14,
+            data.label == 'Pending' ? 'Pending Setup' : data.label,
+            style: GoogleFonts.sora(
+              color: _muted,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
             maxLines: 1,
@@ -74,9 +86,9 @@ class _StatCard extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               data.value,
-              style: AirMenuTextStyle.headingH2.copyWith(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
+              style: GoogleFonts.sora(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
                 color: valueColor,
                 height: 1.0,
               ),

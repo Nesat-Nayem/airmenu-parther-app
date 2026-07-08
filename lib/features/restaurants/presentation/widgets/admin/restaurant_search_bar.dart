@@ -1,13 +1,19 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Search bar widget for restaurants
+/// Soft pill search field matching Lovable restaurants page.
 class RestaurantSearchBar extends StatefulWidget {
   final String? initialQuery;
   final ValueChanged<String>? onSearch;
+  final double? width;
 
-  const RestaurantSearchBar({super.key, this.initialQuery, this.onSearch});
+  const RestaurantSearchBar({
+    super.key,
+    this.initialQuery,
+    this.onSearch,
+    this.width,
+  });
 
   @override
   State<RestaurantSearchBar> createState() => _RestaurantSearchBarState();
@@ -16,6 +22,10 @@ class RestaurantSearchBar extends StatefulWidget {
 class _RestaurantSearchBarState extends State<RestaurantSearchBar> {
   late TextEditingController _controller;
   Timer? _debounce;
+
+  static const _idleBorder = Color(0xFFECE8E6);
+  static const _muted = Color(0xFF7A8494);
+  static const _fieldFill = Color(0xFFF7F5F3);
 
   @override
   void initState() {
@@ -31,6 +41,7 @@ class _RestaurantSearchBarState extends State<RestaurantSearchBar> {
   }
 
   void _onSearchChanged(String query) {
+    setState(() {});
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       widget.onSearch?.call(query);
@@ -39,51 +50,60 @@ class _RestaurantSearchBarState extends State<RestaurantSearchBar> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 48,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
-      ),
-      child: TextField(
-        controller: _controller,
-        onChanged: _onSearchChanged,
-        decoration: InputDecoration(
-          hintText: 'Search restaurants...',
-          hintStyle: AirMenuTextStyle.normal.copyWith(
-            color: const Color(0xFF9CA3AF),
+    return SizedBox(
+      width: widget.width,
+      height: 44,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _fieldFill,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: _idleBorder),
+        ),
+        child: TextField(
+          controller: _controller,
+          onChanged: _onSearchChanged,
+          decoration: InputDecoration(
+            hintText: 'Search restaurants...',
+            hintStyle: GoogleFonts.sora(
+              color: _muted,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w400,
+            ),
+            prefixIcon: const Icon(
+              Icons.search,
+              color: Color(0xFF9CA3AF),
+              size: 20,
+            ),
+            suffixIcon: _controller.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(
+                      Icons.clear,
+                      color: Color(0xFF9CA3AF),
+                      size: 18,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _controller.clear();
+                      });
+                      _debounce?.cancel();
+                      widget.onSearch?.call('');
+                    },
+                  )
+                : null,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
           ),
-          prefixIcon: const Icon(
-            Icons.search,
-            color: Color(0xFF6B7280),
-            size: 20,
-          ),
-          suffixIcon: _controller.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(
-                    Icons.clear,
-                    color: Color(0xFF6B7280),
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      _controller.clear();
-                    });
-                    // Cancel any pending debounce
-                    _debounce?.cancel();
-                    // Immediately trigger search with empty string
-                    widget.onSearch?.call('');
-                  },
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
+          style: GoogleFonts.sora(
+            color: const Color(0xFF2A3038),
+            fontSize: 13.5,
+            fontWeight: FontWeight.w500,
           ),
         ),
-        style: AirMenuTextStyle.normal.copyWith(color: const Color(0xFF111827)),
       ),
     );
   }

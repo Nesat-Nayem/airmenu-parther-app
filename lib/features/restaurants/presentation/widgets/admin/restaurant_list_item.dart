@@ -1,55 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:airmenuai_partner_app/features/restaurants/data/models/admin/admin_restaurant_models.dart';
-import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-/// Individual restaurant list item widget
-class RestaurantListItem extends StatefulWidget {
+/// Lovable restaurant list card — soft glass hover (border + glow only).
+/// MouseTracker-safe: fixed border width, no translate/slide on hover.
+class RestaurantListItem extends StatelessWidget {
   final RestaurantModel restaurant;
   final VoidCallback? onView;
 
-  const RestaurantListItem({super.key, required this.restaurant, this.onView});
+  const RestaurantListItem({
+    super.key,
+    required this.restaurant,
+    this.onView,
+  });
 
-  @override
-  State<RestaurantListItem> createState() => _RestaurantListItemState();
-}
+  static const _foreground = Color(0xFF2A3038);
+  static const _muted = Color(0xFF7A8494);
+  static const _idleBorder = Color(0xFFECE8E6);
 
-class _RestaurantListItemState extends State<RestaurantListItem> {
-  bool _isHovered = false;
+  static const _avatarPalette = [
+    [Color(0xFFEF4444), Color(0xFFF97316)],
+    [Color(0xFFC52031), Color(0xFFEA580C)],
+    [Color(0xFF0D9488), Color(0xFF14B8A6)],
+    [Color(0xFF7C3AED), Color(0xFFA855F7)],
+    [Color(0xFF2563EB), Color(0xFF3B82F6)],
+    [Color(0xFFD97706), Color(0xFFF59E0B)],
+  ];
+
+  List<Color> get _avatarColors {
+    final i = restaurant.name.hashCode.abs() % _avatarPalette.length;
+    return _avatarPalette[i];
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        margin: const EdgeInsets.only(bottom: 16),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: _isHovered
-                ? const Color(0xFFC52031)
-                : const Color(0xFFE5E7EB),
-            width: _isHovered ? 1.5 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: _isHovered
-                  ? const Color(0xFFC52031).withOpacity(0.05)
-                  : Colors.black.withOpacity(0.02),
-              blurRadius: _isHovered ? 12 : 4,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
+    return _HoverCard(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final isSmallScreen = constraints.maxWidth < 900;
+            final isSmall = constraints.maxWidth < 960;
 
-            if (isSmallScreen) {
+            if (isSmall) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -57,52 +51,71 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildAvatar(),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _buildHeaderName(),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 4),
                             _buildSubtitle(),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   _buildContactInfoGrid(),
-                  const SizedBox(height: 16),
-                  const Divider(height: 32, color: Color(0xFFF3F4F6)),
+                  const SizedBox(height: 14),
+                  Divider(height: 1, color: _idleBorder.withValues(alpha: 0.9)),
+                  const SizedBox(height: 14),
                   _buildStatsRow(),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [_buildActions()],
+                  const SizedBox(height: 14),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: _buildActions(),
                   ),
                 ],
               );
             }
 
             return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _buildAvatar(),
-                const SizedBox(width: 20),
                 Expanded(
                   flex: 5,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHeaderName(),
-                      const SizedBox(height: 4),
-                      _buildSubtitle(),
-                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildAvatar(),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildHeaderName(),
+                                const SizedBox(height: 2),
+                                _buildSubtitle(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
                       _buildContactInfoRow(),
                     ],
                   ),
                 ),
-                Expanded(flex: 4, child: Column(children: [_buildStatsRow()])),
+                Container(
+                  width: 1,
+                  height: 56,
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  color: _idleBorder,
+                ),
+                Expanded(flex: 3, child: _buildStatsRow()),
                 const SizedBox(width: 16),
                 _buildActions(),
               ],
@@ -114,39 +127,32 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
   }
 
   Widget _buildAvatar() {
+    final colors = _avatarColors;
     return Container(
-      width: 64,
-      height: 64,
+      width: 48,
+      height: 48,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+        gradient: LinearGradient(
+          colors: colors,
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFEF4444).withOpacity(0.3),
+            color: colors.first.withValues(alpha: 0.28),
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: widget.restaurant.mainImage.isNotEmpty
+      child: restaurant.mainImage.isNotEmpty
           ? ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(14),
               child: CachedNetworkImage(
-                imageUrl: widget.restaurant.mainImage,
+                imageUrl: restaurant.mainImage,
                 fit: BoxFit.cover,
-                placeholder: (context, url) => Center(
-                  child: Text(
-                    widget.restaurant.initial,
-                    style: AirMenuTextStyle.headingH3.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                placeholder: (context, url) => _buildInitials(),
                 errorWidget: (context, url, error) => _buildInitials(),
               ),
             )
@@ -157,127 +163,134 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
   Widget _buildInitials() {
     return Center(
       child: Text(
-        widget.restaurant.initial,
-        style: AirMenuTextStyle.headingH3.copyWith(
+        restaurant.initial,
+        style: GoogleFonts.sora(
           color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          fontSize: 18,
         ),
       ),
     );
   }
 
-  Widget _buildHeaderName() {
-    final isActive = widget.restaurant.isActive ?? true;
+  ({String label, Color color}) get _statusInfo {
+    final status = restaurant.status?.toLowerCase().trim();
+    if (status != null && status.isNotEmpty) {
+      switch (status) {
+        case 'active':
+          return (label: 'Active', color: const Color(0xFF10B981));
+        case 'pending':
+        case 'pending_setup':
+        case 'pending setup':
+          return (label: 'Pending', color: const Color(0xFFF59E0B));
+        case 'suspended':
+        case 'inactive':
+          return (
+            label: status == 'suspended' ? 'Suspended' : 'Inactive',
+            color: const Color(0xFFEF4444),
+          );
+      }
+    }
+    final isActive = restaurant.isActive ?? true;
+    return isActive
+        ? (label: 'Active', color: const Color(0xFF10B981))
+        : (label: 'Pending', color: const Color(0xFFF59E0B));
+  }
 
-    // Deterministic mock data for UI matching
-    final nameHash = widget.restaurant.name.hashCode;
+  Widget _buildHeaderName() {
+    final nameHash = restaurant.name.hashCode;
     final isPremium = nameHash % 3 == 0;
     final isPro = nameHash % 3 == 1;
-    // Enterprise is fallback
 
     String tierLabel = 'Enterprise';
-    Color tierColor = const Color(0xFF059669); // Green
-
+    Color tierColor = const Color(0xFF059669);
     if (isPremium) {
       tierLabel = 'Premium';
-      tierColor = const Color(0xFFF59E0B); // Amber
+      tierColor = const Color(0xFFF59E0B);
     } else if (isPro) {
       tierLabel = 'Pro';
-      tierColor = const Color(0xFFEC4899); // Pink
+      tierColor = const Color(0xFFC52031);
     }
 
-    return Row(
+    final status = _statusInfo;
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
       children: [
-        Flexible(
-          child: Text(
-            widget.restaurant.name,
-            style: AirMenuTextStyle.headingH4.copyWith(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF111827),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        Text(
+          restaurant.name,
+          style: GoogleFonts.sora(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: _foreground,
           ),
         ),
-        const SizedBox(width: 12),
-        _buildTag(tierLabel, tierColor, isSolid: true),
-        const SizedBox(width: 8),
-        _buildTag(
-          isActive ? 'Active' : 'Pending',
-          isActive ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
-          isDot: true,
-          isSolid: true,
-        ),
+        _buildTag(tierLabel, tierColor),
+        _buildTag(status.label, status.color, isDot: true),
       ],
     );
   }
 
   Widget _buildSubtitle() {
+    final cuisine = restaurant.cuisine.trim();
     return Text(
-      widget.restaurant.cuisine.isNotEmpty
-          ? widget.restaurant.cuisine
-          : 'Fine Dining',
-      style: AirMenuTextStyle.normal.copyWith(
-        color: const Color(0xFF6B7280),
-        fontSize: 14,
+      cuisine.isNotEmpty ? cuisine : 'Multi-Cuisine',
+      style: GoogleFonts.sora(
+        color: _muted,
+        fontSize: 13,
+        fontWeight: FontWeight.w400,
       ),
     );
   }
 
+  String get _displayAddress {
+    final address = restaurant.address?.trim();
+    if (address != null && address.isNotEmpty) return address;
+    final location = restaurant.shortLocation;
+    if (location.isNotEmpty) return location;
+    return 'Address N/A';
+  }
+
+  String get _joinedLabel {
+    final created = restaurant.createdAt.trim();
+    if (created.isEmpty) return 'Recently joined';
+    return 'Joined $created';
+  }
+
   Widget _buildContactInfoRow() {
     return Wrap(
-      spacing: 24,
+      spacing: 20,
       runSpacing: 8,
       children: [
-        _buildIconText(
-          Icons.location_on_outlined,
-          widget.restaurant.shortLocation,
-        ),
-        if (widget.restaurant.phone != null)
-          _buildIconText(Icons.phone_outlined, widget.restaurant.phone!),
-        if (widget.restaurant.email != null)
-          Flexible(
-            child: _buildIconText(
-              Icons.email_outlined,
-              widget.restaurant.email!,
-            ),
-          ),
-        _buildIconText(
-          Icons.calendar_today_outlined,
-          widget.restaurant.createdAt.isNotEmpty
-              ? 'Joined ${widget.restaurant.createdAt}'
-              : 'Recently joined',
-        ),
+        _buildIconText(Icons.location_on_outlined, _displayAddress),
+        if (restaurant.phone != null && restaurant.phone!.trim().isNotEmpty)
+          _buildIconText(Icons.phone_outlined, restaurant.phone!),
+        if (restaurant.email != null && restaurant.email!.trim().isNotEmpty)
+          _buildIconText(Icons.email_outlined, restaurant.email!),
+        _buildIconText(Icons.calendar_today_outlined, _joinedLabel),
       ],
     );
   }
 
   Widget _buildContactInfoGrid() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildIconText(Icons.location_on_outlined, widget.restaurant.location),
+        _buildIconText(Icons.location_on_outlined, _displayAddress),
         const SizedBox(height: 8),
-        Row(
+        Wrap(
+          spacing: 16,
+          runSpacing: 8,
           children: [
-            if (widget.restaurant.phone != null) ...[
-              Expanded(
-                child: _buildIconText(
-                  Icons.phone_outlined,
-                  widget.restaurant.phone!,
-                ),
-              ),
-              const SizedBox(width: 16),
-            ],
-            Expanded(
-              child: _buildIconText(
-                Icons.calendar_today_outlined,
-                widget.restaurant.createdAt.isNotEmpty
-                    ? 'Joined ${widget.restaurant.createdAt}'
-                    : 'Recently joined',
-              ),
-            ),
+            if (restaurant.phone != null &&
+                restaurant.phone!.trim().isNotEmpty)
+              _buildIconText(Icons.phone_outlined, restaurant.phone!),
+            if (restaurant.email != null &&
+                restaurant.email!.trim().isNotEmpty)
+              _buildIconText(Icons.email_outlined, restaurant.email!),
+            _buildIconText(Icons.calendar_today_outlined, _joinedLabel),
           ],
         ),
       ],
@@ -288,14 +301,16 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: const Color(0xFF9CA3AF)),
+        Icon(icon, size: 15, color: const Color(0xFF9CA3AF)),
         const SizedBox(width: 6),
-        Flexible(
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 220),
           child: Text(
             text,
-            style: AirMenuTextStyle.normal.copyWith(
-              color: const Color(0xFF6B7280),
-              fontSize: 13,
+            style: GoogleFonts.sora(
+              color: _muted,
+              fontSize: 12.5,
+              fontWeight: FontWeight.w400,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -305,18 +320,12 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
     );
   }
 
-  Widget _buildTag(
-    String text,
-    Color color, {
-    bool isSolid = true,
-    bool isDot = false,
-  }) {
+  Widget _buildTag(String text, Color color, {bool isDot = false}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isSolid ? color.withOpacity(0.1) : Colors.transparent,
-        border: isSolid ? null : Border.all(color: color.withOpacity(0.3)),
-        borderRadius: BorderRadius.circular(6),
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -327,14 +336,14 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
               height: 6,
               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
           ],
           Text(
             text,
-            style: AirMenuTextStyle.small.copyWith(
+            style: GoogleFonts.sora(
               color: color,
               fontWeight: FontWeight.w600,
-              fontSize: 12,
+              fontSize: 11,
             ),
           ),
         ],
@@ -344,20 +353,11 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
 
   Widget _buildStatsRow() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: [
-        _buildStatColumn(
-          widget.restaurant.ordersToday.toString(),
-          'Orders Today',
-        ),
-        _buildStatColumn(
-          widget.restaurant.formattedRevenue,
-          'Revenue',
-        ),
-        _buildStatColumn(
-          widget.restaurant.branches.toString(),
-          'Branches',
-        ),
+        _buildStatColumn(restaurant.ordersToday.toString(), 'Orders Today'),
+        _buildStatColumn(restaurant.formattedRevenue, 'Revenue'),
+        _buildStatColumn(restaurant.branches.toString(), 'Branches'),
       ],
     );
   }
@@ -367,18 +367,20 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
       children: [
         Text(
           value,
-          style: AirMenuTextStyle.headingH4.copyWith(
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF111827),
+          style: GoogleFonts.sora(
+            fontWeight: FontWeight.w700,
+            color: _foreground,
             fontSize: 20,
+            height: 1.1,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style: AirMenuTextStyle.small.copyWith(
-            color: const Color(0xFF6B7280),
-            fontSize: 12,
+          style: GoogleFonts.sora(
+            color: _muted,
+            fontSize: 11,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
@@ -390,19 +392,93 @@ class _RestaurantListItemState extends State<RestaurantListItem> {
       mainAxisSize: MainAxisSize.min,
       children: [
         OutlinedButton.icon(
-          onPressed: widget.onView,
-          icon: const Icon(Icons.open_in_new, size: 16),
-          label: const Text('View'),
+          onPressed: onView,
+          icon: const Icon(Icons.open_in_new, size: 15),
+          label: Text(
+            'View',
+            style: GoogleFonts.sora(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
           style: OutlinedButton.styleFrom(
             foregroundColor: const Color(0xFF374151),
             side: const BorderSide(color: Color(0xFFE5E7EB)),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            backgroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
           ),
         ),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: onView,
+          icon: const Icon(Icons.more_horiz, size: 20),
+          color: _muted,
+          tooltip: 'More',
+        ),
       ],
+    );
+  }
+}
+
+class _HoverCard extends StatefulWidget {
+  final Widget child;
+  final EdgeInsetsGeometry margin;
+
+  const _HoverCard({required this.child, required this.margin});
+
+  @override
+  State<_HoverCard> createState() => _HoverCardState();
+}
+
+class _HoverCardState extends State<_HoverCard> {
+  bool _hovered = false;
+
+  static const _idleBorder = Color(0xFFECE8E6);
+  static const _accent = Color(0xFFC52031);
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) {
+        if (!_hovered) setState(() => _hovered = true);
+      },
+      onExit: (_) {
+        if (_hovered) setState(() => _hovered = false);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        margin: widget.margin,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          // Fixed 1px border — never change width (MouseTracker-safe)
+          border: Border.all(
+            color: _hovered ? _accent.withValues(alpha: 0.4) : _idleBorder,
+            width: 1,
+          ),
+          boxShadow: [
+            if (_hovered) ...[
+              BoxShadow(
+                color: _accent.withValues(alpha: 0.14),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: _accent.withValues(alpha: 0.06),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ] else
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+          ],
+        ),
+        child: widget.child,
+      ),
     );
   }
 }
