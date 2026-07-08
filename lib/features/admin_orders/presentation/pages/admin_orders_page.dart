@@ -4,8 +4,6 @@ import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_b
 import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_event.dart';
 import 'package:airmenuai_partner_app/features/orders/presentation/bloc/orders_state.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
-import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
-import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:airmenuai_partner_app/widgets/status_tile.dart';
 import 'package:airmenuai_partner_app/config/router/app_route_paths.dart';
 import 'package:flutter/material.dart';
@@ -14,8 +12,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shimmer/shimmer.dart';
 
-/// Admin Live Orders Feed Page
-/// Shows real-time orders across all restaurants with admin-specific stats
+/// Admin Live Orders Feed — Lovable LiveOrdersFeed look/feel.
+/// Bloc search / filter / refresh / pagination / navigation preserved.
 class AdminOrdersPage extends StatelessWidget {
   const AdminOrdersPage({super.key});
 
@@ -31,12 +29,19 @@ class AdminOrdersPage extends StatelessWidget {
 class _AdminOrdersPageView extends StatelessWidget {
   const _AdminOrdersPageView();
 
+  static const _canvas = Color(0xFFFCFBF9);
+  static const _foreground = Color(0xFF2A3038);
+  static const _muted = Color(0xFF7A8494);
+  static const _idleBorder = Color(0xFFECE8E6);
+  static const _accent = Color(0xFFD4353A);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: _canvas,
       body: SafeArea(
         child: RefreshIndicator(
+          color: _accent,
           onRefresh: () async {
             context.read<OrdersBloc>().add(const RefreshOrders());
             await Future.delayed(const Duration(milliseconds: 500));
@@ -47,7 +52,6 @@ class _AdminOrdersPageView extends StatelessWidget {
                 onNotification: (notification) {
                   if (notification is ScrollEndNotification) {
                     final metrics = notification.metrics;
-                    // Trigger load more when reaching 80% of scroll extent
                     if (metrics.pixels >= metrics.maxScrollExtent * 0.8) {
                       context.read<OrdersBloc>().add(const LoadMoreOrders());
                     }
@@ -56,33 +60,20 @@ class _AdminOrdersPageView extends StatelessWidget {
                 },
                 child: CustomScrollView(
                   slivers: [
-                    // Status Tiles
                     SliverToBoxAdapter(
                       child: _buildStatusTiles(context, state),
                     ),
-                    // Toolbar (Search + Controls)
                     SliverToBoxAdapter(child: _buildToolbar(context, state)),
-                    // Filter Tabs
                     SliverToBoxAdapter(child: _buildFilterTabs(context, state)),
-                    // Orders Grid
                     SliverPadding(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
                       sliver: _buildOrdersGrid(context, state),
                     ),
-                    // Loading More Indicator
                     if (state is OrdersLoaded && state.isLoadingMore)
-                      const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Center(
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AirMenuColors.primary,
-                            ),
-                          ),
-                        ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                        sliver: _buildLoadMoreSkeleton(context),
                       ),
-                    // End of list indicator
                     if (state is OrdersLoaded && state.hasReachedMax)
                       SliverToBoxAdapter(
                         child: Padding(
@@ -90,8 +81,10 @@ class _AdminOrdersPageView extends StatelessWidget {
                           child: Center(
                             child: Text(
                               'All orders loaded',
-                              style: AirMenuTextStyle.caption.copyWith(
-                                color: Colors.grey.shade500,
+                              style: GoogleFonts.sora(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w400,
+                                color: _muted,
                               ),
                             ),
                           ),
@@ -112,13 +105,12 @@ class _AdminOrdersPageView extends StatelessWidget {
       return _buildSkeletonTiles();
     }
 
-    // Get stats from API response
     final orderStats = state is OrdersLoaded ? state.orderStats : null;
     final stats = orderStats?.stats;
 
-    // If API stats are available, use them
     if (stats != null && stats.isNotEmpty) {
       return StatusTilesRow(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
         tiles: stats.map((stat) {
           final shouldShowComparison = _shouldShowComparisonBadge(
             stat.comparison,
@@ -141,9 +133,9 @@ class _AdminOrdersPageView extends StatelessWidget {
       );
     }
 
-    // Fallback: compute stats from allOrders when API stats are null/empty
     if (state is OrdersLoaded) {
-      final allOrders = state.allOrders.isNotEmpty ? state.allOrders : state.orders;
+      final allOrders =
+          state.allOrders.isNotEmpty ? state.allOrders : state.orders;
       if (allOrders.isEmpty) return _buildSkeletonTiles();
 
       int active = 0;
@@ -155,7 +147,6 @@ class _AdminOrdersPageView extends StatelessWidget {
           completed++;
         } else if (s != 'cancelled') {
           active++;
-          // Delayed = active orders older than 30 min
           if (order.createdAt != null) {
             try {
               final created = DateTime.parse(order.createdAt!);
@@ -166,9 +157,10 @@ class _AdminOrdersPageView extends StatelessWidget {
       }
 
       return StatusTilesRow(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
         tiles: [
           StatusTile(
-            icon: Icons.receipt_long_outlined,
+            icon: Icons.shopping_bag_outlined,
             iconBgColor: const Color(0xFFFEE2E2),
             iconColor: const Color(0xFFDC2626),
             count: active,
@@ -215,7 +207,7 @@ class _AdminOrdersPageView extends StatelessWidget {
   IconData _getIconForAdminStatKey(String? key) {
     switch (key?.toLowerCase()) {
       case 'activeorders':
-        return Icons.receipt_long_outlined;
+        return Icons.shopping_bag_outlined;
       case 'avgpreptime':
         return Icons.timer_outlined;
       case 'delayed':
@@ -230,13 +222,13 @@ class _AdminOrdersPageView extends StatelessWidget {
   Color _getIconBgColorForKey(String? key) {
     switch (key?.toLowerCase()) {
       case 'activeorders':
-        return const Color(0xFFFEE2E2); // Light pink
+        return const Color(0xFFFEE2E2);
       case 'avgpreptime':
-        return const Color(0xFFFEF3C7); // Light yellow
+        return const Color(0xFFFEF3C7);
       case 'delayed':
-        return const Color(0xFFFEE2E2); // Light pink
+        return const Color(0xFFFEE2E2);
       case 'completed':
-        return const Color(0xFFDCFCE7); // Light green
+        return const Color(0xFFDCFCE7);
       default:
         return const Color(0xFFF3F4F6);
     }
@@ -245,13 +237,13 @@ class _AdminOrdersPageView extends StatelessWidget {
   Color _getIconColorForKey(String? key) {
     switch (key?.toLowerCase()) {
       case 'activeorders':
-        return const Color(0xFFDC2626); // Red
+        return const Color(0xFFDC2626);
       case 'avgpreptime':
-        return const Color(0xFFD97706); // Orange
+        return const Color(0xFFD97706);
       case 'delayed':
-        return const Color(0xFFDC2626); // Red
+        return const Color(0xFFDC2626);
       case 'completed':
-        return const Color(0xFF16A34A); // Green
+        return const Color(0xFF16A34A);
       default:
         return const Color(0xFF6B7280);
     }
@@ -259,7 +251,7 @@ class _AdminOrdersPageView extends StatelessWidget {
 
   Widget _buildSkeletonTiles() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
       child: Shimmer.fromColors(
         baseColor: Colors.grey.shade200,
         highlightColor: Colors.grey.shade50,
@@ -270,7 +262,7 @@ class _AdminOrdersPageView extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.only(right: index < 3 ? 16 : 0),
                 child: Container(
-                  height: 130,
+                  height: 120,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
@@ -286,129 +278,179 @@ class _AdminOrdersPageView extends StatelessWidget {
 
   Widget _buildToolbar(BuildContext context, OrdersState state) {
     final isRefreshing = state is OrdersLoaded && state.isRefreshing;
-    final searchFocused = ValueNotifier<bool>(false);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 720;
+          final search = _buildSearchField(context);
+          final restaurant = _buildRestaurantFilter(context, state);
+          final liveRefresh = _buildLiveAndRefresh(context, isRefreshing);
+
+          if (isNarrow) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                search,
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    if (restaurant is! SizedBox) ...[
+                      Flexible(child: restaurant),
+                      const SizedBox(width: 10),
+                    ],
+                    liveRefresh,
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(flex: 3, child: search),
+              const SizedBox(width: 12),
+              restaurant,
+              const Spacer(),
+              liveRefresh,
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSearchField(BuildContext context) {
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _idleBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          // Search field
+          const SizedBox(width: 14),
+          Icon(Icons.search, size: 18, color: Colors.grey.shade400),
+          const SizedBox(width: 8),
           Expanded(
-            flex: 2,
-            child: ValueListenableBuilder<bool>(
-              valueListenable: searchFocused,
-              builder: (context, focused, _) {
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: focused ? Colors.white : Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: focused
-                          ? AirMenuColors.primary.withValues(alpha: 0.5)
-                          : Colors.grey.shade200,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const SizedBox(width: 12),
-                      Icon(Icons.search, size: 18, color: Colors.grey.shade400),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Focus(
-                          onFocusChange: (hasFocus) =>
-                              searchFocused.value = hasFocus,
-                          child: TextField(
-                            decoration: InputDecoration(
-                              hintText: 'Search orders...',
-                              hintStyle: AirMenuTextStyle.small.copyWith(
-                                color: Colors.grey.shade400,
-                              ),
-                              border: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
-                              isDense: true,
-                            ),
-                            style: AirMenuTextStyle.small.copyWith(
-                              color: const Color(0xFF212121),
-                            ),
-                            onChanged: (query) {
-                              context.read<OrdersBloc>().add(
-                                SearchOrders(query),
-                              );
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Search orders...',
+                hintStyle: GoogleFonts.sora(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.grey.shade400,
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+                isDense: true,
+              ),
+              style: GoogleFonts.sora(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: _foreground,
+              ),
+              onChanged: (query) {
+                context.read<OrdersBloc>().add(SearchOrders(query));
               },
             ),
           ),
-          const SizedBox(width: 12),
-          // Restaurant filter dropdown
-          _buildRestaurantFilter(context, state),
-          const Spacer(),
-          // Live indicator
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF22C55E),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Live',
-                  style: AirMenuTextStyle.small.copyWith(
-                    color: const Color(0xFF16A34A),
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+          const SizedBox(width: 14),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLiveAndRefresh(BuildContext context, bool isRefreshing) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: _idleBorder),
           ),
-          const SizedBox(width: 12),
-          // Refresh button
-          Container(
-            height: 44,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: TextButton.icon(
-              onPressed: () =>
-                  context.read<OrdersBloc>().add(const RefreshOrders()),
-              icon: isRefreshing
-                  ? const SizedBox(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF22C55E),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF22C55E).withValues(alpha: 0.45),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Live',
+                style: GoogleFonts.sora(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF16A34A),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: () =>
+                context.read<OrdersBloc>().add(const RefreshOrders()),
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: _idleBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isRefreshing)
+                    const SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(Icons.refresh, size: 18, color: Colors.grey.shade700),
-              label: Text(
-                'Refresh',
-                style: AirMenuTextStyle.small.copyWith(
-                  color: Colors.grey.shade700,
-                ),
+                  else
+                    Icon(Icons.refresh, size: 16, color: Colors.grey.shade700),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Refresh',
+                    style: GoogleFonts.sora(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -422,14 +464,16 @@ class _AdminOrdersPageView extends StatelessWidget {
 
     return Container(
       height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: selectedId != null ? const Color(0xFFF0F4FF) : Colors.white,
-        borderRadius: BorderRadius.circular(8),
+        color: selectedId != null
+            ? const Color(0xFFFEE2E2).withValues(alpha: 0.45)
+            : Colors.white,
+        borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: selectedId != null
-              ? AirMenuColors.primary.withValues(alpha: 0.4)
-              : Colors.grey.shade200,
+              ? _accent.withValues(alpha: 0.35)
+              : _idleBorder,
         ),
       ),
       child: DropdownButtonHideUnderline(
@@ -442,34 +486,47 @@ class _AdminOrdersPageView extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 'All Restaurants',
-                style: AirMenuTextStyle.small.copyWith(
+                style: GoogleFonts.sora(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                   color: Colors.grey.shade600,
                 ),
               ),
             ],
           ),
-          icon: Icon(Icons.keyboard_arrow_down, size: 18, color: Colors.grey.shade500),
+          icon: Icon(
+            Icons.keyboard_arrow_down,
+            size: 18,
+            color: Colors.grey.shade500,
+          ),
           isDense: true,
+          borderRadius: BorderRadius.circular(12),
           items: [
             DropdownMenuItem<String?>(
               value: null,
               child: Text(
                 'All Restaurants',
-                style: AirMenuTextStyle.small.copyWith(
+                style: GoogleFonts.sora(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
                   color: Colors.grey.shade700,
                 ),
               ),
             ),
-            ...restaurants.map((r) => DropdownMenuItem<String?>(
-              value: r.id,
-              child: Text(
-                r.name,
-                style: AirMenuTextStyle.small.copyWith(
-                  color: const Color(0xFF212121),
+            ...restaurants.map(
+              (r) => DropdownMenuItem<String?>(
+                value: r.id,
+                child: Text(
+                  r.name,
+                  style: GoogleFonts.sora(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: _foreground,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                overflow: TextOverflow.ellipsis,
               ),
-            )),
+            ),
           ],
           onChanged: (value) {
             context.read<OrdersBloc>().add(FilterByRestaurant(value));
@@ -484,17 +541,15 @@ class _AdminOrdersPageView extends StatelessWidget {
         ? state.selectedStatus ?? 'all'
         : 'all';
 
-    // Get filters from API response
     final orderStats = state is OrdersLoaded ? state.orderStats : null;
     final apiFilters = orderStats?.filters;
 
-    // If no API filters, compute from allOrders as fallback
     if (apiFilters == null || apiFilters.isEmpty) {
       if (state is! OrdersLoaded) return _buildFilterTabsSkeleton();
-      final allOrders = state.allOrders.isNotEmpty ? state.allOrders : state.orders;
+      final allOrders =
+          state.allOrders.isNotEmpty ? state.allOrders : state.orders;
       if (allOrders.isEmpty) return _buildFilterTabsSkeleton();
 
-      // Compute counts from orders
       final counts = <String, int>{'all': allOrders.length};
       for (final order in allOrders) {
         final s = order.status?.toLowerCase() ?? 'pending';
@@ -502,16 +557,15 @@ class _AdminOrdersPageView extends StatelessWidget {
       }
 
       final fallbackFilters = [
-        ('all', 'All Orders', allOrders.length),
+        ('all', 'All', allOrders.length),
         ('pending', 'Pending', counts['pending'] ?? 0),
         ('processing', 'Preparing', counts['processing'] ?? 0),
         ('ready', 'Ready', counts['ready'] ?? 0),
         ('delivered', 'Delivered', counts['delivered'] ?? 0),
-        ('cancelled', 'Cancelled', counts['cancelled'] ?? 0),
       ];
 
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -530,7 +584,9 @@ class _AdminOrdersPageView extends StatelessWidget {
                   isActive: isActive,
                   onTap: () {
                     final statusToSend = key == 'all' ? 'All Status' : key;
-                    context.read<OrdersBloc>().add(FilterByStatus(statusToSend));
+                    context.read<OrdersBloc>().add(
+                      FilterByStatus(statusToSend),
+                    );
                   },
                 ),
               );
@@ -541,7 +597,7 @@ class _AdminOrdersPageView extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -575,7 +631,7 @@ class _AdminOrdersPageView extends StatelessWidget {
 
   Widget _buildFilterTabsSkeleton() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(24, 4, 24, 8),
       child: Shimmer.fromColors(
         baseColor: Colors.grey.shade200,
         highlightColor: Colors.grey.shade50,
@@ -588,7 +644,7 @@ class _AdminOrdersPageView extends StatelessWidget {
               height: 36,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(10),
               ),
             ),
           ),
@@ -599,7 +655,7 @@ class _AdminOrdersPageView extends StatelessWidget {
 
   Widget _buildOrdersGrid(BuildContext context, OrdersState state) {
     if (state is OrdersLoading) {
-      return _buildOrdersGridSkeleton();
+      return _buildOrdersGridSkeleton(context);
     }
 
     if (state is OrdersError) {
@@ -610,11 +666,22 @@ class _AdminOrdersPageView extends StatelessWidget {
             children: [
               Icon(Icons.error_outline, size: 48, color: Colors.grey.shade400),
               const SizedBox(height: 16),
-              Text('Failed to load orders', style: AirMenuTextStyle.normal),
+              Text(
+                'Failed to load orders',
+                style: GoogleFonts.sora(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: _muted,
+                ),
+              ),
               const SizedBox(height: 8),
               ElevatedButton(
                 onPressed: () =>
                     context.read<OrdersBloc>().add(const LoadOrders()),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _accent,
+                  foregroundColor: Colors.white,
+                ),
                 child: const Text('Retry'),
               ),
             ],
@@ -642,7 +709,9 @@ class _AdminOrdersPageView extends StatelessWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No orders found',
-                  style: AirMenuTextStyle.normal.copyWith(
+                  style: GoogleFonts.sora(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
                     color: Colors.grey.shade500,
                   ),
                 ),
@@ -653,18 +722,16 @@ class _AdminOrdersPageView extends StatelessWidget {
       );
     }
 
-    // Responsive grid columns
     final isMobile = Responsive.isMobile(context);
     final isTablet = Responsive.isTablet(context);
     final crossAxisCount = isMobile ? 1 : (isTablet ? 2 : 3);
 
-    // On mobile, use SliverList for natural heights (no overflow)
     if (isMobile) {
       return SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
           final order = orders[index];
           return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.only(bottom: 14),
             child: AdminOrderCard(
               order: order,
               onTap: () => _showOrderDetail(context, order),
@@ -674,15 +741,12 @@ class _AdminOrdersPageView extends StatelessWidget {
       );
     }
 
-    // Desktop/Tablet: Use grid with fixed aspect ratio
     return SliverGrid(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: isTablet
-            ? 1.55
-            : 1.65, // Balanced: compact but no overflow
+        mainAxisExtent: AdminOrderCardLayout.cardHeight,
       ),
       delegate: SliverChildBuilderDelegate((context, index) {
         final order = orders[index];
@@ -694,26 +758,54 @@ class _AdminOrdersPageView extends StatelessWidget {
     );
   }
 
-  Widget _buildOrdersGridSkeleton() {
+  Widget _buildOrdersGridSkeleton(BuildContext context) {
+    final isTablet = Responsive.isTablet(context);
+    final isMobile = Responsive.isMobile(context);
+    final crossAxisCount = isMobile ? 1 : (isTablet ? 2 : 3);
+
     return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        childAspectRatio: 1.8,
+        mainAxisExtent: AdminOrderCardLayout.cardHeight,
       ),
-      delegate: SliverChildBuilderDelegate((context, index) {
-        return Shimmer.fromColors(
-          baseColor: Colors.grey.shade200,
-          highlightColor: Colors.grey.shade50,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => const AdminOrderCardSkeleton(),
+        childCount: crossAxisCount * 2,
+      ),
+    );
+  }
+
+  /// Load-more placeholders — same card height/layout as real order cards.
+  Widget _buildLoadMoreSkeleton(BuildContext context) {
+    final isTablet = Responsive.isTablet(context);
+    final isMobile = Responsive.isMobile(context);
+    final crossAxisCount = isMobile ? 1 : (isTablet ? 2 : 3);
+
+    if (isMobile) {
+      return SliverList(
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => const Padding(
+            padding: EdgeInsets.only(bottom: 14),
+            child: AdminOrderCardSkeleton(),
           ),
-        );
-      }, childCount: 6),
+          childCount: 2,
+        ),
+      );
+    }
+
+    return SliverGrid(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
+        mainAxisExtent: AdminOrderCardLayout.cardHeight,
+      ),
+      delegate: SliverChildBuilderDelegate(
+        (context, index) => const AdminOrderCardSkeleton(),
+        childCount: crossAxisCount,
+      ),
     );
   }
 
@@ -722,7 +814,7 @@ class _AdminOrdersPageView extends StatelessWidget {
   }
 }
 
-/// Filter chip widget for admin orders
+/// Lovable stage tab — coral active, soft secondary idle.
 class _FilterChip extends StatelessWidget {
   final String label;
   final int count;
@@ -736,26 +828,39 @@ class _FilterChip extends StatelessWidget {
     required this.onTap,
   });
 
+  static const _accent = Color(0xFFD4353A);
+  static const _idleBorder = Color(0xFFECE8E6);
+  static const _muted = Color(0xFF7A8494);
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: isActive ? const Color(0xFF111827) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          color: isActive ? _accent : const Color(0xFFF5F3F1),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isActive ? const Color(0xFF111827) : Colors.grey.shade300,
+            color: isActive ? _accent : _idleBorder,
           ),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: _accent.withValues(alpha: 0.22),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Text(
           count > 0 ? '$label ($count)' : label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.sora(
             fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: isActive ? Colors.white : Colors.grey.shade700,
+            fontWeight: FontWeight.w600,
+            color: isActive ? Colors.white : _muted,
           ),
         ),
       ),
