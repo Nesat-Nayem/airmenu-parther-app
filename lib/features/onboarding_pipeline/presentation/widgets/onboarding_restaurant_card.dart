@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:airmenuai_partner_app/features/onboarding_pipeline/data/models/kyc_submission.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Lovable glass restaurant card — same KYC data & tap behavior
+/// Lovable kanban card — white surface; hover = tinted border + soft shadow
+/// (no fill gradient wash).
 class OnboardingRestaurantCard extends StatefulWidget {
   final KycSubmission kyc;
   final VoidCallback? onTap;
@@ -25,10 +26,9 @@ class OnboardingRestaurantCard extends StatefulWidget {
 class _OnboardingRestaurantCardState extends State<OnboardingRestaurantCard> {
   final ValueNotifier<bool> _hovered = ValueNotifier(false);
 
-  static const _primary = Color(0xFFD4353A);
   static const _foreground = Color(0xFF2A3038);
   static const _muted = Color(0xFF7A8494);
-  static const _border = Color(0xFFEEE8E6);
+  static const _idleBorder = Color(0xFFECE8E6);
 
   @override
   void dispose() {
@@ -37,7 +37,6 @@ class _OnboardingRestaurantCardState extends State<OnboardingRestaurantCard> {
   }
 
   void _setHovered(bool value) {
-    // Defer past MouseTracker device-update to avoid assertion spam.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _hovered.value != value) {
         _hovered.value = value;
@@ -69,186 +68,187 @@ class _OnboardingRestaurantCardState extends State<OnboardingRestaurantCard> {
         child: ValueListenableBuilder<bool>(
           valueListenable: _hovered,
           builder: (context, isHovered, _) {
+            final highlighted = isHovered || widget.isSelected;
+
             return AnimatedContainer(
-              duration: const Duration(milliseconds: 280),
+              duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
               margin: const EdgeInsets.only(bottom: 12),
-              // Shadow/border only — no transform (MouseTracker-safe)
               decoration: BoxDecoration(
+                // Solid white only — no hover fill / gradient wash
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isHovered || widget.isSelected
-                      ? _primary.withValues(alpha: 0.28)
-                      : _border.withValues(alpha: 0.85),
-                  width: 1,
+                  color: highlighted
+                      ? accent.withValues(alpha: 0.55)
+                      : _idleBorder,
+                  width: highlighted ? 1.5 : 1,
                 ),
                 boxShadow: [
-                  BoxShadow(
-                    color: isHovered
-                        ? _primary.withValues(alpha: 0.1)
-                        : Colors.black.withValues(alpha: 0.035),
-                    blurRadius: isHovered ? 24 : 14,
-                    offset: Offset(0, isHovered ? 10 : 4),
-                  ),
+                  if (highlighted) ...[
+                    // Soft stage-tinted outer glow (Lovable card hover)
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.18),
+                      blurRadius: 20,
+                      spreadRadius: 0,
+                      offset: const Offset(0, 8),
+                    ),
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.08),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ] else
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 3),
+                    ),
                 ],
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white,
-                    isHovered
-                        ? _primary.withValues(alpha: 0.02)
-                        : const Color(0xFFFFFCFB),
-                  ],
-                ),
               ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Icon(
-                              Icons.drag_indicator,
-                              size: 16,
-                              color: Colors.grey.shade300,
-                            ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(
+                            Icons.drag_indicator,
+                            size: 16,
+                            color: Colors.grey.shade300,
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  displayName,
-                                  style: GoogleFonts.sora(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w600,
-                                    color: _foreground,
-                                    letterSpacing: -0.2,
-                                    height: 1.25,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  city,
-                                  style: GoogleFonts.sora(
-                                    fontSize: 11.5,
-                                    fontWeight: FontWeight.w400,
-                                    color: _muted,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF3F1EF),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 88),
-                              child: Text(
-                                packageBadge,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                displayName,
                                 style: GoogleFonts.sora(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                  color: const Color(0xFF5A6472),
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: _foreground,
+                                  letterSpacing: -0.2,
+                                  height: 1.25,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.person_outline_rounded,
-                            size: 14,
-                            color: Colors.grey.shade400,
-                          ),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              kyc.fullName,
-                              style: GoogleFonts.sora(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                color: _muted,
+                              const SizedBox(height: 2),
+                              Text(
+                                city,
+                                style: GoogleFonts.sora(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w400,
+                                  color: _muted,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.access_time_rounded,
-                            size: 13,
-                            color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
                           ),
-                          const SizedBox(width: 5),
-                          Flexible(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F1EF),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 88),
                             child: Text(
-                              '${kyc.formattedDuration} in stage',
+                              packageBadge,
                               style: GoogleFonts.sora(
-                                fontSize: 11.5,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w500,
-                                color: daysInStage > 3 ? durationColor : _muted,
+                                color: const Color(0xFF5A6472),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          SizedBox(
-                            width: 48,
-                            height: 5,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(3),
-                              child: Stack(
-                                children: [
-                                  Container(color: const Color(0xFFF0EDEB)),
-                                  FractionallySizedBox(
-                                    widthFactor: progress,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: accent,
-                                        borderRadius: BorderRadius.circular(3),
-                                      ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.person_outline_rounded,
+                          size: 14,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            kyc.fullName,
+                            style: GoogleFonts.sora(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: _muted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.access_time_rounded,
+                          size: 13,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(width: 5),
+                        Flexible(
+                          child: Text(
+                            '${kyc.formattedDuration} in stage',
+                            style: GoogleFonts.sora(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: daysInStage > 3 ? durationColor : _muted,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        SizedBox(
+                          width: 48,
+                          height: 5,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(3),
+                            child: Stack(
+                              children: [
+                                Container(color: const Color(0xFFF0EDEB)),
+                                FractionallySizedBox(
+                                  widthFactor: progress,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: accent,
+                                      borderRadius: BorderRadius.circular(3),
                                     ),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             );

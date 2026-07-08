@@ -57,7 +57,6 @@ class _ModernNavMenuState extends State<ModernNavMenu> {
 class _LovableTheme {
   static const primary = Color(0xFFD4353A); // hsl(0 65% 52%)
   static const accent = Color(0xFFF0734D); // hsl(15 85% 60%)
-  static const midRose = Color(0xFFC13D52); // hsl(350 55% 52%)
   static const foreground = Color(0xFF2A3038); // soft charcoal
   static const muted = Color(0xFF7A8494);
   static const border = Color(0xFFEEE8E6);
@@ -66,8 +65,11 @@ class _LovableTheme {
   static const activeGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
-    colors: [primary, midRose, accent],
+    colors: [Color(0xFFC62828), Color(0xFFE53935), Color(0xFFFF5722)],
   );
+
+  /// Soft pink hover wash (Lovable inactive→hover)
+  static final hoverFill = primary.withValues(alpha: 0.07);
 }
 
 /// Desktop Side Menu — light Lovable sidebar
@@ -556,95 +558,106 @@ class _MagneticNavItemState extends State<_MagneticNavItem>
   @override
   Widget build(BuildContext context) {
     final isActive = widget.isSelected;
+    // Pill radius like Lovable capsules
+    const radius = 999.0;
 
     return FadeTransition(
       opacity: _enterOpacity,
       child: SlideTransition(
         position: _enterSlide,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
+          padding: const EdgeInsets.symmetric(vertical: 3),
           child: MouseRegion(
             onEnter: (_) => _setHovered(true),
             onExit: (_) => _setHovered(false),
             cursor: SystemMouseCursors.click,
             child: Material(
               color: Colors.transparent,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(radius),
               child: InkWell(
                 onTap: widget.onTap,
-                borderRadius: BorderRadius.circular(14),
-                splashColor: _LovableTheme.primary.withValues(alpha: 0.12),
-                highlightColor: _LovableTheme.primary.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(radius),
+                splashColor: _LovableTheme.primary.withValues(alpha: 0.1),
+                highlightColor: Colors.transparent,
+                hoverColor: Colors.transparent,
                 child: ValueListenableBuilder<bool>(
                   valueListenable: _hovered,
                   builder: (context, hovered, _) {
+                    final showHover = hovered && !isActive;
+                    final iconColor = isActive
+                        ? Colors.white
+                        : (showHover
+                            ? _LovableTheme.foreground
+                            : _LovableTheme.muted);
+                    final textColor = iconColor;
+
                     return AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
+                      duration: const Duration(milliseconds: 220),
                       curve: Curves.easeOutCubic,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 12,
+                        horizontal: 16,
+                        vertical: 11,
                       ),
                       decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(radius),
                         gradient:
                             isActive ? _LovableTheme.activeGradient : null,
                         color: isActive
                             ? null
-                            : (hovered
-                                ? _LovableTheme.primary.withValues(alpha: 0.06)
+                            : (showHover
+                                ? _LovableTheme.hoverFill
                                 : Colors.transparent),
                         boxShadow: isActive
                             ? [
                                 BoxShadow(
                                   color: _LovableTheme.primary
-                                      .withValues(alpha: 0.22),
-                                  blurRadius: 22,
-                                  offset: const Offset(0, 8),
+                                      .withValues(alpha: 0.28),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
                                 ),
                               ]
                             : null,
                       ),
                       child: Row(
                         children: [
-                          // Fixed-size box keeps hit target stable while icon scales
                           SizedBox(
-                            width: 24,
-                            height: 24,
+                            width: 22,
+                            height: 22,
                             child: Center(
                               child: AnimatedScale(
-                                scale: hovered ? 1.12 : 1.0,
+                                scale: showHover ? 1.1 : 1.0,
                                 duration: const Duration(milliseconds: 200),
                                 curve: Curves.easeOutBack,
-                                child: Icon(
-                                  widget.item.iconData ??
-                                      Icons.circle_outlined,
-                                  size: 20,
-                                  color: isActive
-                                      ? Colors.white
-                                      : (hovered
-                                          ? _LovableTheme.foreground
-                                          : _LovableTheme.muted),
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 180),
+                                  child: Icon(
+                                    widget.item.iconData ??
+                                        Icons.circle_outlined,
+                                    key: ValueKey(
+                                      '$iconColor-${widget.item.title}',
+                                    ),
+                                    size: 20,
+                                    color: iconColor,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Text(
-                              widget.item.title,
+                            child: AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 180),
                               style: GoogleFonts.sora(
                                 fontSize: 13.5,
-                                fontWeight: isActive
+                                fontWeight: isActive || showHover
                                     ? FontWeight.w600
                                     : FontWeight.w500,
-                                color: isActive
-                                    ? Colors.white
-                                    : (hovered
-                                        ? _LovableTheme.foreground
-                                        : _LovableTheme.muted),
+                                color: textColor,
                               ),
-                              overflow: TextOverflow.ellipsis,
+                              child: Text(
+                                widget.item.title,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                         ],
@@ -800,21 +813,21 @@ class _MobileNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 3),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(999),
           child: Ink(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(999),
               gradient: isSelected ? _LovableTheme.activeGradient : null,
               color: isSelected ? null : Colors.transparent,
               boxShadow: isSelected
                   ? [
                       BoxShadow(
-                        color: _LovableTheme.primary.withValues(alpha: 0.2),
+                        color: _LovableTheme.primary.withValues(alpha: 0.22),
                         blurRadius: 16,
                         offset: const Offset(0, 6),
                       ),
@@ -822,7 +835,7 @@ class _MobileNavItem extends StatelessWidget {
                   : null,
             ),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
                   Icon(

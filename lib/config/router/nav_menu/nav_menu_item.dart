@@ -138,106 +138,106 @@ extension NavMenuItemExtension on NavMenuItem {
 
   IconData getIcon() {
     switch (this) {
-      // Admin features
+      // Admin — outline icons matching Lovable sidebar
       case NavMenuItem.onboardingPipeline:
-        return Icons.rocket_launch_rounded;
+        return Icons.assignment_outlined;
       case NavMenuItem.adminDashboard:
-        return Icons.dashboard_rounded;
+        return Icons.grid_view_outlined;
       case NavMenuItem.restaurants:
-        return Icons.storefront_rounded;
+        return Icons.storefront_outlined;
       case NavMenuItem.adminOrders:
-        return Icons.receipt_long_rounded;
+        return Icons.shopping_bag_outlined;
       case NavMenuItem.payments:
-        return Icons.payment_rounded;
+        return Icons.credit_card_outlined;
       case NavMenuItem.exclusiveOffers:
-        return Icons.local_offer_rounded;
+        return Icons.local_offer_outlined;
       case NavMenuItem.adminSettings:
-        return Icons.settings_rounded;
+        return Icons.settings_outlined;
       case NavMenuItem.externalIntegrations:
-        return Icons.integration_instructions_rounded;
+        return Icons.hub_outlined;
       case NavMenuItem.landmark:
-        return Icons.place_rounded;
+        return Icons.location_on_outlined;
       case NavMenuItem.deliveryPartner:
-        return Icons.local_shipping_rounded;
+        return Icons.local_shipping_outlined;
       case NavMenuItem.riders:
-        return Icons.two_wheeler_rounded;
+        return Icons.person_outline_rounded;
       case NavMenuItem.theatre:
-        return Icons.theaters_rounded;
+        return Icons.theaters_outlined;
       case NavMenuItem.hotel:
-        return Icons.hotel_rounded;
+        return Icons.apartment_outlined;
 
       // Vendor features
       case NavMenuItem.dashboard:
-        return Icons.dashboard_rounded;
+        return Icons.grid_view_outlined;
       case NavMenuItem.orders:
-        return Icons.receipt_long_rounded;
+        return Icons.shopping_bag_outlined;
       case NavMenuItem.menu:
-        return Icons.restaurant_menu_rounded;
+        return Icons.restaurant_menu_outlined;
       case NavMenuItem.purchaseOrder:
-        return Icons.shopping_cart_rounded;
+        return Icons.shopping_cart_outlined;
       case NavMenuItem.kitchenPanel:
-        return Icons.kitchen_rounded;
+        return Icons.soup_kitchen_outlined;
       case NavMenuItem.tables:
-        return Icons.table_bar_rounded;
+        return Icons.table_restaurant_outlined;
       case NavMenuItem.hotelRooms:
-        return Icons.bed_rounded;
+        return Icons.bed_outlined;
       case NavMenuItem.staffManagement:
-        return Icons.groups_rounded;
+        return Icons.groups_outlined;
       case NavMenuItem.coupons:
-        return Icons.confirmation_number_rounded;
+        return Icons.confirmation_number_outlined;
       case NavMenuItem.feedbackRating:
-        return Icons.star_rounded;
+        return Icons.star_outline_rounded;
       case NavMenuItem.reports:
-        return Icons.bar_chart_rounded;
+        return Icons.bar_chart_outlined;
       case NavMenuItem.settings:
-        return Icons.settings_rounded;
+        return Icons.settings_outlined;
       case NavMenuItem.inventory:
-        return Icons.inventory_2_rounded;
+        return Icons.inventory_2_outlined;
 
       // Legacy/Utility items
       case NavMenuItem.myKyc:
-        return Icons.verified_user_rounded;
+        return Icons.verified_user_outlined;
       case NavMenuItem.purchasePackage:
-        return Icons.card_giftcard_rounded;
+        return Icons.card_giftcard_outlined;
       case NavMenuItem.platformActivity:
-        return Icons.timeline_rounded;
+        return Icons.timeline_outlined;
       case NavMenuItem.aiPredictions:
-        return Icons.auto_graph_rounded;
+        return Icons.auto_graph_outlined;
       case NavMenuItem.aiSuggestions:
-        return Icons.psychology_rounded;
+        return Icons.psychology_outlined;
       case NavMenuItem.category:
-        return Icons.category_rounded;
+        return Icons.category_outlined;
       case NavMenuItem.banner:
-        return Icons.image_rounded;
+        return Icons.image_outlined;
       case NavMenuItem.malls:
-        return Icons.business_rounded;
+        return Icons.business_outlined;
       case NavMenuItem.adminStaffManagement:
-        return Icons.manage_accounts_rounded;
+        return Icons.manage_accounts_outlined;
       case NavMenuItem.trialCodes:
-        return Icons.confirmation_number_rounded;
+        return Icons.confirmation_number_outlined;
       case NavMenuItem.contacts:
-        return Icons.contacts_rounded;
+        return Icons.contacts_outlined;
       case NavMenuItem.pricing:
-        return Icons.attach_money_rounded;
+        return Icons.attach_money_outlined;
       case NavMenuItem.blog:
-        return Icons.article_rounded;
+        return Icons.article_outlined;
       case NavMenuItem.qrCodes:
       case NavMenuItem.tableManagement:
-        return Icons.qr_code_rounded;
+        return Icons.qr_code_outlined;
       case NavMenuItem.faq:
         return Icons.help_outline_rounded;
       case NavMenuItem.privacyPolicy:
-        return Icons.privacy_tip_rounded;
+        return Icons.privacy_tip_outlined;
       case NavMenuItem.refundPolicy:
         return Icons.currency_exchange_rounded;
       case NavMenuItem.termsConditions:
-        return Icons.description_rounded;
+        return Icons.description_outlined;
       case NavMenuItem.helpSupport:
-        return Icons.support_agent_rounded;
+        return Icons.support_agent_outlined;
       case NavMenuItem.marketing:
-        return Icons.campaign_rounded;
+        return Icons.campaign_outlined;
       case NavMenuItem.myAccount:
-        return Icons.account_circle_rounded;
+        return Icons.account_circle_outlined;
       case NavMenuItem.signOut:
         return Icons.logout_rounded;
     }
