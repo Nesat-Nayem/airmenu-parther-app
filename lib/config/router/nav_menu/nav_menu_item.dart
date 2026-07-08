@@ -1,5 +1,4 @@
 import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item_config.dart';
-import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
 import 'package:flutter/material.dart';
 
 // Enum for main side navigation items
@@ -128,12 +127,13 @@ extension NavMenuItemExtension on NavMenuItem {
       iconData: getIcon(),
       title: getTitle(),
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      borderRadius: BorderRadius.circular(8),
-      activeColor: const Color(0xFFE0E6ED), // Light gray/blueish background
-      activeContentColor: AirMenuColors.black, // Dark text for active
-      inactiveColor: Colors.transparent, // Transparent for inactive
-      inactiveContentColor: AirMenuColors.black,
-    ); // Dark text for inactive
+      borderRadius: BorderRadius.circular(14),
+      // Lovable light sidebar: soft rose active, muted inactive
+      activeColor: const Color(0xFFD4353A),
+      activeContentColor: Colors.white,
+      inactiveColor: Colors.transparent,
+      inactiveContentColor: const Color(0xFF7A8494),
+    );
   }
 
   IconData getIcon() {

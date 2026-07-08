@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 /// Premium Status Tile - Kitchen Panel Stats Card
 /// Matches Lovable KDS mockup with circular icon, large count, and comparison badge
-class PremiumStatusTile extends StatelessWidget {
+class PremiumStatusTile extends StatefulWidget {
   final IconData icon;
   final Color iconBgColor;
   final Color iconColor;
@@ -33,23 +33,40 @@ class PremiumStatusTile extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isHovered = ValueNotifier<bool>(false);
+  State<PremiumStatusTile> createState() => _PremiumStatusTileState();
+}
 
+class _PremiumStatusTileState extends State<PremiumStatusTile> {
+  final ValueNotifier<bool> _hovered = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    _hovered.dispose();
+    super.dispose();
+  }
+
+  void _setHovered(bool value) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _hovered.value != value) {
+        _hovered.value = value;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      onEnter: (_) => isHovered.value = true,
-      onExit: (_) => isHovered.value = false,
+      onEnter: (_) => _setHovered(true),
+      onExit: (_) => _setHovered(false),
       child: GestureDetector(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: ValueListenableBuilder<bool>(
-          valueListenable: isHovered,
+          valueListenable: _hovered,
           builder: (context, hovered, _) {
             return AnimatedContainer(
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
-              transform: Matrix4.identity()
-                ..translate(0.0, hovered ? -2.0 : 0.0),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
@@ -74,26 +91,22 @@ class PremiumStatusTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  /// Icon + Comparison Badge Row
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildCircularIcon(hovered),
-                      if (comparisonBadge != null)
+                      if (widget.comparisonBadge != null)
                         Flexible(child: _buildComparisonBadge()),
                     ],
                   ),
-
                   const SizedBox(height: 16),
-
-                  /// Count with optional "min" suffix or displayValue
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
                       Text(
-                        displayValue ?? '$count',
+                        widget.displayValue ?? '${widget.count}',
                         style: GoogleFonts.sora(
                           fontSize: 32,
                           fontWeight: FontWeight.w700,
@@ -103,7 +116,8 @@ class PremiumStatusTile extends StatelessWidget {
                               : const Color(0xFF111827),
                         ),
                       ),
-                      if (showMinSuffix && displayValue == null) ...[
+                      if (widget.showMinSuffix &&
+                          widget.displayValue == null) ...[
                         const SizedBox(width: 4),
                         Text(
                           'min',
@@ -116,12 +130,9 @@ class PremiumStatusTile extends StatelessWidget {
                       ],
                     ],
                   ),
-
                   const SizedBox(height: 8),
-
-                  /// Label
                   Text(
-                    label,
+                    widget.label,
                     style: GoogleFonts.sora(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -130,12 +141,10 @@ class PremiumStatusTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-
-                  /// Subtitle (e.g., "vs yesterday")
-                  if (subtitle != null) ...[
+                  if (widget.subtitle != null) ...[
                     const SizedBox(height: 4),
                     Text(
-                      subtitle!,
+                      widget.subtitle!,
                       style: GoogleFonts.sora(
                         fontSize: 12,
                         fontWeight: FontWeight.w400,
@@ -154,30 +163,31 @@ class PremiumStatusTile extends StatelessWidget {
     );
   }
 
-  /// Circular icon container matching the reference design
   Widget _buildCircularIcon(bool hovered) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 220),
       width: 48,
       height: 48,
       decoration: BoxDecoration(
-        color: iconBgColor,
-        shape: BoxShape.circle,
+        color: widget.iconBgColor,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: widget.iconColor.withValues(alpha: hovered ? 0.22 : 0.1),
+        ),
         boxShadow: hovered
             ? [
                 BoxShadow(
-                  color: iconColor.withValues(alpha: 0.2),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
+                  color: widget.iconColor.withValues(alpha: 0.18),
+                  blurRadius: 14,
+                  offset: const Offset(0, 5),
                 ),
               ]
             : null,
       ),
-      child: Icon(icon, size: 22, color: iconColor),
+      child: Icon(widget.icon, size: 22, color: widget.iconColor),
     );
   }
 
-  /// Comparison badge with trend icon
   Widget _buildComparisonBadge() {
     const greenBg = Color(0xFFDCFCE7);
     const greenText = Color(0xFF16A34A);
@@ -187,26 +197,26 @@ class PremiumStatusTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isPositiveComparison ? greenBg : redBg,
+        color: widget.isPositiveComparison ? greenBg : redBg,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            isPositiveComparison
+            widget.isPositiveComparison
                 ? Icons.trending_down_rounded
                 : Icons.trending_up_rounded,
             size: 14,
-            color: isPositiveComparison ? greenText : redText,
+            color: widget.isPositiveComparison ? greenText : redText,
           ),
           const SizedBox(width: 4),
           Text(
-            comparisonBadge!,
+            widget.comparisonBadge!,
             style: GoogleFonts.sora(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: isPositiveComparison ? greenText : redText,
+              color: widget.isPositiveComparison ? greenText : redText,
             ),
           ),
         ],

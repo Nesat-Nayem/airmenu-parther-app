@@ -41,7 +41,8 @@ class AppScaffoldShell extends StatefulWidget {
 }
 
 class AppScaffoldShellState extends State<AppScaffoldShell> {
-  static const Color _backgroundColor = Colors.white;
+  /// Soft warm canvas matching Lovable panel background
+  static const Color _backgroundColor = Color(0xFFFCFBF9);
 
   // Initialize with empty lists to prevent late initialization error
   List<NavMenuItemConfig<NavMenuItem>> _navMenuItemConfigList = [];
@@ -292,9 +293,16 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
                 if (!isMobile)
                   Container(
                     width: double.infinity,
-                    height: kToolbarHeight + 8,
-                    color: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    height: kToolbarHeight + 16,
+                    decoration: BoxDecoration(
+                      color: _backgroundColor.withValues(alpha: 0.85),
+                      border: Border(
+                        bottom: BorderSide(
+                          color: const Color(0xFFEEE8E6).withValues(alpha: 0.8),
+                        ),
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
                     child: Row(
                       children: [
                         // Page title on the left - uses selectedNavMenuItem label
@@ -308,17 +316,17 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
                                 Text(
                                   _getPageTitle(widget.selectedNavMenuItem),
                                   style: AirMenuTextStyle.headingH3.copyWith(
-                                    color: AirMenuColors.neutral.shade10,
+                                    color: const Color(0xFF2A3038),
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                // Sparkles icon with rotation (matching HTML)
                                 Transform.rotate(
-                                  angle: 0.08, // ~4.5 degrees rotation
-                                  child: Icon(
+                                  angle: 0.08,
+                                  child: const Icon(
                                     Icons.auto_awesome,
                                     size: 18,
-                                    color: AirMenuColors.primary,
+                                    color: Color(0xFFD4353A),
                                   ),
                                 ),
                               ],
@@ -327,23 +335,26 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
                             Text(
                               _getPageSubtitle(widget.selectedNavMenuItem),
                               style: AirMenuTextStyle.caption.copyWith(
-                                color: AirMenuColors.neutral.shade5,
+                                color: const Color(0xFF7A8494),
                               ),
                             ),
                           ],
                         ),
                         const Spacer(),
-                        // Global search bar in the middle
+                        // Pill search bar (Lovable)
                         Container(
-                          width: 200,
-                          height: 38,
+                          width: 260,
+                          height: 42,
                           decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(10),
+                            color: const Color(0xFFF3F1EF),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: const Color(0xFFEEE8E6),
+                            ),
                           ),
                           child: Row(
                             children: [
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 14),
                               Icon(
                                 Icons.search,
                                 size: 18,
@@ -361,36 +372,54 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
                               ),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 5,
-                                  vertical: 2,
+                                  horizontal: 8,
+                                  vertical: 3,
                                 ),
-                                margin: const EdgeInsets.only(right: 8),
+                                margin: const EdgeInsets.only(right: 10),
                                 decoration: BoxDecoration(
-                                  color: Colors.grey.shade200,
-                                  borderRadius: BorderRadius.circular(4),
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: const Color(0xFFE8E2E0),
+                                  ),
                                 ),
                                 child: Text(
                                   '⌘K',
                                   style: TextStyle(
                                     fontSize: 10,
                                     color: Colors.grey.shade500,
-                                    fontWeight: FontWeight.w500,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 14),
+                        // Help
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F1EF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            Icons.help_outline_rounded,
+                            size: 20,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
                         // Notification bell
                         Stack(
                           children: [
                             Container(
-                              width: 38,
-                              height: 38,
+                              width: 40,
+                              height: 40,
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(10),
+                                color: const Color(0xFFF3F1EF),
+                                borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
                                 Icons.notifications_outlined,
@@ -399,13 +428,13 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
                               ),
                             ),
                             Positioned(
-                              top: 8,
-                              right: 8,
+                              top: 9,
+                              right: 9,
                               child: Container(
                                 width: 8,
                                 height: 8,
                                 decoration: const BoxDecoration(
-                                  color: Color(0xFFDC2626),
+                                  color: Color(0xFFD4353A),
                                   shape: BoxShape.circle,
                                 ),
                               ),
@@ -604,7 +633,7 @@ class AppScaffoldShellState extends State<AppScaffoldShell> {
       case NavMenuItem.tables:
         return 'Tables & QR';
       case NavMenuItem.onboardingPipeline:
-        return 'Onboarding Pipeline 🚀';
+        return 'Onboarding Pipeline';
       case NavMenuItem.restaurants:
         return 'Restaurants';
       case NavMenuItem.category:

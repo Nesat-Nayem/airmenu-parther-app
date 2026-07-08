@@ -1,11 +1,15 @@
+import 'dart:math' as math;
+
 import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item.dart';
 import 'package:airmenuai_partner_app/config/router/nav_menu/nav_menu_item_config.dart';
+import 'package:airmenuai_partner_app/core/enums/user_role.dart';
+import 'package:airmenuai_partner_app/core/services/role_service.dart';
 import 'package:airmenuai_partner_app/features/responsive.dart';
-import 'package:airmenuai_partner_app/utils/colors/airmenu_color.dart';
-import 'package:airmenuai_partner_app/utils/typography/airmenu_typography.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-/// Clean and modern responsive navigation menu
+/// Lovable-inspired responsive navigation menu with soft light theme,
+/// gradient active state, and magnetic hover animations.
 class ModernNavMenu extends StatefulWidget {
   final List<NavMenuItemConfig<NavMenuItem>> navMenuItemConfigList;
   final List<NavMenuItemConfig<NavMenuItem>> utilityNavMenuItemConfigList;
@@ -49,8 +53,25 @@ class _ModernNavMenuState extends State<ModernNavMenu> {
   }
 }
 
-/// Desktop Side Menu - FIXED VERSION
-class _SideMenu extends StatelessWidget {
+// ─── Lovable palette (rose → coral) ───────────────────────────────────────────
+class _LovableTheme {
+  static const primary = Color(0xFFD4353A); // hsl(0 65% 52%)
+  static const accent = Color(0xFFF0734D); // hsl(15 85% 60%)
+  static const midRose = Color(0xFFC13D52); // hsl(350 55% 52%)
+  static const foreground = Color(0xFF2A3038); // soft charcoal
+  static const muted = Color(0xFF7A8494);
+  static const border = Color(0xFFEEE8E6);
+  static const sidebarBg = Color(0xFFFAFAFA);
+
+  static const activeGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [primary, midRose, accent],
+  );
+}
+
+/// Desktop Side Menu — light Lovable sidebar
+class _SideMenu extends StatefulWidget {
   final List<NavMenuItemConfig<NavMenuItem>> navMenuItemConfigList;
   final List<NavMenuItemConfig<NavMenuItem>> utilityNavMenuItemConfigList;
   final NavMenuItem selectedNavMenuItem;
@@ -66,44 +87,192 @@ class _SideMenu extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 260,
-      color: AirMenuColors.secondary.shade1,
-      child: Column(
-        children: [
-          // Header
-          _buildHeader(),
+  State<_SideMenu> createState() => _SideMenuState();
+}
 
-          // FIXED: Use ListView instead of SingleChildScrollView inside Expanded
+class _SideMenuState extends State<_SideMenu>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _bgController;
+  UserRole? _role;
+
+  @override
+  void initState() {
+    super.initState();
+    _bgController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 16),
+    )..repeat(reverse: true);
+    _loadRole();
+  }
+
+  Future<void> _loadRole() async {
+    final role = await RoleService.getUserRole();
+    if (mounted) setState(() => _role = role);
+  }
+
+  @override
+  void dispose() {
+    _bgController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isAdmin = _role == UserRole.admin;
+    final title = isAdmin ? 'AirMenu Admin' : 'Restaurant Admin';
+    final subtitle = isAdmin ? 'Platform Control' : 'Restaurant Panel';
+
+    return Container(
+      width: 270,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          right: BorderSide(
+            color: Color(0xFFEEE8E6),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Soft ambient wash behind content (non-interactive)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _SidebarAmbientBackground(controller: _bgController),
+            ),
+          ),
+
+          // Top gradient accent line
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _bgController,
+                builder: (context, _) {
+                  return Container(
+                    height: 2,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment(
+                          -1 + _bgController.value * 2,
+                          0,
+                        ),
+                        end: Alignment(
+                          1 + _bgController.value * 2,
+                          0,
+                        ),
+                        colors: const [
+                          _LovableTheme.primary,
+                          _LovableTheme.accent,
+                          _LovableTheme.primary,
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
+          Column(
+            children: [
+              _buildHeader(title, subtitle),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  children: [
+                    ...widget.navMenuItemConfigList.asMap().entries.map(
+                      (entry) {
+                        final index = entry.key;
+                        final item = entry.value;
+                        return _MagneticNavItem(
+                          item: item,
+                          isSelected: item.type == widget.selectedNavMenuItem,
+                          onTap: () => widget.onSelectNavMenu(item.type),
+                          staggerIndex: index,
+                        );
+                      },
+                    ),
+                    if (widget.utilityNavMenuItemConfigList.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const Divider(
+                        color: _LovableTheme.border,
+                        height: 1,
+                        indent: 8,
+                        endIndent: 8,
+                      ),
+                      const SizedBox(height: 8),
+                      ...widget.utilityNavMenuItemConfigList.map(
+                        (item) => _MagneticNavItem(
+                          item: item,
+                          isSelected: item.type == widget.selectedNavMenuItem,
+                          onTap: () =>
+                              widget.onSelectFooterNavMenu(item.type),
+                          staggerIndex: 0,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(String title, String subtitle) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: _LovableTheme.border.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          _LogoBadge(),
+          const SizedBox(width: 12),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ...navMenuItemConfigList.map(
-                  (item) => _MenuItemTile(
-                    item: item,
-                    isSelected: item.type == selectedNavMenuItem,
-                    onTap: () => onSelectNavMenu(item.type),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: GoogleFonts.sora(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _LovableTheme.foreground,
+                          height: 1.2,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.auto_awesome,
+                      size: 14,
+                      color: _LovableTheme.primary,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.sora(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    color: _LovableTheme.muted,
                   ),
                 ),
-                if (utilityNavMenuItemConfigList.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Divider(
-                    color: AirMenuColors.secondary.shade9,
-                    height: 1,
-                    indent: 16,
-                    endIndent: 16,
-                  ),
-                  const SizedBox(height: 8),
-                  ...utilityNavMenuItemConfigList.map(
-                    (item) => _MenuItemTile(
-                      item: item,
-                      isSelected: item.type == selectedNavMenuItem,
-                      onTap: () => onSelectFooterNavMenu(item.type),
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
@@ -111,119 +280,380 @@ class _SideMenu extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildHeader() {
-    return Container(
-      height: 60,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AirMenuColors.primary, width: 1),
-        ),
-      ),
-      child: Center(
-        child: Image.asset(
-          'assets/images/logo.webp',
-          height: 45,
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) {
-            return Image.asset(
-              'assets/images/logo.svg',
-              height: 45,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  width: 45,
-                  height: 45,
-                  decoration: BoxDecoration(
-                    color: AirMenuColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.restaurant,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                );
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
 }
 
-/// Menu Item Tile (unchanged - perfect)
-class _MenuItemTile extends StatefulWidget {
-  final NavMenuItemConfig<NavMenuItem> item;
-  final bool isSelected;
-  final VoidCallback onTap;
+class _LogoBadge extends StatefulWidget {
+  @override
+  State<_LogoBadge> createState() => _LogoBadgeState();
+}
 
-  const _MenuItemTile({
-    required this.item,
-    required this.isSelected,
-    required this.onTap,
-  });
+class _LogoBadgeState extends State<_LogoBadge>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _shimmer;
 
   @override
-  State<_MenuItemTile> createState() => _MenuItemTileState();
-}
+  void initState() {
+    super.initState();
+    _shimmer = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(period: const Duration(seconds: 5));
+  }
 
-class _MenuItemTileState extends State<_MenuItemTile> {
-  bool _isHovered = false;
+  @override
+  void dispose() {
+    _shimmer.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: widget.isSelected
-                ? AirMenuColors.primary
-                : (_isHovered
-                      ? Colors.white.withOpacity(0.1)
-                      : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: 48,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _LovableTheme.border.withValues(alpha: 0.5),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _LovableTheme.primary.withValues(alpha: 0.18),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+        ],
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(4),
+            child: Image.asset(
+              'assets/images/logo.webp',
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: _LovableTheme.primary,
+                  child: const Icon(
+                    Icons.restaurant,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                );
+              },
+            ),
+          ),
+          // Shimmer sweep
+          AnimatedBuilder(
+            animation: _shimmer,
+            builder: (context, _) {
+              final t = (_shimmer.value * 2 - 0.5).clamp(0.0, 1.0);
+              return Positioned(
+                left: -48 + t * 96,
+                top: 0,
+                bottom: 0,
+                width: 24,
+                child: Transform(
+                  transform: Matrix4.skewX(-0.3),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          Colors.white.withValues(alpha: 0.35),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarAmbientBackground extends StatelessWidget {
+  final AnimationController controller;
+
+  const _SidebarAmbientBackground({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final t = controller.value;
+          return Stack(
             children: [
-              // Fixed-width container for icons to ensure perfect alignment
-              // regardless of individual icon visual weight
-              Container(
-                width: 28, // Fixed width for all icons
-                height: 28,
-                alignment: Alignment.center,
-                child: Icon(
-                  widget.item.iconData ?? Icons.circle_outlined,
-                  color: AirMenuColors.white,
-                  size:
-                      22, // Slightly smaller than container for visual balance
+              // Soft flowing wash
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.035,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment(-1 + t, -1),
+                        end: Alignment(1 - t, 1),
+                        colors: const [
+                          _LovableTheme.primary,
+                          _LovableTheme.accent,
+                          _LovableTheme.primary,
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  widget.item.title,
-                  style: AirMenuTextStyle.normal.copyWith(
-                    color: widget.isSelected
-                        ? AirMenuColors.white
-                        : AirMenuColors.white,
-                    fontWeight: widget.isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+              // Floating orb top
+              Positioned(
+                top: 60 + 20 * math.sin(t * math.pi),
+                left: -40 + 15 * t,
+                child: Container(
+                  width: 160,
+                  height: 160,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _LovableTheme.primary.withValues(alpha: 0.07),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Floating orb bottom
+              Positioned(
+                bottom: 80 - 15 * t,
+                right: -30 - 10 * t,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        _LovableTheme.accent.withValues(alpha: 0.08),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              // Mesh dots
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _MeshDotPainter(
+                    color: _LovableTheme.primary.withValues(alpha: 0.04),
+                  ),
                 ),
               ),
             ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _MeshDotPainter extends CustomPainter {
+  final Color color;
+
+  _MeshDotPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    const step = 24.0;
+    for (var x = 0.0; x < size.width; x += step) {
+      for (var y = 0.0; y < size.height; y += step) {
+        canvas.drawCircle(Offset(x, y), 1, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _MeshDotPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+/// Nav item with Lovable gradient active state + safe hover animation.
+///
+/// Avoids setState during MouseTracker device-update (no transform /
+/// magnetic pointer tracking that invalidates hit tests mid-hover).
+class _MagneticNavItem extends StatefulWidget {
+  final NavMenuItemConfig<NavMenuItem> item;
+  final bool isSelected;
+  final VoidCallback onTap;
+  final int staggerIndex;
+
+  const _MagneticNavItem({
+    required this.item,
+    required this.isSelected,
+    required this.onTap,
+    required this.staggerIndex,
+  });
+
+  @override
+  State<_MagneticNavItem> createState() => _MagneticNavItemState();
+}
+
+class _MagneticNavItemState extends State<_MagneticNavItem>
+    with SingleTickerProviderStateMixin {
+  final ValueNotifier<bool> _hovered = ValueNotifier(false);
+  late final AnimationController _enterController;
+  late final Animation<double> _enterOpacity;
+  late final Animation<Offset> _enterSlide;
+
+  @override
+  void initState() {
+    super.initState();
+    _enterController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+    final delay = (widget.staggerIndex * 30).clamp(0, 400);
+    _enterOpacity = CurvedAnimation(
+      parent: _enterController,
+      curve: Curves.easeOutCubic,
+    );
+    _enterSlide = Tween<Offset>(
+      begin: const Offset(-0.08, 0),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(parent: _enterController, curve: Curves.easeOutCubic),
+    );
+    Future.delayed(Duration(milliseconds: 80 + delay), () {
+      if (mounted) _enterController.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _hovered.dispose();
+    _enterController.dispose();
+    super.dispose();
+  }
+
+  void _setHovered(bool value) {
+    // Defer past MouseTracker device-update phase to avoid assertion spam.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _hovered.value != value) {
+        _hovered.value = value;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isActive = widget.isSelected;
+
+    return FadeTransition(
+      opacity: _enterOpacity,
+      child: SlideTransition(
+        position: _enterSlide,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: MouseRegion(
+            onEnter: (_) => _setHovered(true),
+            onExit: (_) => _setHovered(false),
+            cursor: SystemMouseCursors.click,
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                onTap: widget.onTap,
+                borderRadius: BorderRadius.circular(14),
+                splashColor: _LovableTheme.primary.withValues(alpha: 0.12),
+                highlightColor: _LovableTheme.primary.withValues(alpha: 0.06),
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _hovered,
+                  builder: (context, hovered, _) {
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient:
+                            isActive ? _LovableTheme.activeGradient : null,
+                        color: isActive
+                            ? null
+                            : (hovered
+                                ? _LovableTheme.primary.withValues(alpha: 0.06)
+                                : Colors.transparent),
+                        boxShadow: isActive
+                            ? [
+                                BoxShadow(
+                                  color: _LovableTheme.primary
+                                      .withValues(alpha: 0.22),
+                                  blurRadius: 22,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ]
+                            : null,
+                      ),
+                      child: Row(
+                        children: [
+                          // Fixed-size box keeps hit target stable while icon scales
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Center(
+                              child: AnimatedScale(
+                                scale: hovered ? 1.12 : 1.0,
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeOutBack,
+                                child: Icon(
+                                  widget.item.iconData ??
+                                      Icons.circle_outlined,
+                                  size: 20,
+                                  color: isActive
+                                      ? Colors.white
+                                      : (hovered
+                                          ? _LovableTheme.foreground
+                                          : _LovableTheme.muted),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              widget.item.title,
+                              style: GoogleFonts.sora(
+                                fontSize: 13.5,
+                                fontWeight: isActive
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                                color: isActive
+                                    ? Colors.white
+                                    : (hovered
+                                        ? _LovableTheme.foreground
+                                        : _LovableTheme.muted),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
           ),
         ),
       ),
@@ -231,7 +661,7 @@ class _MenuItemTileState extends State<_MenuItemTile> {
   }
 }
 
-/// Mobile Drawer (unchanged - already perfect)
+/// Mobile Drawer
 class _MobileDrawer extends StatelessWidget {
   final List<NavMenuItemConfig<NavMenuItem>> navMenuItemConfigList;
   final List<NavMenuItemConfig<NavMenuItem>> utilityNavMenuItemConfigList;
@@ -250,64 +680,77 @@ class _MobileDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      width: MediaQuery.of(context).size.width * 0.8,
-      backgroundColor: const Color.fromARGB(255, 245, 244, 244),
+      width: MediaQuery.of(context).size.width * 0.82,
+      backgroundColor: _LovableTheme.sidebarBg,
       child: Column(
         children: [
-          // Mobile Header
           Container(
-            height: 120,
-            padding: const EdgeInsets.all(20),
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(20, 48, 20, 20),
             decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 245, 244, 244),
               border: Border(
                 bottom: BorderSide(
-                  color: AirMenuColors.secondary.shade9,
-                  width: 1,
+                  color: _LovableTheme.border.withValues(alpha: 0.7),
                 ),
               ),
             ),
-            child: SafeArea(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Image.asset(
-                    'assets/images/logo.webp',
-                    height: 40,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        'assets/images/logo.svg',
-                        height: 40,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: AirMenuColors.primary,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Icon(
-                              Icons.restaurant,
-                              color: Colors.white,
-                              size: 24,
-                            ),
-                          );
-                        },
-                      );
-                    },
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _LovableTheme.primary.withValues(alpha: 0.2),
+                        blurRadius: 12,
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Image.asset(
+                    'assets/images/logo.webp',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      color: _LovableTheme.primary,
+                      child: const Icon(
+                        Icons.restaurant,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'AirMenu Admin',
+                        style: GoogleFonts.sora(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _LovableTheme.foreground,
+                        ),
+                      ),
+                      Text(
+                        'Platform Control',
+                        style: GoogleFonts.sora(
+                          fontSize: 11,
+                          color: _LovableTheme.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
-
-          // Navigation Items
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
               children: [
                 ...navMenuItemConfigList.map(
                   (item) => _MobileNavItem(
@@ -321,12 +764,7 @@ class _MobileDrawer extends StatelessWidget {
                 ),
                 if (utilityNavMenuItemConfigList.isNotEmpty) ...[
                   const SizedBox(height: 8),
-                  Divider(
-                    color: AirMenuColors.secondary.shade9,
-                    height: 1,
-                    indent: 16,
-                    endIndent: 16,
-                  ),
+                  Divider(color: _LovableTheme.border, height: 1),
                   const SizedBox(height: 8),
                   ...utilityNavMenuItemConfigList.map(
                     (item) => _MobileNavItem(
@@ -361,37 +799,56 @@ class _MobileNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      decoration: BoxDecoration(
-        color: isSelected ? AirMenuColors.primary.shade9 : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ListTile(
-        leading: Container(
-          width: 28, // Fixed width for all icons
-          height: 28,
-          alignment: Alignment.center,
-          child: Icon(
-            item.iconData ?? Icons.circle_outlined,
-            color: isSelected
-                ? AirMenuColors.primary
-                : AirMenuColors.secondary.shade3,
-            size: 22,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Ink(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(14),
+              gradient: isSelected ? _LovableTheme.activeGradient : null,
+              color: isSelected ? null : Colors.transparent,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: _LovableTheme.primary.withValues(alpha: 0.2),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Icon(
+                    item.iconData ?? Icons.circle_outlined,
+                    size: 20,
+                    color: isSelected ? Colors.white : _LovableTheme.muted,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: GoogleFonts.sora(
+                        fontSize: 13.5,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected
+                            ? Colors.white
+                            : _LovableTheme.foreground,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
-        title: Text(
-          item.title,
-          style: AirMenuTextStyle.normal.copyWith(
-            color: isSelected
-                ? AirMenuColors.primary
-                : AirMenuColors.secondary.shade2,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

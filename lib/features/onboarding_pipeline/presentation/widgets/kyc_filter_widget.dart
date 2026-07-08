@@ -131,20 +131,20 @@ class _KycFilterWidgetState extends State<KycFilterWidget> {
                   margin: const EdgeInsets.only(right: 8),
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF25268).withOpacity(0.1),
+                    color: const Color(0xFFD4353A).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.filter_alt, size: 14, color: Color(0xFFF25268)),
+                      const Icon(Icons.filter_alt, size: 14, color: Color(0xFFD4353A)),
                       const SizedBox(width: 4),
                       Text(
                         'Filters Applied',
                         style: GoogleFonts.sora(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: const Color(0xFFF25268),
+                          color: const Color(0xFFD4353A),
                         ),
                       ),
                     ],
@@ -165,19 +165,22 @@ class _KycFilterWidgetState extends State<KycFilterWidget> {
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isExpanded || _hasActiveFilters
-                        ? const Color(0xFFF25268)
+                        ? const Color(0xFFD4353A)
                         : Colors.white,
                     foregroundColor: _isExpanded || _hasActiveFilters
                         ? Colors.white
-                        : const Color(0xFF111827),
+                        : const Color(0xFF2A3038),
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(12),
                       side: BorderSide(
                         color: _isExpanded || _hasActiveFilters
                             ? Colors.transparent
-                            : Colors.grey.shade300,
+                            : const Color(0xFFEEE8E6),
                       ),
                     ),
                   ),
